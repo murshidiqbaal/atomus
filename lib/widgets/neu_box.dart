@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import '../theme/app_colors.dart';
 
-/// A neumorphic container — the single building block for the luxury UI.
-/// Set [isPressed] to true for the inset (concave) look.
-/// Set [isFlat] to true for a zero-shadow version (e.g. inside pressed states).
+/// A hybrid container that provides Neumorphism (Light Mode) 
+/// and Glassmorphism (Dark Mode).
 class NeuBox extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -32,15 +32,21 @@ class NeuBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = color ?? AppColors.neuBase;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
+    if (isDarkMode) {
+      return _buildGlassBox(context);
+    }
+
+    // Neumorphic Light Mode
+    final bg = color ?? AppColors.neuBase;
     List<BoxShadow> shadows;
     if (isFlat) {
       shadows = [];
     } else if (isPressed) {
-      shadows = AppColors.neuPressedShadow();
+      shadows = AppColors.neuPressedShadow(isDarkMode: false);
     } else {
-      shadows = customShadows ?? AppColors.neuRaisedShadow();
+      shadows = customShadows ?? AppColors.neuRaisedShadow(isDarkMode: false);
     }
 
     final container = Container(
@@ -55,15 +61,57 @@ class NeuBox extends StatelessWidget {
     );
 
     if (onTap == null) return container;
+    return GestureDetector(onTap: onTap, child: container);
+  }
 
-    return GestureDetector(
-      onTap: onTap,
-      child: container,
+  Widget _buildGlassBox(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: padding,
+              decoration: BoxDecoration(
+                color: AppColors.glassBase,
+                borderRadius: BorderRadius.circular(borderRadius),
+                border: Border.all(
+                  color: AppColors.glassBorder,
+                  width: 1.5,
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.glassHighlight.withOpacity(0.1),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-/// Inset / pressed variation — looks like a pocket in the surface.
+/// Inset / pressed variation — glassmorphic pocket in dark mode.
 class NeuInset extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -78,30 +126,58 @@ class NeuInset extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    if (isDarkMode) {
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              padding: padding,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(borderRadius),
+                border: Border.all(
+                  color: AppColors.glassBorder.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.neuBase,
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: AppColors.neuPressedShadow(),
+        boxShadow: AppColors.neuPressedShadow(isDarkMode: false),
       ),
       child: Padding(padding: padding, child: child),
     );
   }
 }
 
-/// Gold accent separator / divider line.
 class NeuDivider extends StatelessWidget {
   const NeuDivider({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 1,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             Colors.transparent,
-            AppColors.accent,
+            isDarkMode ? AppColors.accent.withOpacity(0.5) : AppColors.accent,
             Colors.transparent,
           ],
         ),

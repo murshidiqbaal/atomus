@@ -1,17 +1,45 @@
 import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthRepository {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   Future<bool> login(String username, String password) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 2));
-    return true; // Always succeed for demo
+    try {
+      final isEmail = username.contains('@');
+      
+      final AuthResponse res;
+      if (isEmail) {
+        res = await _supabase.auth.signInWithPassword(
+          email: username,
+          password: password,
+        );
+      } else {
+        res = await _supabase.auth.signInWithPassword(
+          phone: username,
+          password: password,
+        );
+      }
+      return res.session != null;
+    } on AuthException catch (e) {
+      print('Login error: ${e.message}');
+      throw Exception(e.message);
+    } catch (e) {
+      print('Login error: $e');
+      throw Exception('Authentication failed. Please check your credentials.');
+    }
   }
 
   Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      await _supabase.auth.signOut();
+    } catch (e) {
+      print('Logout error: $e');
+    }
   }
 
   Future<bool> isAuthenticated() async {
-    return false; // Initially not authenticated
+    final session = _supabase.auth.currentSession;
+    return session != null && !session.isExpired;
   }
 }

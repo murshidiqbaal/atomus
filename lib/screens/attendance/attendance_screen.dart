@@ -13,7 +13,7 @@ class AttendanceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.neuBase,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Attendance Ledger'),
       ),
