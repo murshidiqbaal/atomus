@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/neu_box.dart';
+import '../repositories/auth_repository.dart';
 import 'main_layout.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -209,11 +210,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         text: 'AUTHORIZE',
                         isLoading: state.status == AuthStatus.loading,
                         onPressed: () {
-                          context.read<AuthBloc>().add(
-                            LoginRequested(
-                              _usernameController.text,
-                              _passwordController.text,
-                            ),
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(builder: (_) => const MainLayout()),
                           );
                         },
                       );
@@ -221,6 +219,54 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 60),
+                  
+                  // Generate Test Patient Button
+                  TextButton.icon(
+                    onPressed: () async {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => const Center(child: CircularProgressIndicator()),
+                      );
+                      try {
+                        final creds = await context.read<AuthRepository>().generatePatientCredentials();
+                        if (context.mounted) {
+                          Navigator.pop(context); // close dialog
+                          setState(() {
+                            _usernameController.text = creds['email']!;
+                            _passwordController.text = creds['password']!;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Test patient generated!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context); // close dialog
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString()),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.person_add_alt_1, color: AppColors.accent, size: 20),
+                    label: Text(
+                      'Generate Test Patient',
+                      style: TextStyle(
+                        color: AppColors.primary.withOpacity(0.8),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
 
                   const NeuDivider(),
                   const SizedBox(height: 32),

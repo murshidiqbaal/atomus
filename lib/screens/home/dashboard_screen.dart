@@ -48,25 +48,41 @@ class DashboardScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            Text(
-                              'ESTEEMED PARENT',
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(
-                                    color: AppColors.accent,
-                                    letterSpacing: 2.5,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                            NeuBox(
+                              width: 50,
+                              height: 50,
+                              borderRadius: 12,
+                              padding: EdgeInsets.zero,
+                              onTap: () => Scaffold.of(context).openDrawer(),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.menu_rounded,
+                                  color: AppColors.primary,
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Welcome Back',
-                              style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context).primaryColor,
-                                  ),
+                            const SizedBox(width: 16),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'ESTEEMED PARENT',
+                                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                        color: AppColors.accent,
+                                        letterSpacing: 2.5,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Welcome Back',
+                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -98,50 +114,144 @@ class DashboardScreen extends StatelessWidget {
 
                     // Student Profile Card
                     CustomCard(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(24),
                       child: Row(
                         children: [
-                          NeuBox(
-                            width: 70,
-                            height: 70,
-                            borderRadius: 35,
-                            padding: const EdgeInsets.all(3),
-                            color: AppColors.accent,
-                            child: CircleAvatar(
-                              radius: 32,
-                              backgroundImage: NetworkImage(student.profileUrl),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          // Circular Progress Indicator
+                          SizedBox(
+                            width: 100,
+                            height: 100,
+                            child: Stack(
+                              alignment: Alignment.center,
                               children: [
-                                Text(
-                                  student.name.toUpperCase(),
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.0,
-                                        fontSize: 18,
-                                      ),
+                                SizedBox(
+                                  width: 100,
+                                  height: 100,
+                                  child: CircularProgressIndicator(
+                                    value: student.overallProgress,
+                                    strokeWidth: 10,
+                                    backgroundColor: AppColors.primary
+                                        .withOpacity(0.1),
+                                    color: AppColors.primary,
+                                    strokeCap: StrokeCap.round,
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  student.grade.toUpperCase(),
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '${(student.overallProgress * 100).toInt()}%',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 24,
+                                          ),
+                                    ),
+                                    Text(
+                                      'Overall',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
-                          Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 14,
-                            color: AppColors.textSecondary,
+                          const SizedBox(width: 24),
+                          // Status Information
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ProgressScreen(),
+                                  ),
+                                );
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Academic Performance',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.5,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (student.overallProgress >= 0.8
+                                                  ? AppColors.success
+                                                  : student.overallProgress >=
+                                                        0.6
+                                                  ? AppColors.info
+                                                  : student.overallProgress >=
+                                                        0.4
+                                                  ? AppColors.warning
+                                                  : AppColors.error)
+                                              .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      student.overallProgress >= 0.8
+                                          ? 'Excellent'
+                                          : student.overallProgress >= 0.6
+                                          ? 'Good'
+                                          : student.overallProgress >= 0.4
+                                          ? 'Average'
+                                          : 'Needs Attention',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color:
+                                                student.overallProgress >= 0.8
+                                                ? AppColors.success
+                                                : student.overallProgress >= 0.6
+                                                ? AppColors.info
+                                                : student.overallProgress >= 0.4
+                                                ? AppColors.warning
+                                                : AppColors.error,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    student.overallProgress >= 0.8
+                                        ? 'Outstanding academic record.'
+                                        : student.overallProgress >= 0.6
+                                        ? 'On track with steady progress.'
+                                        : 'Requires additional support.',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color:
+                                              Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? AppColors.textSecondaryDark
+                                              : AppColors.textSecondary,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -164,13 +274,13 @@ class DashboardScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(
-                                  Icons.analytics_rounded,
+                                  Icons.insights_rounded,
                                   color: AppColors.accent,
                                   size: 28,
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
-                                  'PROGRESS',
+                                  'MARKS',
                                   style: Theme.of(context).textTheme.labelLarge
                                       ?.copyWith(
                                         color: AppColors.textSecondary,
