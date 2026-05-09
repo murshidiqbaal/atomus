@@ -61,6 +61,22 @@ class FeeRecord {
   });
 }
 
+class Announcement {
+  final String id;
+  final String title;
+  final String description;
+  final DateTime date;
+  final bool isActive;
+
+  Announcement({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.date,
+    this.isActive = true,
+  });
+}
+
 class DummyData {
   static final StudentInfo currentStudent = StudentInfo(
     name: 'Alexander Davis',
@@ -162,6 +178,27 @@ class DummyData {
       dueDate: DateTime.now().subtract(const Duration(days: 120)),
       isPaid: true,
       receiptId: 'TXN-738192',
+    ),
+  ];
+
+  static final List<Announcement> announcements = [
+    Announcement(
+      id: '1',
+      title: 'Annual Sports Day 2026',
+      description: 'The annual sports meet is scheduled for next Friday. All students are requested to participate in their respective house colors.',
+      date: DateTime.now().add(const Duration(days: 5)),
+    ),
+    Announcement(
+      id: '2',
+      title: 'Parent-Teacher Meeting',
+      description: 'Monthly PTM for discussing mid-term results will be held on Saturday from 9:00 AM to 1:00 PM.',
+      date: DateTime.now().add(const Duration(days: 2)),
+    ),
+    Announcement(
+      id: '3',
+      title: 'Winter Vacation Update',
+      description: 'Winter vacations will commence from Dec 20th. School will reopen on Jan 5th, 2027.',
+      date: DateTime.now().add(const Duration(days: 40)),
     ),
   ];
 }

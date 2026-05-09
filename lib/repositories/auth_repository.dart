@@ -16,17 +16,38 @@ class AuthRepository {
           password: password,
         );
       } else {
-        res = await _supabase.auth.signInWithPassword(
-          phone: username,
-          password: password,
-        );
+        // Supabase doesn't support phone login with password easily without phone auth setup
+        // But if we have phone in parents table, we could fetch email first.
+        // For now, assuming email login is primary as per Supabase standards.
+        throw Exception('Please use your email to login.');
       }
-      return res.session != null;
+
+      if (res.session != null) {
+        print('Auth successful, checking parents table for: $username');
+        // Validate against parents table
+        final parentData = await _supabase
+            .from('parents')
+            .select()
+            .eq('email', username)
+            .maybeSingle();
+
+        if (parentData == null) {
+          print('User not found in parents table.');
+          // If not in parents table, sign them out immediately
+          await _supabase.auth.signOut();
+          throw Exception('This account is not registered as an Atomus Parent.');
+        }
+
+        print('Parent validation successful.');
+        return true;
+      }
+      return false;
     } on AuthException catch (e) {
       print('Login error: ${e.message}');
       throw Exception(e.message);
     } catch (e) {
       print('Login error: $e');
+      if (e is Exception) rethrow;
       throw Exception('Authentication failed. Please check your credentials.');
     }
   }

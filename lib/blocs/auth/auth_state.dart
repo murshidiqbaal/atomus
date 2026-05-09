@@ -14,10 +14,11 @@ class AuthState extends Equatable {
   AuthState copyWith({
     AuthStatus? status,
     String? errorMessage,
+    bool clearError = false,
   }) {
     return AuthState(
       status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 

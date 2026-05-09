@@ -210,9 +210,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         text: 'AUTHORIZE',
                         isLoading: state.status == AuthStatus.loading,
                         onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const MainLayout()),
-                          );
+                          if (_usernameController.text.isEmpty ||
+                              _passwordController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter your credentials'),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                            return;
+                          }
+                          context.read<AuthBloc>().add(
+                                LoginRequested(
+                                  username: _usernameController.text.trim(),
+                                  password: _passwordController.text,
+                                ),
+                              );
                         },
                       );
                     },

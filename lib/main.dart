@@ -4,10 +4,13 @@ import 'theme/app_theme.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/student_repository.dart';
 import 'repositories/fee_repository.dart';
+import 'repositories/announcement_repository.dart';
 import 'blocs/auth/auth_bloc.dart';
 import 'blocs/auth/auth_event.dart';
 import 'blocs/student/student_bloc.dart';
 import 'blocs/fee/fee_bloc.dart';
+import 'blocs/announcement/announcement_bloc.dart';
+import 'blocs/announcement/announcement_event.dart';
 import 'blocs/theme/theme_bloc.dart';
 import 'blocs/theme/theme_state.dart';
 import 'screens/splash_screen.dart';
@@ -36,6 +39,7 @@ class AtomusApp extends StatelessWidget {
         RepositoryProvider(create: (_) => AuthRepository()),
         RepositoryProvider(create: (_) => StudentRepository()),
         RepositoryProvider(create: (_) => FeeRepository()),
+        RepositoryProvider(create: (_) => AnnouncementRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -54,6 +58,11 @@ class AtomusApp extends StatelessWidget {
             create: (context) => FeeBloc(
               feeRepository: context.read<FeeRepository>(),
             ),
+          ),
+          BlocProvider(
+            create: (context) => AnnouncementBloc(
+              repository: context.read<AnnouncementRepository>(),
+            )..add(LoadAnnouncements()),
           ),
         ],
         child: BlocBuilder<ThemeBloc, ThemeState>(

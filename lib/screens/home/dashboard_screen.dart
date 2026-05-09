@@ -5,6 +5,8 @@ import '../../blocs/fee/fee_bloc.dart';
 import '../../blocs/fee/fee_state.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_state.dart';
+import '../../blocs/announcement/announcement_bloc.dart';
+import '../../blocs/announcement/announcement_state.dart';
 import '../../blocs/theme/theme_bloc.dart';
 import '../../blocs/theme/theme_event.dart';
 import '../../blocs/theme/theme_state.dart';
@@ -256,7 +258,90 @@ class DashboardScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 32),
+
+                    // Announcement Section
+                    _buildSectionHeader(context, 'Announcements'),
+                    const SizedBox(height: 16),
+                    BlocBuilder<AnnouncementBloc, AnnouncementState>(
+                      builder: (context, announcementState) {
+                        if (announcementState.status == AnnouncementStatus.loading) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (announcementState.announcements.isEmpty) {
+                          return const SizedBox();
+                        }
+                        return SizedBox(
+                          height: 160,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: announcementState.announcements.length,
+                            clipBehavior: Clip.none,
+                            itemBuilder: (context, index) {
+                              final announcement = announcementState.announcements[index];
+                              return Container(
+                                width: 280,
+                                margin: const EdgeInsets.only(right: 16),
+                                child: CustomCard(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.campaign_rounded,
+                                            color: AppColors.accent,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              announcement.title.toUpperCase(),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 12,
+                                                letterSpacing: 0.5,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Expanded(
+                                        child: Text(
+                                          announcement.description,
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                color: Theme.of(context).brightness == Brightness.dark
+                                                    ? AppColors.textSecondaryDark
+                                                    : AppColors.textSecondary,
+                                                height: 1.4,
+                                              ),
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '${announcement.date.day}/${announcement.date.month}/${announcement.date.year}',
+                                        style: TextStyle(
+                                          color: AppColors.accent.withOpacity(0.7),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 32),
 
                     // Academic Insights Grid
                     Row(

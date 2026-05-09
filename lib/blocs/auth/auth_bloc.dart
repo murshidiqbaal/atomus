@@ -22,16 +22,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
-    emit(state.copyWith(status: AuthStatus.loading));
+    emit(state.copyWith(status: AuthStatus.loading, clearError: true)); // Clear error on start
     try {
       final success = await authRepository.login(event.username, event.password);
       if (success) {
-        emit(state.copyWith(status: AuthStatus.authenticated));
+        emit(const AuthState(status: AuthStatus.authenticated)); // Fresh state, no error
       } else {
-        emit(state.copyWith(status: AuthStatus.unauthenticated, errorMessage: 'Login failed'));
+        emit(const AuthState(status: AuthStatus.unauthenticated, errorMessage: 'Login failed'));
       }
     } catch (e) {
-      emit(state.copyWith(status: AuthStatus.unauthenticated, errorMessage: e.toString()));
+      emit(AuthState(status: AuthStatus.unauthenticated, errorMessage: e.toString()));
     }
   }
 
