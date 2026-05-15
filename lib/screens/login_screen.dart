@@ -105,11 +105,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                         ),
                       ),
-                      NeuInset(
+                        NeuInset(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         borderRadius: 16,
                         child: TextField(
                           controller: _usernameController,
+                          keyboardType: TextInputType.emailAddress,
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
@@ -275,6 +276,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.primary.withOpacity(0.8),
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Bypass Button for Testing
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const MainLayout()),
+                      );
+                    },
+                    icon: Icon(Icons.fast_forward_rounded, color: AppColors.primary.withOpacity(0.5), size: 18),
+                    label: Text(
+                      'BYPASS TO DASHBOARD (DEV ONLY)',
+                      style: TextStyle(
+                        color: AppColors.primary.withOpacity(0.5),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ),

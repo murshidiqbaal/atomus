@@ -1,15 +1,67 @@
 class StudentInfo {
-  final String name;
-  final String grade;
-  final String profileUrl;
-  final double overallProgress; // 0.0 to 1.0
+  final String id;
+  final String fullName;
+  final String? admissionNumber;
+  final String? rollNumber;
+  final String? gender;
+  final String? dateOfBirth;
+  final String? grade;
+  final double attendancePercentage;
+  final String? progressStatus;
+  final String? email;
+  final String? phoneNumber;
+  final String? relationship;
+  final String? avatarUrl;
 
   StudentInfo({
-    required this.name,
-    required this.grade,
-    required this.profileUrl,
-    required this.overallProgress,
+    required this.id,
+    required this.fullName,
+    this.admissionNumber,
+    this.rollNumber,
+    this.gender,
+    this.dateOfBirth,
+    this.grade,
+    this.attendancePercentage = 0.0,
+    this.progressStatus = 'Average',
+    this.email,
+    this.phoneNumber,
+    this.relationship,
+    this.avatarUrl,
   });
+
+  factory StudentInfo.fromMap(Map<String, dynamic> map) {
+    return StudentInfo(
+      id: map['id'] ?? '',
+      fullName: map['full_name'] ?? '',
+      admissionNumber: map['admission_number']?.toString(),
+      rollNumber: map['roll_number']?.toString(),
+      gender: map['gender'],
+      dateOfBirth: map['date_of_birth']?.toString(),
+      grade: map['grade'], // Fallback if grade is needed elsewhere
+      attendancePercentage: (map['attendance_percentage'] ?? 0.0).toDouble(),
+      progressStatus: map['progress_status'] ?? 'Average',
+      email: map['email'],
+      phoneNumber: map['phone_number']?.toString(),
+      relationship: map['relationship'],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'full_name': fullName,
+      'gender': gender,
+      'date_of_birth': dateOfBirth,
+      'email': email,
+      'phone_number': phoneNumber != null
+          ? double.tryParse(phoneNumber!)
+          : null,
+      'relationship': relationship,
+    };
+  }
+
+  String get name => fullName; // For backward compatibility
+  double get overallProgress => attendancePercentage / 100.0;
+  String get profileUrl => avatarUrl ?? 'https://i.pravatar.cc/150?u=$id';
 }
 
 class ExamMark {
@@ -39,10 +91,33 @@ class ExamSession {
 }
 
 class AttendanceRecord {
+  final String id;
+  final String studentId;
+  final String? batchId;
   final DateTime date;
-  final bool isPresent;
+  final String status; // 'Present', 'Absent', 'Late'
 
-  AttendanceRecord({required this.date, required this.isPresent});
+  AttendanceRecord({
+    required this.id,
+    required this.studentId,
+    this.batchId,
+    required this.date,
+    required this.status,
+  });
+
+  bool get isPresent => status == 'Present' || status == 'Late';
+
+  factory AttendanceRecord.fromMap(Map<String, dynamic> map) {
+    return AttendanceRecord(
+      id: map['id'].toString(),
+      studentId: map['student_id'] ?? '',
+      batchId: map['batch_id'],
+      date: DateTime.parse(
+        map['attendance_date'] ?? DateTime.now().toIso8601String(),
+      ),
+      status: map['status'] ?? 'Absent',
+    );
+  }
 }
 
 class FeeRecord {
@@ -67,6 +142,7 @@ class Announcement {
   final String description;
   final DateTime date;
   final bool isActive;
+  final int priority; // Higher means more important
 
   Announcement({
     required this.id,
@@ -74,15 +150,71 @@ class Announcement {
     required this.description,
     required this.date,
     this.isActive = true,
+    this.priority = 0,
+  });
+
+  factory Announcement.fromMap(Map<String, dynamic> map) {
+    return Announcement(
+      id: map['id'].toString(),
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      date: DateTime.parse(
+        map['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
+      isActive: map['is_active'] ?? true,
+      priority: map['priority'] ?? 0,
+    );
+  }
+}
+
+class Course {
+  final String title;
+  final String code;
+  final String duration;
+  final String instructor;
+
+  Course({
+    required this.title,
+    required this.code,
+    required this.duration,
+    required this.instructor,
   });
 }
 
 class DummyData {
+  static final List<Course> courses = [
+    Course(
+      title: 'Advanced Mathematics',
+      code: 'MATH401',
+      duration: '6 Months',
+      instructor: 'Dr. Sarah Jenkins',
+    ),
+    Course(
+      title: 'Quantum Physics',
+      code: 'PHYS302',
+      duration: '4 Months',
+      instructor: 'Prof. Michael Chen',
+    ),
+    Course(
+      title: 'Organic Chemistry',
+      code: 'CHEM205',
+      duration: '5 Months',
+      instructor: 'Dr. Elena Rodriguez',
+    ),
+    Course(
+      title: 'Computer Science',
+      code: 'CS101',
+      duration: '1 Year',
+      instructor: 'James Wilson',
+    ),
+  ];
+
   static final StudentInfo currentStudent = StudentInfo(
-    name: 'Alexander Davis',
+    id: 'dummy-id-123',
+    fullName: 'Alexander Davis',
     grade: 'Grade 10 - Science',
-    profileUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-    overallProgress: 0.85,
+    avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
+    attendancePercentage: 85.0,
   );
 
   static final List<ExamSession> exams = [
@@ -154,7 +286,12 @@ class DummyData {
       final date = now.subtract(Duration(days: index));
       // Randomly make some absent, but mostly present
       final isPresent = index != 3 && index != 8;
-      return AttendanceRecord(date: date, isPresent: isPresent);
+      return AttendanceRecord(
+        id: '',
+        studentId: '',
+        date: date,
+        status: isPresent ? 'Present' : 'Absent',
+      );
     });
   }
 
@@ -185,19 +322,22 @@ class DummyData {
     Announcement(
       id: '1',
       title: 'Annual Sports Day 2026',
-      description: 'The annual sports meet is scheduled for next Friday. All students are requested to participate in their respective house colors.',
+      description:
+          'The annual sports meet is scheduled for next Friday. All students are requested to participate in their respective house colors.',
       date: DateTime.now().add(const Duration(days: 5)),
     ),
     Announcement(
       id: '2',
       title: 'Parent-Teacher Meeting',
-      description: 'Monthly PTM for discussing mid-term results will be held on Saturday from 9:00 AM to 1:00 PM.',
+      description:
+          'Monthly PTM for discussing mid-term results will be held on Saturday from 9:00 AM to 1:00 PM.',
       date: DateTime.now().add(const Duration(days: 2)),
     ),
     Announcement(
       id: '3',
       title: 'Winter Vacation Update',
-      description: 'Winter vacations will commence from Dec 20th. School will reopen on Jan 5th, 2027.',
+      description:
+          'Winter vacations will commence from Dec 20th. School will reopen on Jan 5th, 2027.',
       date: DateTime.now().add(const Duration(days: 40)),
     ),
   ];

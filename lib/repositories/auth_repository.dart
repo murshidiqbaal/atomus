@@ -5,30 +5,44 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AuthRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<bool> login(String username, String password) async {
+  Future<bool> login(String identifier, String password) async {
     try {
-      final isEmail = username.contains('@');
+      final isEmail = identifier.contains('@');
+      final isPhone = !isEmail && RegExp(r'^\+?[0-9]{7,15}$').hasMatch(identifier);
       
       final AuthResponse res;
+      String filterField;
+      String filterValue = identifier;
+
       if (isEmail) {
         res = await _supabase.auth.signInWithPassword(
-          email: username,
+          email: identifier,
           password: password,
         );
+        filterField = 'email';
+      } else if (isPhone) {
+        // Normalize phone number: Ensure it starts with + if it's a phone
+        if (!identifier.startsWith('+')) {
+          // You might want to add a default country code here if needed
+          // For now, assuming user enters it or it's handled by Supabase
+          filterValue = identifier; 
+        }
+        res = await _supabase.auth.signInWithPassword(
+          phone: identifier,
+          password: password,
+        );
+        filterField = 'phone';
       } else {
-        // Supabase doesn't support phone login with password easily without phone auth setup
-        // But if we have phone in parents table, we could fetch email first.
-        // For now, assuming email login is primary as per Supabase standards.
-        throw Exception('Please use your email to login.');
+        throw Exception('Please enter a valid email or phone number.');
       }
 
       if (res.session != null) {
-        print('Auth successful, checking parents table for: $username');
+        print('Auth successful, checking parents table for: $identifier');
         // Validate against parents table
         final parentData = await _supabase
             .from('parents')
             .select()
-            .eq('email', username)
+            .eq(filterField, filterValue)
             .maybeSingle();
 
         if (parentData == null) {
@@ -124,6 +138,38 @@ class AuthRepository {
       if (res.user != null) {
         return {
           'email': email,
+          'password': generatedPassword,
+        };
+      } else {
+        throw Exception('Failed to create parent account in Supabase.');
+      }
+    } on AuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Could not create parent credentials.');
+    }
+  }
+
+  Future<Map<String, String>> createParentWithPhone(String phone) async {
+    try {
+      final random = Random();
+      const String chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%^&*';
+      String generatedPassword = '';
+      for (int i = 0; i < 10; i++) {
+        generatedPassword += chars[random.nextInt(chars.length)];
+      }
+
+      final AuthResponse res = await _supabase.auth.signUp(
+        phone: phone,
+        password: generatedPassword,
+        data: {
+          'role': 'parent',
+        },
+      );
+
+      if (res.user != null) {
+        return {
+          'phone': phone,
           'password': generatedPassword,
         };
       } else {

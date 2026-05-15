@@ -10,6 +10,7 @@ class AnnouncementBloc extends Bloc<AnnouncementEvent, AnnouncementState> {
       : _repository = repository,
         super(AnnouncementState()) {
     on<LoadAnnouncements>(_onLoadAnnouncements);
+    on<DismissAnnouncement>(_onDismissAnnouncement);
   }
 
   Future<void> _onLoadAnnouncements(
@@ -22,12 +23,34 @@ class AnnouncementBloc extends Bloc<AnnouncementEvent, AnnouncementState> {
       emit(state.copyWith(
         status: AnnouncementStatus.success,
         announcements: announcements,
+        currentAnnouncement: announcements.isNotEmpty ? announcements.first : null,
       ));
     } catch (e) {
       emit(state.copyWith(
         status: AnnouncementStatus.failure,
         errorMessage: e.toString(),
       ));
+    }
+  }
+
+  void _onDismissAnnouncement(
+    DismissAnnouncement event,
+    Emitter<AnnouncementState> emit,
+  ) {
+    if (state.announcements.isEmpty) return;
+
+    final currentIndex = state.announcements.indexWhere(
+      (a) => a.id == state.currentAnnouncement?.id,
+    );
+
+    if (currentIndex != -1 && currentIndex < state.announcements.length - 1) {
+      // Show next announcement
+      emit(state.copyWith(
+        currentAnnouncement: state.announcements[currentIndex + 1],
+      ));
+    } else {
+      // No more announcements
+      emit(state.copyWith(clearCurrent: true));
     }
   }
 }
