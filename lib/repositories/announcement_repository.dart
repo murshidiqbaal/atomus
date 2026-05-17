@@ -6,18 +6,19 @@ class AnnouncementRepository {
 
   Future<List<Announcement>> getActiveAnnouncements() async {
     try {
+      final now = DateTime.now().toIso8601String();
       final response = await _supabase
           .from('announcements')
           .select()
           .eq('is_active', true)
-          .order('priority', ascending: false)
+          .lte('start_date', now) // Only show if started
+          .or('end_date.is.null,end_date.gt.$now') // Show if no end date or not ended
           .order('created_at', ascending: false);
 
       final List<dynamic> data = response as List<dynamic>;
       return data.map((item) => Announcement.fromMap(item)).toList();
     } catch (e) {
       print('Error fetching announcements: $e');
-      // Fallback to empty list or handle error as needed
       return [];
     }
   }

@@ -1,9 +1,20 @@
-import 'dart:async';
 import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
+  static const String _authKey = 'is_logged_in';
+
+  Future<void> _setLoggedIn(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_authKey, value);
+  }
+
+  Future<bool> _getLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_authKey) ?? false;
+  }
 
   Future<bool> login(String identifier, String password) async {
     try {
@@ -53,6 +64,7 @@ class AuthRepository {
         }
 
         print('Parent validation successful.');
+        await _setLoggedIn(true);
         return true;
       }
       return false;
@@ -69,14 +81,20 @@ class AuthRepository {
   Future<void> logout() async {
     try {
       await _supabase.auth.signOut();
+      await _setLoggedIn(false);
     } catch (e) {
       print('Logout error: $e');
     }
   }
 
   Future<bool> isAuthenticated() async {
+    final hasFlag = await _getLoggedIn();
     final session = _supabase.auth.currentSession;
-    return session != null && !session.isExpired;
+    final isValidSession = session != null && !session.isExpired;
+    
+    // Return true only if both flag and session are valid
+    // This adds an extra layer of security/check for the gateway
+    return hasFlag && isValidSession;
   }
 
   Future<Map<String, String>> generatePatientCredentials() async {

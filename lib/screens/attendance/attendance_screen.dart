@@ -1,13 +1,16 @@
+import 'package:atomus/blocs/course/course_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../blocs/course/course_bloc.dart';
+import '../../blocs/course/course_state.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_event.dart';
 import '../../blocs/student/student_state.dart';
+import '../../models/dummy_data.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/custom_card.dart';
-import '../../widgets/neu_box.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -18,10 +21,18 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
   DateTime _selectedMonth = DateTime.now();
+  DateTime _selectedDate = DateTime.now();
+  String? _selectedCourseId;
+  String? _selectedSubjectId;
 
   @override
   void initState() {
     super.initState();
+    final studentInfo = context.read<StudentBloc>().state.studentInfo;
+    if (studentInfo?.courseId != null) {
+      _selectedCourseId = studentInfo!.courseId;
+      context.read<CourseBloc>().add(LoadSubjects(_selectedCourseId!));
+    }
     _loadAttendanceForMonth(_selectedMonth);
   }
 
@@ -29,7 +40,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 0);
     context.read<StudentBloc>().add(
-      LoadAttendance(startDate: start, endDate: end),
+      LoadAttendance(
+        startDate: start,
+        endDate: end,
+        courseId: _selectedCourseId,
+        subjectId: _selectedSubjectId,
+      ),
     );
   }
 
@@ -51,215 +67,599 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text('Attendance Ledger')),
-      body: BlocBuilder<StudentBloc, StudentState>(
-        builder: (context, state) {
-          final records = state.attendance;
-          final presentCount = records.where((r) => r.isPresent).length;
-          final absentCount = records.where((r) => !r.isPresent).length;
+      appBar: AppBar(title: const Text('Attendance')),
+      body: BlocListener<StudentBloc, StudentState>(
+        listenWhen: (previous, current) =>
+            previous.studentInfo?.courseId != current.studentInfo?.courseId,
+        listener: (context, state) {
+          final courseId = state.studentInfo?.courseId;
+          if (courseId != null && courseId != _selectedCourseId) {
+            setState(() {
+              _selectedCourseId = courseId;
+            });
+            context.read<CourseBloc>().add(LoadSubjects(courseId));
+          }
+        },
+        child: BlocBuilder<StudentBloc, StudentState>(
+          builder: (context, state) {
+            final records = state.attendance;
 
-          return Column(
-            children: [
-              // Month Selector
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24.0,
-                  vertical: 8.0,
-                ),
-                child: CustomCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            final Map<int, List<AttendanceRecord>> dailyRecords = {};
+            for (final record in records) {
+              if (record.date.month == _selectedMonth.month &&
+                  record.date.year == _selectedMonth.year) {
+                dailyRecords.putIfAbsent(record.date.day, () => []).add(record);
+              }
+            }
+
+            final Map<int, String> recordMap = {};
+            int presentCount = 0;
+            int absentCount = 0;
+            int lateCount = 0;
+
+            dailyRecords.forEach((day, dayRecords) {
+              int present = 0;
+              int absent = 0;
+              int late = 0;
+              for (var r in dayRecords) {
+                if (r.status == 'Present')
+                  present++;
+                else if (r.status == 'Absent')
+                  absent++;
+                else if (r.status == 'Late')
+                  late++;
+              }
+
+              if (present == 0 && absent == 0 && late == 0) return;
+
+              String overallStatus = '';
+              if (present >= absent && present >= late) {
+                overallStatus = 'Present';
+                presentCount++;
+              } else if (late > present && late >= absent) {
+                overallStatus = 'Late';
+                lateCount++;
+              } else {
+                overallStatus = 'Absent';
+                absentCount++;
+              }
+
+              recordMap[day] = overallStatus;
+            });
+
+            final daysInMonth = DateTime(
+              _selectedMonth.year,
+              _selectedMonth.month + 1,
+              0,
+            ).day;
+            // DateTime.weekday: 1=Mon ... 7=Sun; offset so Mon is column 0
+            final startOffset =
+                DateTime(_selectedMonth.year, _selectedMonth.month, 1).weekday -
+                1;
+            final today = DateTime.now();
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Column(
+                children: [
+                  // Month and Subject Selectors
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      IconButton(
-                        onPressed: _previousMonth,
-                        icon: const Icon(
-                          Icons.chevron_left,
-                          color: AppColors.primary,
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4, bottom: 6),
+                              child: Text(
+                                'MONTH',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            CustomCard(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 3,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
+                                    onPressed: _previousMonth,
+                                    icon: const Icon(
+                                      Icons.chevron_left,
+                                      color: AppColors.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        DateFormat(
+                                          'MMM yyyy',
+                                        ).format(_selectedMonth).toUpperCase(),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 13,
+                                          letterSpacing: 1.0,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 32,
+                                    ),
+                                    onPressed: _nextMonth,
+                                    icon: const Icon(
+                                      Icons.chevron_right,
+                                      color: AppColors.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        DateFormat(
-                          'MMMM yyyy',
-                        ).format(_selectedMonth).toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                          letterSpacing: 1.0,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _nextMonth,
-                        icon: const Icon(
-                          Icons.chevron_right,
-                          color: AppColors.primary,
-                        ),
-                      ),
+                      const SizedBox(width: 12),
+                      Expanded(flex: 5, child: _buildFilters(context)),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+
+                  if (state.status == StudentStatus.loading)
+                    const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else ...[
+                    // Summary chips
+                    Row(
+                      children: [
+                        _buildSummaryCard(
+                          'PRESENT',
+                          presentCount,
+                          AppColors.success,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildSummaryCard(
+                          'ABSENT',
+                          absentCount,
+                          AppColors.error,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildSummaryCard('LATE', lateCount, AppColors.warning),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Calendar card
+                    CustomCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          // Weekday header row
+                          Row(
+                            children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+                                .map(
+                                  (d) => Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        d,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w900,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          const SizedBox(height: 10),
+                          // Day cells
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 7,
+                                  mainAxisSpacing: 5,
+                                  crossAxisSpacing: 5,
+                                  childAspectRatio: 1,
+                                ),
+                            itemCount: startOffset + daysInMonth,
+                            itemBuilder: (context, index) {
+                              if (index < startOffset) return const SizedBox();
+                              final day = index - startOffset + 1;
+                              final status = recordMap[day];
+                              final date = DateTime(
+                                _selectedMonth.year,
+                                _selectedMonth.month,
+                                day,
+                              );
+                              final isToday =
+                                  date.year == today.year &&
+                                  date.month == today.month &&
+                                  date.day == today.day;
+                              final isFuture = date.isAfter(
+                                DateTime(today.year, today.month, today.day),
+                              );
+
+                              Color? bgColor;
+                              Color textColor =
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimary;
+
+                              if (!isFuture && status != null) {
+                                switch (status) {
+                                  case 'Present':
+                                    bgColor = AppColors.success;
+                                    textColor = Colors.white;
+                                    break;
+                                  case 'Absent':
+                                    bgColor = AppColors.error;
+                                    textColor = Colors.white;
+                                    break;
+                                  case 'Late':
+                                    bgColor = AppColors.warning;
+                                    textColor = Colors.white;
+                                    break;
+                                }
+                              }
+
+                              final isSelected =
+                                  _selectedDate.year == date.year &&
+                                  _selectedDate.month == date.month &&
+                                  _selectedDate.day == date.day;
+
+                              return GestureDetector(
+                                onTap: () {
+                                  if (!isFuture) {
+                                    setState(() {
+                                      _selectedDate = date;
+                                    });
+                                  }
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  decoration: BoxDecoration(
+                                    color: bgColor != null
+                                        ? bgColor.withOpacity(
+                                            isSelected ? 0.8 : 1.0,
+                                          )
+                                        : isSelected
+                                        ? AppColors.primary.withOpacity(0.2)
+                                        : (isToday
+                                              ? AppColors.primary.withOpacity(
+                                                  0.08,
+                                                )
+                                              : Colors.transparent),
+                                    shape: BoxShape.circle,
+                                    border: isSelected
+                                        ? Border.all(
+                                            color: bgColor ?? AppColors.primary,
+                                            width: 2.0,
+                                          )
+                                        : isToday && bgColor == null
+                                        ? Border.all(
+                                            color: AppColors.primary,
+                                            width: 1.5,
+                                          )
+                                        : null,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '$day',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight:
+                                            (isToday ||
+                                                bgColor != null ||
+                                                isSelected)
+                                            ? FontWeight.w900
+                                            : FontWeight.w500,
+                                        color: isFuture
+                                            ? AppColors.textSecondary
+                                                  .withOpacity(0.3)
+                                            : (bgColor != null
+                                                  ? Colors.white
+                                                  : (isSelected
+                                                        ? AppColors.primary
+                                                        : textColor)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Legend
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildLegend('Present', AppColors.success),
+                              const SizedBox(width: 20),
+                              _buildLegend('Absent', AppColors.error),
+                              const SizedBox(width: 20),
+                              _buildLegend('Late', AppColors.warning),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildAttendanceHoursCard(
+                      records,
+                      context.read<CourseBloc>().state.subjects,
+                    ),
+                  ],
+                ],
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-              if (state.status == StudentStatus.loading)
-                const Expanded(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else ...[
-                Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: CustomCard(
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          child: Column(
-                            children: [
-                              const Text(
-                                'PRESENT',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 10,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                '$presentCount',
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.success,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: CustomCard(
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          child: Column(
-                            children: [
-                              const Text(
-                                'ABSENT',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 10,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                '$absentCount',
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.error,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+  Widget _buildFilters(BuildContext context) {
+    return BlocBuilder<CourseBloc, CourseState>(
+      builder: (context, state) {
+        return _buildDropdown<String>(
+          label: 'SUBJECT',
+          value: _selectedSubjectId,
+          items: [
+            const DropdownMenuItem(value: null, child: Text('All Subjects')),
+            ...state.subjects.map((s) {
+              return DropdownMenuItem(
+                value: s.id,
+                child: Text(s.name, overflow: TextOverflow.ellipsis),
+              );
+            }),
+          ],
+          onChanged: (val) {
+            setState(() {
+              _selectedSubjectId = val;
+            });
+            _loadAttendanceForMonth(_selectedMonth);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDropdown<T>({
+    required String label,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?>? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.black.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              items: items,
+              onChanged: onChanged,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+              dropdownColor: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(String label, int count, Color color) {
+    return Expanded(
+      child: CustomCard(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 9,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegend(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  //build an attendence hours detail card to show daily hours of attendence
+
+  Widget _buildAttendanceHoursCard(
+    List<AttendanceRecord> allRecords,
+    List<Subject> subjects,
+  ) {
+    final dailyRecords = allRecords
+        .where(
+          (r) =>
+              r.date.year == _selectedDate.year &&
+              r.date.month == _selectedDate.month &&
+              r.date.day == _selectedDate.day,
+        )
+        .toList();
+
+    // Ensure we always show at least 5 hours for UI consistency
+    final displayRecords = List<AttendanceRecord>.from(dailyRecords);
+    while (displayRecords.length < 5) {
+      displayRecords.add(
+        AttendanceRecord(
+          id: 'dummy_${displayRecords.length}',
+          studentId: '',
+          date: _selectedDate,
+          status: 'Unmarked',
+        ),
+      );
+    }
+
+    return CustomCard(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Text(
+              'HOURLY ATTENDANCE - ${DateFormat('MMM d').format(_selectedDate).toUpperCase()}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: displayRecords.map((record) {
+              Color bgColor = Colors.grey.shade400;
+              String text = 'U';
+              if (record.status == 'Present') {
+                bgColor = AppColors.success;
+                text = 'P';
+              } else if (record.status == 'Absent') {
+                bgColor = AppColors.error;
+                text = 'A';
+              } else if (record.status == 'Late') {
+                bgColor = AppColors.warning;
+                text = 'L';
+              }
+
+              String subjectName = 'Unassigned';
+              String teacherName = 'N/A';
+              if (record.subjectId != null) {
+                final subject = subjects.firstWhere(
+                  (s) => s.id == record.subjectId,
+                  orElse: () => Subject(id: '', name: 'Unknown Subject'),
+                );
+                subjectName = subject.name;
+                teacherName =
+                    'Teacher of ${subject.name}'; // Mocking teacher name since it's not in schema
+              }
+
+              return Tooltip(
+                message: 'Subject: $subjectName\nTeacher: $teacherName',
+                triggerMode: TooltipTriggerMode.longPress,
+                preferBelow: false,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.9)
+                      : Colors.black.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Chronological Registry',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                textStyle: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.black
+                      : Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: bgColor,
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: records.isEmpty
-                      ? const Center(
-                          child: Text('No attendance records for this period.'),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                          itemCount: records.length,
-                          itemBuilder: (context, index) {
-                            final record = records[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: CustomCard(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  children: [
-                                    NeuBox(
-                                      width: 52,
-                                      height: 52,
-                                      borderRadius: 14,
-                                      isPressed: true,
-                                      padding: EdgeInsets.zero,
-                                      child: Icon(
-                                        record.isPresent
-                                            ? Icons.verified_rounded
-                                            : Icons.do_not_disturb_on_rounded,
-                                        color: record.isPresent
-                                            ? AppColors.success
-                                            : AppColors.error,
-                                        size: 24,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            DateFormat(
-                                              'EEEE, MMMM d',
-                                            ).format(record.date).toUpperCase(),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 14,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            record.status.toUpperCase(),
-                                            style: TextStyle(
-                                              color: record.isPresent
-                                                  ? AppColors.success
-                                                  : AppColors.error,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 1.0,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ],
-          );
-        },
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }

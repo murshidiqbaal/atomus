@@ -1,7 +1,11 @@
-import '../../models/dummy_data.dart';
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../models/dummy_data.dart';
+import '../../models/student_performance_model.dart';
 import '../../repositories/student_repository.dart';
+import '../../services/student_performance_service.dart';
 import 'student_event.dart';
 import 'student_state.dart';
 
@@ -21,7 +25,11 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
     emit(state.copyWith(status: StudentStatus.loading));
     try {
       final info = await studentRepository.getStudentInfo();
-      final exams = await studentRepository.getExamSessions();
+      
+      List<ExamSession> exams = [];
+      if (info != null) {
+        exams = await studentRepository.getExamSessions(info.id);
+      }
 
       List<AttendanceRecord> attendance = [];
       if (info != null) {
@@ -38,12 +46,17 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
         );
       }
 
+      final performance = info != null
+          ? StudentPerformanceService.calculatePerformance(attendance, exams)
+          : null;
+
       emit(
         state.copyWith(
           status: StudentStatus.success,
           studentInfo: info,
           exams: exams,
           attendance: attendance,
+          performance: performance,
         ),
       );
     } catch (e) {
@@ -68,9 +81,21 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
         studentId: state.studentInfo!.id,
         startDate: event.startDate,
         endDate: event.endDate,
+        courseId: event.courseId,
+        subjectId: event.subjectId,
       );
+
+      final performance = StudentPerformanceService.calculatePerformance(
+        attendance,
+        state.exams,
+      );
+
       emit(
-        state.copyWith(status: StudentStatus.success, attendance: attendance),
+        state.copyWith(
+          status: StudentStatus.success,
+          attendance: attendance,
+          performance: performance,
+        ),
       );
     } catch (e) {
       emit(
@@ -100,3 +125,4 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
     }
   }
 }
+

@@ -19,11 +19,13 @@ class LoadStudentData extends StudentEvent {
 class LoadAttendance extends StudentEvent {
   final DateTime? startDate;
   final DateTime? endDate;
+  final String? courseId;
+  final String? subjectId;
 
-  const LoadAttendance({this.startDate, this.endDate});
+  const LoadAttendance({this.startDate, this.endDate, this.courseId, this.subjectId});
 
   @override
-  List<Object?> get props => [startDate, endDate];
+  List<Object?> get props => [startDate, endDate, courseId, subjectId];
 }
 
 class UpdateStudentProfile extends StudentEvent {

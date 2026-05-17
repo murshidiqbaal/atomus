@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../models/dummy_data.dart';
+import '../../models/student_performance_model.dart';
 
 enum StudentStatus { initial, loading, success, failure }
 
@@ -8,6 +9,7 @@ class StudentState extends Equatable {
   final StudentInfo? studentInfo;
   final List<ExamSession> exams;
   final List<AttendanceRecord> attendance;
+  final StudentPerformanceModel? performance;
   final String? errorMessage;
 
   const StudentState({
@@ -15,6 +17,7 @@ class StudentState extends Equatable {
     this.studentInfo,
     this.exams = const [],
     this.attendance = const [],
+    this.performance,
     this.errorMessage,
   });
 
@@ -23,6 +26,7 @@ class StudentState extends Equatable {
     StudentInfo? studentInfo,
     List<ExamSession>? exams,
     List<AttendanceRecord>? attendance,
+    StudentPerformanceModel? performance,
     String? errorMessage,
   }) {
     return StudentState(
@@ -30,10 +34,19 @@ class StudentState extends Equatable {
       studentInfo: studentInfo ?? this.studentInfo,
       exams: exams ?? this.exams,
       attendance: attendance ?? this.attendance,
+      performance: performance ?? this.performance,
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 
   @override
-  List<Object?> get props => [status, studentInfo, exams, attendance, errorMessage];
+  List<Object?> get props => [
+        status,
+        studentInfo,
+        exams,
+        attendance,
+        performance,
+        errorMessage,
+      ];
 }
+

@@ -4,10 +4,19 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../blocs/fee/fee_bloc.dart';
 import '../blocs/fee/fee_event.dart';
+import '../blocs/notification/notification_bloc.dart';
+import '../blocs/notification/notification_event.dart';
 import '../blocs/student/student_bloc.dart';
 import '../blocs/student/student_event.dart';
+import '../blocs/student/student_state.dart';
+import '../blocs/theme/theme_bloc.dart';
+import '../blocs/theme/theme_event.dart';
+import '../blocs/theme/theme_state.dart';
+import '../repositories/notification_repository.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
+import '../widgets/custom_card.dart';
 import '../widgets/neu_box.dart';
 import 'attendance/attendance_screen.dart';
 import 'fees/fees_screen.dart';
@@ -32,6 +41,26 @@ class _MainLayoutState extends State<MainLayout> {
     super.initState();
     context.read<StudentBloc>().add(LoadStudentData());
     context.read<FeeBloc>().add(LoadFeeData());
+    // Load current month attendance so dashboard can show today's record
+    final now = DateTime.now();
+    context.read<StudentBloc>().add(
+      LoadAttendance(
+        startDate: DateTime(now.year, now.month, 1),
+        endDate: DateTime(now.year, now.month + 1, 0),
+      ),
+    );
+    _initNotifications();
+  }
+
+  Future<void> _initNotifications() async {
+    final repo = context.read<NotificationRepository>();
+    // Initialize FCM, request permissions, save token
+    await NotificationService.instance.initialize(repo);
+    if (!mounted) return;
+    // Load existing notifications then subscribe to realtime updates
+    context.read<NotificationBloc>()
+      ..add(LoadNotifications())
+      ..add(StartNotificationStream());
   }
 
   final List<Widget> _screens = const [
@@ -90,7 +119,10 @@ class _MainLayoutState extends State<MainLayout> {
                       width: 60,
                       height: 60,
                       borderRadius: 15,
-                      child: Icon(Icons.admin_panel_settings, color: AppColors.primary),
+                      child: Icon(
+                        Icons.admin_panel_settings,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -105,14 +137,151 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
               ),
             ),
+
             ListTile(
-              leading: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary),
-              title: const Text('Create New Parent', style: TextStyle(fontWeight: FontWeight.w700)),
+              leading: const Icon(
+                Icons.person_add_alt_1_rounded,
+                color: AppColors.primary,
+              ),
+              title: const Text(
+                'Create New Parent',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _showCreateParentDialog(context);
               },
             ),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+
+            // Appearance section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'APPEARANCE',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            BlocBuilder<ThemeBloc, ThemeState>(
+              builder: (context, themeState) {
+                final isDark = themeState.themeMode == ThemeMode.dark;
+                return ListTile(
+                  leading: Icon(
+                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    color: AppColors.primary,
+                  ),
+                  title: Text(
+                    isDark ? 'Light Mode' : 'Dark Mode',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  trailing: Switch(
+                    value: isDark,
+                    onChanged: (_) =>
+                        context.read<ThemeBloc>().add(ToggleTheme()),
+                    activeColor: AppColors.primary,
+                  ),
+                  onTap: () => context.read<ThemeBloc>().add(ToggleTheme()),
+                );
+              },
+            ),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+
+            // Academic Performance section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'ACADEMIC PERFORMANCE',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            BlocBuilder<StudentBloc, StudentState>(
+              builder: (context, state) {
+                if (state.status == StudentStatus.loading ||
+                    state.studentInfo == null) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: LinearProgressIndicator(),
+                  );
+                }
+
+                final attendancePct =
+                    state.studentInfo!.attendancePercentage / 100.0;
+
+                double totalObtained = 0;
+                double totalPossible = 0;
+                for (final exam in state.exams) {
+                  for (final subject in exam.subjects) {
+                    totalObtained += subject.marksObtained;
+                    totalPossible += subject.totalMarks;
+                  }
+                }
+                final marksPct =
+                    totalPossible > 0 ? totalObtained / totalPossible : 0.0;
+                final overallPct = state.exams.isEmpty
+                    ? attendancePct
+                    : marksPct * 0.7 + attendancePct * 0.3;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  child: CustomCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPerformanceBar(
+                          context,
+                          'Overall',
+                          overallPct,
+                          _performanceColor(overallPct),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildPerformanceBar(
+                          context,
+                          'Attendance',
+                          attendancePct,
+                          AppColors.success,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildPerformanceBar(
+                          context,
+                          'Marks',
+                          marksPct,
+                          AppColors.info,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+
             const Spacer(),
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -127,6 +296,57 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
+  Color _performanceColor(double value) {
+    if (value >= 0.8) return AppColors.success;
+    if (value >= 0.6) return AppColors.info;
+    if (value >= 0.4) return AppColors.warning;
+    return AppColors.error;
+  }
+
+  Widget _buildPerformanceBar(
+    BuildContext context,
+    String label,
+    double value,
+    Color color,
+  ) {
+    final pct = (value * 100).toInt();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              '$pct%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: value.clamp(0.0, 1.0),
+            backgroundColor: color.withOpacity(0.12),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 6,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showCreateParentDialog(BuildContext context) {
     final emailController = TextEditingController();
     showDialog(
@@ -136,7 +356,9 @@ class _MainLayoutState extends State<MainLayout> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Enter the parent email address to generate credentials.'),
+            const Text(
+              'Enter the parent email address to generate credentials.',
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: emailController,
@@ -163,23 +385,22 @@ class _MainLayoutState extends State<MainLayout> {
                 return;
               }
 
-              Navigator.pop(context); // Close input dialog
-              
-              // Show loading
+              Navigator.pop(context);
+
               showDialog(
                 context: context,
                 barrierDismissible: false,
-                builder: (context) => const Center(child: CircularProgressIndicator()),
+                builder: (context) =>
+                    const Center(child: CircularProgressIndicator()),
               );
 
               try {
                 final authRepo = context.read<AuthRepository>();
                 final result = await authRepo.createParentWithEmail(email);
-                
+
                 if (context.mounted) {
-                  Navigator.pop(context); // Close loading
-                  
-                  // Show success dialog with credentials
+                  Navigator.pop(context);
+
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -188,7 +409,9 @@ class _MainLayoutState extends State<MainLayout> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Share these credentials with the parent:'),
+                          const Text(
+                            'Share these credentials with the parent:',
+                          ),
                           const SizedBox(height: 16),
                           SelectableText('Email: ${result['email']}'),
                           SelectableText('Password: ${result['password']}'),
@@ -210,7 +433,7 @@ class _MainLayoutState extends State<MainLayout> {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  Navigator.pop(context); // Close loading
+                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error: $e')),
                   );

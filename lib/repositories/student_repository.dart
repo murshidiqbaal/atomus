@@ -54,14 +54,56 @@ class StudentRepository {
     }
   }
 
-  Future<List<ExamSession>> getExamSessions() async {
-    await Future.delayed(const Duration(milliseconds: 1000));
-    return DummyData.exams;
+  Future<List<ExamSession>> getExamSessions(String studentId) async {
+    try {
+      // Fetch marks for the student, joining with exam details and subject names
+      // Relationship: marks.exam_id -> exams.id
+      // Relationship: marks.subject_id -> subjects.id
+      final response = await _supabase
+          .from('marks')
+          .select('''
+            *,
+            exams (
+              name,
+              exam_date
+            ),
+            subjects (
+              name
+            )
+          ''')
+          .eq('student_id', studentId);
+
+      final List<dynamic> data = response as List<dynamic>;
+      
+      // Group results by exam_id to create ExamSession objects
+      final Map<String, List<ExamMark>> groupedMarks = {};
+      final Map<String, Map<String, dynamic>> examDetails = {};
+
+      for (var item in data) {
+        final examId = item['exam_id']?.toString();
+        if (examId == null) continue;
+        
+        if (!groupedMarks.containsKey(examId)) {
+          groupedMarks[examId] = [];
+          examDetails[examId] = item;
+        }
+        groupedMarks[examId]!.add(ExamMark.fromMap(item));
+      }
+
+      return groupedMarks.entries.map((entry) {
+        return ExamSession.fromMap(examDetails[entry.key]!, entry.value);
+      }).toList();
+    } catch (e) {
+      print('Error fetching exam sessions: $e');
+      return [];
+    }
   }
 
   Future<List<AttendanceRecord>> getAttendance({
     String? studentId,
     String? batchId,
+    String? courseId,
+    String? subjectId,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -70,6 +112,8 @@ class StudentRepository {
 
       if (studentId != null) query = query.eq('student_id', studentId);
       if (batchId != null) query = query.eq('batch_id', batchId);
+      if (courseId != null) query = query.eq('course_id', courseId);
+      if (subjectId != null) query = query.eq('subject_id', subjectId);
       
       if (startDate != null) {
         query = query.gte('attendance_date', startDate.toIso8601String().split('T')[0]);

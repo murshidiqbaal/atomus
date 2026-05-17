@@ -12,6 +12,7 @@ class StudentInfo {
   final String? phoneNumber;
   final String? relationship;
   final String? avatarUrl;
+  final String? courseId;
 
   StudentInfo({
     required this.id,
@@ -27,6 +28,7 @@ class StudentInfo {
     this.phoneNumber,
     this.relationship,
     this.avatarUrl,
+    this.courseId,
   });
 
   factory StudentInfo.fromMap(Map<String, dynamic> map) {
@@ -43,6 +45,7 @@ class StudentInfo {
       email: map['email'],
       phoneNumber: map['phone_number']?.toString(),
       relationship: map['relationship'],
+      courseId: map['course_id']?.toString(),
     );
   }
 
@@ -56,6 +59,7 @@ class StudentInfo {
           ? double.tryParse(phoneNumber!)
           : null,
       'relationship': relationship,
+      'course_id': courseId,
     };
   }
 
@@ -69,13 +73,25 @@ class ExamMark {
   final int marksObtained;
   final int totalMarks;
   final String grade;
+  final String? subjectId;
 
   ExamMark({
     required this.subject,
     required this.marksObtained,
     required this.totalMarks,
     required this.grade,
+    this.subjectId,
   });
+
+  factory ExamMark.fromMap(Map<String, dynamic> map) {
+    return ExamMark(
+      subject: map['subjects']?['name'] ?? map['subjects']?['subject_name'] ?? map['subject_name'] ?? 'General',
+      marksObtained: (map['marks_obtained'] ?? 0).toInt(),
+      totalMarks: (map['total_marks'] ?? 100).toInt(),
+      grade: map['grade'] ?? (map['remarks']?.toString().isNotEmpty == true ? map['remarks'] : 'N/A'),
+      subjectId: map['subject_id']?.toString(),
+    );
+  }
 }
 
 class ExamSession {
@@ -88,12 +104,23 @@ class ExamSession {
     required this.date,
     required this.subjects,
   });
+
+  factory ExamSession.fromMap(Map<String, dynamic> map, List<ExamMark> subjects) {
+    final examData = map['exams'] ?? map;
+    return ExamSession(
+      title: examData['name'] ?? examData['title'] ?? 'Examination',
+      date: examData['exam_date'] ?? 'N/A',
+      subjects: subjects,
+    );
+  }
 }
 
 class AttendanceRecord {
   final String id;
   final String studentId;
   final String? batchId;
+  final String? courseId;
+  final String? subjectId;
   final DateTime date;
   final String status; // 'Present', 'Absent', 'Late'
 
@@ -101,6 +128,8 @@ class AttendanceRecord {
     required this.id,
     required this.studentId,
     this.batchId,
+    this.courseId,
+    this.subjectId,
     required this.date,
     required this.status,
   });
@@ -112,6 +141,8 @@ class AttendanceRecord {
       id: map['id'].toString(),
       studentId: map['student_id'] ?? '',
       batchId: map['batch_id'],
+      courseId: map['course_id'],
+      subjectId: map['subject_id'],
       date: DateTime.parse(
         map['attendance_date'] ?? DateTime.now().toIso8601String(),
       ),
@@ -140,72 +171,165 @@ class Announcement {
   final String id;
   final String title;
   final String description;
-  final DateTime date;
+  final String? imageUrl;
+  final String type;
+  final String targetAudience;
+  final String? courseId;
+  final String? batchId;
+  final bool isPopup;
   final bool isActive;
-  final int priority; // Higher means more important
+  final DateTime startDate;
+  final DateTime? endDate;
+  final DateTime createdAt;
 
   Announcement({
     required this.id,
     required this.title,
     required this.description,
-    required this.date,
+    this.imageUrl,
+    this.type = 'General Announcement',
+    this.targetAudience = 'All',
+    this.courseId,
+    this.batchId,
+    this.isPopup = false,
     this.isActive = true,
-    this.priority = 0,
+    required this.startDate,
+    this.endDate,
+    required this.createdAt,
   });
+
+  // Helper for UI priority logic
+  int get priority => type == 'Urgent' ? 10 : 0;
 
   factory Announcement.fromMap(Map<String, dynamic> map) {
     return Announcement(
       id: map['id'].toString(),
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      date: DateTime.parse(
+      imageUrl: map['image_url'],
+      type: map['type'] ?? 'General Announcement',
+      targetAudience: map['target_audience'] ?? 'All',
+      courseId: map['course_id']?.toString(),
+      batchId: map['batch_id']?.toString(),
+      isPopup: map['is_popup'] ?? false,
+      isActive: map['is_active'] ?? true,
+      startDate: DateTime.parse(
+        map['start_date'] ?? DateTime.now().toIso8601String(),
+      ),
+      endDate: map['end_date'] != null ? DateTime.parse(map['end_date']) : null,
+      createdAt: DateTime.parse(
         map['created_at'] ?? DateTime.now().toIso8601String(),
       ),
-      isActive: map['is_active'] ?? true,
-      priority: map['priority'] ?? 0,
     );
   }
 }
 
 class Course {
-  final String title;
-  final String code;
-  final String duration;
-  final String instructor;
+  final String id;
+  final String name;
+  final String? description;
+  final int? durationMonths;
+  final String courseType;
+  final String? classLevel;
+  final double feeAmount;
+  final String mode;
+  final String? thumbnailUrl;
+  final bool isActive;
 
   Course({
-    required this.title,
-    required this.code,
-    required this.duration,
-    required this.instructor,
+    required this.id,
+    required this.name,
+    this.description,
+    this.durationMonths,
+    required this.courseType,
+    this.classLevel,
+    required this.feeAmount,
+    required this.mode,
+    this.thumbnailUrl,
+    required this.isActive,
   });
+
+  factory Course.fromMap(Map<String, dynamic> map) {
+    return Course(
+      id: map['id']?.toString() ?? '',
+      name: map['name'] ?? '',
+      description: map['description'],
+      durationMonths: map['duration_months'] != null 
+          ? (map['duration_months'] as num).toInt() 
+          : null,
+      courseType: map['course_type'] ?? 'Regular',
+      classLevel: map['class_level'],
+      feeAmount: (map['fee_amount'] ?? 0.0).toDouble(),
+      mode: map['mode'] ?? 'Offline',
+      thumbnailUrl: map['thumbnail_url'],
+      isActive: map['is_active'] ?? true,
+    );
+  }
+}
+
+class Subject {
+  final String id;
+  final String? courseId;
+  final String name;
+  final String? subjectCode;
+  final String? subjectType;
+  final String? classLevel;
+  final bool isActive;
+
+  Subject({
+    required this.id,
+    this.courseId,
+    required this.name,
+    this.subjectCode,
+    this.subjectType,
+    this.classLevel,
+    this.isActive = true,
+  });
+
+  factory Subject.fromMap(Map<String, dynamic> map) {
+    return Subject(
+      id: map['id']?.toString() ?? '',
+      courseId: map['course_id']?.toString(),
+      name: map['name'] ?? '',
+      subjectCode: map['subject_code'],
+      subjectType: map['subject_type'],
+      classLevel: map['class_level'],
+      isActive: map['is_active'] ?? true,
+    );
+  }
 }
 
 class DummyData {
   static final List<Course> courses = [
     Course(
-      title: 'Advanced Mathematics',
-      code: 'MATH401',
-      duration: '6 Months',
-      instructor: 'Dr. Sarah Jenkins',
+      id: '1',
+      name: 'Advanced Mathematics',
+      courseType: 'Regular',
+      classLevel: 'Class 12',
+      feeAmount: 150.0,
+      mode: 'Offline',
+      isActive: true,
+      durationMonths: 6,
     ),
     Course(
-      title: 'Quantum Physics',
-      code: 'PHYS302',
-      duration: '4 Months',
-      instructor: 'Prof. Michael Chen',
+      id: '2',
+      name: 'Quantum Physics',
+      courseType: 'Foundation',
+      classLevel: 'Graduation',
+      feeAmount: 200.0,
+      mode: 'Hybrid',
+      isActive: true,
+      durationMonths: 4,
     ),
     Course(
-      title: 'Organic Chemistry',
-      code: 'CHEM205',
-      duration: '5 Months',
-      instructor: 'Dr. Elena Rodriguez',
-    ),
-    Course(
-      title: 'Computer Science',
-      code: 'CS101',
-      duration: '1 Year',
-      instructor: 'James Wilson',
+      id: '3',
+      name: 'Organic Chemistry',
+      courseType: 'Crash Course',
+      classLevel: 'Class 12',
+      feeAmount: 120.0,
+      mode: 'Online',
+      isActive: true,
+      durationMonths: 2,
     ),
   ];
 
@@ -324,21 +448,24 @@ class DummyData {
       title: 'Annual Sports Day 2026',
       description:
           'The annual sports meet is scheduled for next Friday. All students are requested to participate in their respective house colors.',
-      date: DateTime.now().add(const Duration(days: 5)),
+      startDate: DateTime.now().add(const Duration(days: 5)),
+      createdAt: DateTime.now(),
     ),
     Announcement(
       id: '2',
       title: 'Parent-Teacher Meeting',
       description:
           'Monthly PTM for discussing mid-term results will be held on Saturday from 9:00 AM to 1:00 PM.',
-      date: DateTime.now().add(const Duration(days: 2)),
+      startDate: DateTime.now().add(const Duration(days: 2)),
+      createdAt: DateTime.now(),
     ),
     Announcement(
       id: '3',
       title: 'Winter Vacation Update',
       description:
           'Winter vacations will commence from Dec 20th. School will reopen on Jan 5th, 2027.',
-      date: DateTime.now().add(const Duration(days: 40)),
+      startDate: DateTime.now().add(const Duration(days: 40)),
+      createdAt: DateTime.now(),
     ),
   ];
 }

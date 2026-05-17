@@ -36,10 +36,11 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
         double maxScroll = _scrollController.position.maxScrollExtent;
         double currentScroll = _scrollController.offset;
         
-        if (currentScroll >= maxScroll) {
-          _scrollController.jumpTo(0);
+        // Left to Right: decrease offset
+        if (currentScroll <= 0) {
+          _scrollController.jumpTo(maxScroll);
         } else {
-          _scrollController.jumpTo(currentScroll + (widget.scrollSpeed / 20));
+          _scrollController.jumpTo(currentScroll - (widget.scrollSpeed / 20));
         }
       }
     });

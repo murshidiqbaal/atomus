@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_state.dart';
+import '../../models/student_performance_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/custom_card.dart';
@@ -28,6 +29,62 @@ class ProgressScreen extends StatelessWidget {
             final student = state.studentInfo;
             if (student == null) return const SizedBox();
 
+            final performance = state.performance;
+            final double academicPerformance = performance != null
+                ? performance.academicPerformance / 100.0
+                : _computeAcademicPerformance(state);
+            final double attendancePercentage = performance != null
+                ? performance.attendancePercentage
+                : student.attendancePercentage;
+            final double marksPercentage = performance != null
+                ? performance.marksPercentage
+                : academicPerformance * 100.0;
+
+            // Generate Trajectory Chart data dynamically
+            final chartDataPoints = <double>[];
+            final chartLabels = <String>[];
+
+            if (state.exams.isNotEmpty) {
+              final orderedExams = state.exams.reversed.toList();
+              for (final session in orderedExams.take(6)) {
+                double sessionObtained = 0;
+                double sessionTotal = 0;
+                for (final sub in session.subjects) {
+                  sessionObtained += sub.marksObtained;
+                  sessionTotal += sub.totalMarks;
+                }
+                if (sessionTotal > 0) {
+                  chartDataPoints.add(sessionObtained / sessionTotal);
+                  final title = session.title;
+                  chartLabels.add(
+                    title.length > 5
+                        ? title.substring(0, 5).toUpperCase()
+                        : title.toUpperCase(),
+                  );
+                }
+              }
+            }
+
+            // Fallback for chart if no exams
+            if (chartDataPoints.isEmpty) {
+              chartDataPoints.addAll([0.72, 0.78, 0.75, 0.88, 0.85, 0.92]);
+              chartLabels.addAll(['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN']);
+            }
+
+            // Compute statistics
+            double peakScore = 0;
+            if (performance != null && performance.subjectWisePerformance.isNotEmpty) {
+              peakScore = performance.subjectWisePerformance
+                  .map((p) => p.combinedScore)
+                  .reduce((a, b) => a > b ? a : b);
+            } else {
+              peakScore = marksPercentage > 0 ? marksPercentage : 94.0;
+            }
+
+            final double avgScore = academicPerformance * 100;
+            final double trendScore = peakScore - avgScore;
+            final String trendSign = trendScore >= 0 ? '+' : '';
+
             return GlassBackground(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
@@ -47,17 +104,17 @@ class ProgressScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          const ProgressChart(
-                            dataPoints: [0.72, 0.78, 0.75, 0.88, 0.85, 0.92],
-                            labels: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'],
+                          ProgressChart(
+                            dataPoints: chartDataPoints,
+                            labels: chartLabels,
                           ),
                           const SizedBox(height: 32),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _buildStatItem('PEAK', '94%', AppColors.success),
-                              _buildStatItem('AVG', '82%', AppColors.accent),
-                              _buildStatItem('TERM', '+12%', AppColors.info),
+                              _buildStatItem('PEAK', '${peakScore.toInt()}%', AppColors.success),
+                              _buildStatItem('AVG', '${avgScore.toInt()}%', AppColors.accent),
+                              _buildStatItem('TREND', '$trendSign${trendScore.toInt()}%', AppColors.info),
                             ],
                           ),
                         ],
@@ -74,7 +131,11 @@ class ProgressScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildAnalyticalBreakdown(context, student.overallProgress),
+                    _buildAnalyticalBreakdown(
+                      context,
+                      marksPercentage: marksPercentage,
+                      attendancePercentage: attendancePercentage,
+                    ),
 
                     const SizedBox(height: 40),
                     const Text(
@@ -86,7 +147,7 @@ class ProgressScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ..._buildProficiencyList(context),
+                    ..._buildProficiencyList(context, performance),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -96,6 +157,19 @@ class ProgressScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  double _computeAcademicPerformance(StudentState state) {
+    if (state.exams.isEmpty) return 0.75;
+    double totalObtained = 0.0;
+    double totalMax = 0.0;
+    for (var exam in state.exams) {
+      for (var sub in exam.subjects) {
+        totalObtained += sub.marksObtained;
+        totalMax += sub.totalMarks;
+      }
+    }
+    return totalMax > 0 ? (totalObtained / totalMax) : 0.75;
   }
 
   Widget _buildStatItem(String label, String value, Color color) {
@@ -123,28 +197,25 @@ class ProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAnalyticalBreakdown(BuildContext context, double total) {
+  Widget _buildAnalyticalBreakdown(
+    BuildContext context, {
+    required double marksPercentage,
+    required double attendancePercentage,
+  }) {
     final components = [
       {
         'label': 'ACADEMIC PERFORMANCE',
         'weight': '70%',
-        'score': '92%',
-        'value': 0.92,
+        'score': '${marksPercentage.toInt()}%',
+        'value': marksPercentage / 100.0,
         'color': AppColors.primary,
       },
       {
         'label': 'ATTENDANCE CONSISTENCY',
-        'weight': '20%',
-        'score': '96%',
-        'value': 0.96,
+        'weight': '30%',
+        'score': '${attendancePercentage.toInt()}%',
+        'value': attendancePercentage / 100.0,
         'color': AppColors.success,
-      },
-      {
-        'label': 'BEHAVIORAL STANDARDS',
-        'weight': '10%',
-        'score': '88%',
-        'value': 0.88,
-        'color': AppColors.accent,
       },
     ];
 
@@ -215,77 +286,102 @@ class ProgressScreen extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildProficiencyList(BuildContext context) {
-    final proficiencies = [
-      {'subject': 'MATHEMATICS', 'value': 0.94, 'color': AppColors.primary},
-      {
-        'subject': 'PHYSICAL SCIENCES',
-        'value': 0.88,
-        'color': AppColors.accent,
-      },
-      {'subject': 'LITERATURE & ARTS', 'value': 0.91, 'color': AppColors.info},
-      {'subject': 'SOCIAL STUDIES', 'value': 0.85, 'color': AppColors.success},
-    ];
+  List<Widget> _buildProficiencyList(
+    BuildContext context,
+    StudentPerformanceModel? performance,
+  ) {
+    if (performance == null || performance.subjectWisePerformance.isEmpty) {
+      // Return a refined template list if performance object isn't fully ready
+      final proficiencies = [
+        {'subject': 'MATHEMATICS', 'value': 0.85, 'color': AppColors.primary},
+        {'subject': 'PHYSICAL SCIENCES', 'value': 0.80, 'color': AppColors.accent},
+        {'subject': 'LITERATURE & ARTS', 'value': 0.88, 'color': AppColors.info},
+        {'subject': 'SOCIAL STUDIES', 'value': 0.82, 'color': AppColors.success},
+      ];
 
-    return proficiencies
-        .map(
-          (p) => Padding(
-            padding: const EdgeInsets.only(bottom: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      p['subject'] as String,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                        letterSpacing: 1.0,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '${((p['value'] as double) * 100).toInt()}%',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
+      return proficiencies
+          .map((p) => _buildProficiencyRow(context, p['subject'] as String, p['value'] as double, p['color'] as Color))
+          .toList();
+    }
+
+    return performance.subjectWisePerformance.map((p) {
+      Color scoreColor = AppColors.primary;
+      if (p.combinedScore >= 80) {
+        scoreColor = AppColors.success;
+      } else if (p.combinedScore >= 60) {
+        scoreColor = AppColors.accent;
+      } else if (p.combinedScore >= 40) {
+        scoreColor = AppColors.warning;
+      } else {
+        scoreColor = AppColors.error;
+      }
+
+      return _buildProficiencyRow(
+        context,
+        p.subjectName.toUpperCase(),
+        p.combinedScore / 100.0,
+        scoreColor,
+      );
+    }).toList();
+  }
+
+  Widget _buildProficiencyRow(
+    BuildContext context,
+    String subject,
+    double value,
+    Color color,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                subject,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  letterSpacing: 1.0,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(height: 12),
-                NeuInset(
-                  padding: EdgeInsets.zero,
-                  borderRadius: 10,
-                  child: Container(
-                    height: 12,
-                    width: double.infinity,
-                    alignment: Alignment.centerLeft,
-                    child: AnimatedContainer(
-                      duration: const Duration(seconds: 1),
-                      width:
-                          MediaQuery.of(context).size.width *
-                          (p['value'] as double) *
-                          0.75,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            (p['color'] as Color).withOpacity(0.7),
-                            p['color'] as Color,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+              ),
+              Text(
+                '${(value * 100).toInt()}%',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          NeuInset(
+            padding: EdgeInsets.zero,
+            borderRadius: 10,
+            child: Container(
+              height: 12,
+              width: double.infinity,
+              alignment: Alignment.centerLeft,
+              child: AnimatedContainer(
+                duration: const Duration(seconds: 1),
+                width: MediaQuery.of(context).size.width * value * 0.75,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withOpacity(0.7),
+                      color,
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        )
-        .toList();
+        ],
+      ),
+    );
   }
 }
