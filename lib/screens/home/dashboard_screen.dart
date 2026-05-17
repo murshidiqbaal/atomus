@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../blocs/announcement/announcement_bloc.dart';
 import '../../blocs/announcement/announcement_state.dart';
+import '../../blocs/course/course_bloc.dart';
+import '../../blocs/course/course_state.dart';
 import '../../blocs/fee/fee_bloc.dart';
 import '../../blocs/fee/fee_state.dart';
 import '../../blocs/notification/notification_bloc.dart';
@@ -15,11 +17,9 @@ import '../../theme/app_colors.dart';
 import '../../widgets/announcement_popup.dart';
 import '../../widgets/custom_card.dart';
 import '../../widgets/glass_background.dart';
+import '../../widgets/marquee_widget.dart';
 import '../../widgets/neu_box.dart';
 import '../../widgets/status_badge.dart';
-import '../../widgets/marquee_widget.dart';
-import '../../blocs/course/course_bloc.dart';
-import '../../blocs/course/course_state.dart';
 import '../course/course_detail_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../progress/progress_screen.dart';
@@ -83,21 +83,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final String statusLabel = performance != null
               ? performance.progressStatus
               : (academicPerformance >= 0.8
-                  ? 'Excellent'
-                  : academicPerformance >= 0.6
-                      ? 'Good'
-                      : academicPerformance >= 0.4
-                          ? 'Average'
-                          : 'Needs Attention');
+                    ? 'Excellent'
+                    : academicPerformance >= 0.6
+                    ? 'Good'
+                    : academicPerformance >= 0.4
+                    ? 'Average'
+                    : 'Needs Attention');
           final Color progressColor = performance != null
               ? performance.progressColor
               : (academicPerformance >= 0.8
-                  ? AppColors.success
-                  : academicPerformance >= 0.6
-                      ? AppColors.info
-                      : academicPerformance >= 0.4
-                          ? AppColors.warning
-                          : AppColors.error);
+                    ? AppColors.success
+                    : academicPerformance >= 0.6
+                    ? AppColors.info
+                    : academicPerformance >= 0.4
+                    ? AppColors.warning
+                    : AppColors.error);
 
           // Find today's attendance record
           final today = DateTime.now();
@@ -305,12 +305,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         statusLabel == 'Excellent'
                                             ? 'Outstanding academic record.'
                                             : statusLabel == 'Good'
-                                                ? 'On track with steady progress.'
-                                                : statusLabel == 'Average'
-                                                    ? 'Consistent performance.'
-                                                    : statusLabel == 'Needs Improvement'
-                                                        ? 'Requires additional support.'
-                                                        : 'Immediate intervention required.',
+                                            ? 'On track with steady progress.'
+                                            : statusLabel == 'Average'
+                                            ? 'Consistent performance.'
+                                            : statusLabel == 'Needs Improvement'
+                                            ? 'Requires additional support.'
+                                            : 'Immediate intervention required.',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall
@@ -735,10 +735,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Text(
                 'EXPLORE COURSES',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                      letterSpacing: 2.0,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  color: AppColors.textSecondary,
+                  letterSpacing: 2.0,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -768,7 +768,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       onDoubleTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => CourseDetailScreen(course: course),
+                            builder: (context) =>
+                                CourseDetailScreen(course: course),
                           ),
                         );
                       },
@@ -779,13 +780,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: Stack(
                             children: [
                               // Background Image
-                              if (course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty)
+                              if (course.thumbnailUrl != null &&
+                                  course.thumbnailUrl!.isNotEmpty)
                                 Positioned.fill(
                                   child: Image.network(
                                     course.thumbnailUrl!,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        Container(color: AppColors.primary.withOpacity(0.1)),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              color: AppColors.primary
+                                                  .withOpacity(0.1),
+                                            ),
                                   ),
                                 )
                               else
@@ -803,7 +809,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ),
                                 ),
-  
+
                               // Overlay Gradient for readability
                               Positioned.fill(
                                 child: Container(
@@ -819,7 +825,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                               ),
-  
+
                               // Content
                               Padding(
                                 padding: const EdgeInsets.all(20.0),
