@@ -5,12 +5,15 @@ import 'package:intl/intl.dart';
 
 import '../../blocs/announcement/announcement_bloc.dart';
 import '../../blocs/announcement/announcement_state.dart';
+import '../../blocs/announcement/announcement_event.dart';
 import '../../blocs/course/course_bloc.dart';
 import '../../blocs/course/course_state.dart';
 import '../../blocs/fee/fee_bloc.dart';
 import '../../blocs/fee/fee_state.dart';
+import '../../blocs/fee/fee_event.dart';
 import '../../blocs/notification/notification_bloc.dart';
 import '../../blocs/notification/notification_state.dart';
+import '../../blocs/notification/notification_event.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_state.dart';
 import '../../theme/app_colors.dart';
@@ -36,6 +39,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     context.read<StudentBloc>().add(LoadStudentData());
+  }
+
+  Future<void> _handleRefresh() async {
+    final studentBloc = context.read<StudentBloc>();
+    final feeBloc = context.read<FeeBloc>();
+    final announcementBloc = context.read<AnnouncementBloc>();
+    final notificationBloc = context.read<NotificationBloc>();
+
+    studentBloc.add(LoadStudentData());
+    feeBloc.add(LoadFeeData());
+    announcementBloc.add(LoadAnnouncements());
+    notificationBloc.add(LoadNotifications());
+
+    final now = DateTime.now();
+    studentBloc.add(
+      LoadAttendance(
+        startDate: DateTime(now.year, now.month, 1),
+        endDate: DateTime(now.year, now.month + 1, 0),
+      ),
+    );
+
+    await Future.wait([
+      studentBloc.stream
+          .firstWhere((s) => s.status != StudentStatus.loading)
+          .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state),
+      feeBloc.stream
+          .firstWhere((s) => s.status != FeeStatus.loading)
+          .timeout(const Duration(seconds: 4), onTimeout: () => feeBloc.state),
+    ]);
   }
 
   double _computeAcademicPerformance(StudentState state) {
@@ -115,14 +147,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: SafeArea(
               child: Stack(
                 children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24.0,
-                      vertical: 20,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  RefreshIndicator(
+                    color: AppColors.accent,
+                    backgroundColor: AppColors.primary,
+                    onRefresh: _handleRefresh,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 20,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                         // Header — menu + notifications only (theme toggle moved to drawer)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -204,6 +241,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         // Student Profile Card
                         CustomCard(
                           padding: const EdgeInsets.all(24),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProgressScreen(),
+                              ),
+                            );
+                          },
                           child: Row(
                             children: [
                               SizedBox(
@@ -253,22 +298,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                               const SizedBox(width: 24),
                               Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const ProgressScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Academic Performance',
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Academic Performance',
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium
@@ -327,10 +362,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ],
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
 
                         const SizedBox(height: 16),
                         _buildCourseMarquee(context),
@@ -688,10 +722,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             );
                           },
                         ),
-                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
+                ),
                   // Announcement Popup Overlay
                   BlocBuilder<AnnouncementBloc, AnnouncementState>(
                     builder: (context, announcementState) {

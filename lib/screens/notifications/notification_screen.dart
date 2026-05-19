@@ -13,6 +13,14 @@ import '../../widgets/glass_background.dart';
 class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
 
+  Future<void> _handleRefresh(BuildContext context) async {
+    final notificationBloc = context.read<NotificationBloc>();
+    notificationBloc.add(LoadNotifications());
+    await notificationBloc.stream
+        .firstWhere((s) => s.status != NotificationStatus.loading)
+        .timeout(const Duration(seconds: 4), onTimeout: () => notificationBloc.state);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,25 +89,38 @@ class NotificationScreen extends StatelessWidget {
                     }
 
                     if (state.notifications.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.notifications_none_rounded,
-                              size: 64,
-                              color: AppColors.textSecondary.withOpacity(0.3),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No notifications yet',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
+                      return RefreshIndicator(
+                        color: AppColors.accent,
+                        backgroundColor: AppColors.primary,
+                        onRefresh: () => _handleRefresh(context),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) => SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.notifications_none_rounded,
+                                      size: 64,
+                                      color: AppColors.textSecondary.withOpacity(0.3),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'No notifications yet',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       );
                     }
@@ -110,23 +131,29 @@ class NotificationScreen extends StatelessWidget {
                       groups.putIfAbsent(n.type, () => []).add(n);
                     }
 
-                    return ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      children: [
-                        for (final entry in groups.entries) ...[
-                          _buildGroupHeader(context, entry.key, entry.value),
-                          const SizedBox(height: 8),
-                          ...entry.value.map(
-                            (n) => _NotificationCard(
-                              notification: n,
-                              onTap: () => context
-                                  .read<NotificationBloc>()
-                                  .add(MarkNotificationRead(n.id)),
+                    return RefreshIndicator(
+                      color: AppColors.accent,
+                      backgroundColor: AppColors.primary,
+                      onRefresh: () => _handleRefresh(context),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [
+                          for (final entry in groups.entries) ...[
+                            _buildGroupHeader(context, entry.key, entry.value),
+                            const SizedBox(height: 8),
+                            ...entry.value.map(
+                              (n) => _NotificationCard(
+                                notification: n,
+                                onTap: () => context
+                                    .read<NotificationBloc>()
+                                    .add(MarkNotificationRead(n.id)),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
+                            const SizedBox(height: 20),
+                          ],
                         ],
-                      ],
+                      ),
                     );
                   },
                 ),

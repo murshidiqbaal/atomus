@@ -160,6 +160,10 @@ class FeeRecord {
   final DateTime dueDate;
   final bool isPaid;
   final String receiptId;
+  final String? id;
+  final double? amountPaid;
+  final String? status;
+  final DateTime? paymentDate;
 
   FeeRecord({
     required this.title,
@@ -167,6 +171,10 @@ class FeeRecord {
     required this.dueDate,
     required this.isPaid,
     this.receiptId = '',
+    this.id,
+    this.amountPaid,
+    this.status,
+    this.paymentDate,
   });
 }
 

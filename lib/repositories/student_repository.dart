@@ -75,23 +75,41 @@ class StudentRepository {
 
       final List<dynamic> data = response as List<dynamic>;
       
-      // Group results by exam_id to create ExamSession objects
-      final Map<String, List<ExamMark>> groupedMarks = {};
-      final Map<String, Map<String, dynamic>> examDetails = {};
+      // Group results by exam title/name to merge different exam entries representing the same exam session (e.g. uploaded by admin & teacher separately)
+      final Map<String, List<ExamMark>> mergedMarksByExamName = {};
+      final Map<String, Map<String, dynamic>> examDetailsByExamName = {};
 
       for (var item in data) {
-        final examId = item['exam_id']?.toString();
-        if (examId == null) continue;
+        final examData = item['exams'] ?? item;
+        final examName = (examData['name'] ?? examData['title'] ?? 'Examination').toString().trim();
+        final examKey = examName.toLowerCase(); // Case-insensitive merge key
         
-        if (!groupedMarks.containsKey(examId)) {
-          groupedMarks[examId] = [];
-          examDetails[examId] = item;
+        if (!mergedMarksByExamName.containsKey(examKey)) {
+          mergedMarksByExamName[examKey] = [];
+          examDetailsByExamName[examKey] = item;
         }
-        groupedMarks[examId]!.add(ExamMark.fromMap(item));
+        
+        final newMark = ExamMark.fromMap(item);
+        final subjectKey = newMark.subject.trim().toLowerCase();
+        
+        // Check if this subject is already uploaded for this merged exam session (e.g., duplicate upload by admin & teacher)
+        final existingIndex = mergedMarksByExamName[examKey]!.indexWhere(
+          (m) => m.subject.trim().toLowerCase() == subjectKey
+        );
+        
+        if (existingIndex >= 0) {
+          final existingMark = mergedMarksByExamName[examKey]![existingIndex];
+          // Keep the record with the higher marks
+          if (newMark.marksObtained > existingMark.marksObtained) {
+            mergedMarksByExamName[examKey]![existingIndex] = newMark;
+          }
+        } else {
+          mergedMarksByExamName[examKey]!.add(newMark);
+        }
       }
 
-      return groupedMarks.entries.map((entry) {
-        return ExamSession.fromMap(examDetails[entry.key]!, entry.value);
+      return mergedMarksByExamName.entries.map((entry) {
+        return ExamSession.fromMap(examDetailsByExamName[entry.key]!, entry.value);
       }).toList();
     } catch (e) {
       print('Error fetching exam sessions: $e');

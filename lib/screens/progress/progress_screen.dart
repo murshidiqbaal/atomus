@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_state.dart';
+import '../../blocs/student/student_event.dart';
 import '../../models/student_performance_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
@@ -13,6 +14,14 @@ import '../../widgets/progress_chart.dart';
 
 class ProgressScreen extends StatelessWidget {
   const ProgressScreen({super.key});
+
+  Future<void> _handleRefresh(BuildContext context) async {
+    final studentBloc = context.read<StudentBloc>();
+    studentBloc.add(LoadStudentData());
+    await studentBloc.stream
+        .firstWhere((s) => s.status != StudentStatus.loading)
+        .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,9 +95,14 @@ class ProgressScreen extends StatelessWidget {
             final String trendSign = trendScore >= 0 ? '+' : '';
 
             return GlassBackground(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
+              child: RefreshIndicator(
+                color: AppColors.accent,
+                backgroundColor: AppColors.primary,
+                onRefresh: () => _handleRefresh(context),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
@@ -152,6 +166,7 @@ class ProgressScreen extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
             );
           },
         ),

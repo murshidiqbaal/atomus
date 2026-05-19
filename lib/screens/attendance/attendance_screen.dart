@@ -63,6 +63,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _loadAttendanceForMonth(_selectedMonth);
   }
 
+  Future<void> _handleRefresh() async {
+    final studentBloc = context.read<StudentBloc>();
+    studentBloc.add(LoadStudentData());
+    
+    final newState = await studentBloc.stream
+        .firstWhere((s) => s.status != StudentStatus.loading)
+        .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state);
+        
+    final studentInfo = newState.studentInfo;
+    if (studentInfo?.courseId != null && _selectedCourseId != studentInfo!.courseId) {
+      setState(() {
+        _selectedCourseId = studentInfo.courseId;
+      });
+      context.read<CourseBloc>().add(LoadSubjects(_selectedCourseId!));
+    }
+    
+    _loadAttendanceForMonth(_selectedMonth);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,9 +157,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 1;
             final today = DateTime.now();
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Column(
+            return RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: AppColors.primary,
+              onRefresh: _handleRefresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Column(
                 children: [
                   // Month and Subject Selectors
                   Row(
@@ -419,8 +443,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ],
                 ],
               ),
-            );
-          },
+            ),
+          );
+        },
         ),
       ),
     );

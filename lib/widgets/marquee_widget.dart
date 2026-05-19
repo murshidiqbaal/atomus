@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 class MarqueeWidget extends StatefulWidget {
   final List<Widget> children;
@@ -18,6 +19,7 @@ class MarqueeWidget extends StatefulWidget {
 class _MarqueeWidgetState extends State<MarqueeWidget> {
   late ScrollController _scrollController;
   Timer? _timer;
+  Timer? _resumeTimer;
   bool _isPaused = false;
 
   @override
@@ -49,24 +51,66 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
   @override
   void dispose() {
     _timer?.cancel();
+    _resumeTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPaused = true),
-      onTapUp: (_) => setState(() => _isPaused = false),
-      onTapCancel: () => setState(() => _isPaused = false),
-      child: ListView.builder(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        physics: const NeverScrollableScrollPhysics(), // Disable user scroll to let marquee control it
-        itemCount: widget.children.length * 100, // Infinite-ish scroll effect
-        itemBuilder: (context, index) {
-          return widget.children[index % widget.children.length];
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is UserScrollNotification) {
+          if (notification.direction != ScrollDirection.idle) {
+            _resumeTimer?.cancel();
+            if (!_isPaused) {
+              setState(() {
+                _isPaused = true;
+              });
+            }
+          } else {
+            _resumeTimer?.cancel();
+            _resumeTimer = Timer(const Duration(seconds: 3), () {
+              if (mounted) {
+                setState(() {
+                  _isPaused = false;
+                });
+              }
+            });
+          }
+        }
+        return false;
+      },
+      child: GestureDetector(
+        onTapDown: (_) {
+          _resumeTimer?.cancel();
+          setState(() => _isPaused = true);
         },
+        onTapUp: (_) {
+          _resumeTimer?.cancel();
+          _resumeTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted) {
+              setState(() => _isPaused = false);
+            }
+          });
+        },
+        onTapCancel: () {
+          _resumeTimer?.cancel();
+          _resumeTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted) {
+              setState(() => _isPaused = false);
+            }
+          });
+        },
+        child: ListView.builder(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: widget.children.length * 100, // Infinite-ish scroll effect
+          itemBuilder: (context, index) {
+            return widget.children[index % widget.children.length];
+          },
+        ),
       ),
     );
   }

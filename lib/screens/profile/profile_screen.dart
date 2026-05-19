@@ -38,6 +38,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     context.read<StudentBloc>().add(LoadStudentData());
   }
 
+  Future<void> _handleRefresh() async {
+    final studentBloc = context.read<StudentBloc>();
+    studentBloc.add(LoadStudentData());
+    await studentBloc.stream
+        .firstWhere((s) => s.status != StudentStatus.loading)
+        .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state);
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -160,9 +168,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileView(StudentInfo student) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-      child: Column(
+    return RefreshIndicator(
+      color: AppColors.accent,
+      backgroundColor: AppColors.primary,
+      onRefresh: _handleRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+        child: Column(
         children: [
           Center(
             child: NeuBox(
@@ -222,6 +235,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 40),
         ],
       ),
+    ),
     );
   }
 
