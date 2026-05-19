@@ -123,6 +123,7 @@ class AttendanceRecord {
   final String? subjectId;
   final DateTime date;
   final String status; // 'Present', 'Absent', 'Late'
+  final int? periodNumber;
 
   AttendanceRecord({
     required this.id,
@@ -132,6 +133,7 @@ class AttendanceRecord {
     this.subjectId,
     required this.date,
     required this.status,
+    this.periodNumber,
   });
 
   bool get isPresent => status == 'Present' || status == 'Late';
@@ -147,6 +149,7 @@ class AttendanceRecord {
         map['attendance_date'] ?? DateTime.now().toIso8601String(),
       ),
       status: map['status'] ?? 'Absent',
+      periodNumber: map['period_number'] != null ? int.tryParse(map['period_number'].toString()) : null,
     );
   }
 }

@@ -553,8 +553,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  //build an attendence hours detail card to show daily hours of attendence
-
   Widget _buildAttendanceHoursCard(
     List<AttendanceRecord> allRecords,
     List<Subject> subjects,
@@ -568,18 +566,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         )
         .toList();
 
-    // Ensure we always show at least 5 hours for UI consistency
-    final displayRecords = List<AttendanceRecord>.from(dailyRecords);
-    while (displayRecords.length < 5) {
-      displayRecords.add(
-        AttendanceRecord(
-          id: 'dummy_${displayRecords.length}',
+    // Map records to exactly 5 periods (Period 1 to Period 5) in a non-sequential manner
+    final List<AttendanceRecord> displayRecords = List.generate(5, (index) {
+      final periodNum = index + 1;
+      return dailyRecords.firstWhere(
+        (r) => r.periodNumber == periodNum,
+        orElse: () => AttendanceRecord(
+          id: 'dummy_$periodNum',
           studentId: '',
           date: _selectedDate,
           status: 'Unmarked',
+          periodNumber: periodNum,
         ),
       );
-    }
+    });
 
     return CustomCard(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -589,7 +589,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
             child: Text(
-              'HOURLY ATTENDANCE - ${DateFormat('MMM d').format(_selectedDate).toUpperCase()}',
+              'PERIOD-WISE ATTENDANCE - ${DateFormat('MMM d').format(_selectedDate).toUpperCase()}',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 10,
@@ -602,17 +602,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: displayRecords.map((record) {
-              Color bgColor = Colors.grey.shade400;
-              String text = 'U';
+              Color bgColor;
+              Color textColor;
+              String text;
               if (record.status == 'Present') {
                 bgColor = AppColors.success;
+                textColor = Colors.white;
                 text = 'P';
               } else if (record.status == 'Absent') {
                 bgColor = AppColors.error;
+                textColor = Colors.white;
                 text = 'A';
               } else if (record.status == 'Late') {
                 bgColor = AppColors.warning;
+                textColor = Colors.white;
                 text = 'L';
+              } else {
+                bgColor = Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.black.withOpacity(0.05);
+                textColor = AppColors.textSecondary.withOpacity(0.7);
+                text = '-';
               }
 
               String subjectName = 'Unassigned';
@@ -623,39 +633,57 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   orElse: () => Subject(id: '', name: 'Unknown Subject'),
                 );
                 subjectName = subject.name;
-                teacherName =
-                    'Teacher of ${subject.name}'; // Mocking teacher name since it's not in schema
+                teacherName = 'Teacher of ${subject.name}';
               }
 
-              return Tooltip(
-                message: 'Subject: $subjectName\nTeacher: $teacherName',
-                triggerMode: TooltipTriggerMode.longPress,
-                preferBelow: false,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.9)
-                      : Colors.black.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                textStyle: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.black
-                      : Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: bgColor,
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+              final periodIndex = record.periodNumber ?? (displayRecords.indexOf(record) + 1);
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Tooltip(
+                    message: 'Subject: $subjectName\nTeacher: $teacherName',
+                    triggerMode: TooltipTriggerMode.longPress,
+                    preferBelow: false,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.9)
+                          : Colors.black.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    textStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black
+                          : Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: bgColor,
+                      child: Text(
+                        text,
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'P$periodIndex',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                      color: record.status != 'Unmarked'
+                          ? bgColor
+                          : AppColors.textSecondary.withOpacity(0.6),
+                    ),
+                  ),
+                ],
               );
             }).toList(),
           ),

@@ -12,6 +12,12 @@ import 'student_state.dart';
 class StudentBloc extends Bloc<StudentEvent, StudentState> {
   final StudentRepository studentRepository;
 
+  // Realtime subscriptions
+  StreamSubscription? _attendanceSub;
+  StreamSubscription? _subjectAttendanceSub;
+  StreamSubscription? _marksSub;
+  String? _subscribedStudentId;
+
   StudentBloc({required this.studentRepository}) : super(const StudentState()) {
     on<LoadStudentData>(_onLoadStudentData);
     on<LoadAttendance>(_onLoadAttendance);
@@ -46,9 +52,18 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
         );
       }
 
-      final performance = info != null
-          ? StudentPerformanceService.calculatePerformance(attendance, exams)
-          : null;
+      // Try database calculation and upsert, fallback to local memory calculation if offline/failed
+      StudentAcademicPerformanceModel? performance;
+      if (info != null) {
+        try {
+          performance = await StudentPerformanceService.calculateAndStorePerformance(info.id);
+          // Set up real-time reactive streams
+          _setupRealtimeStreams(info.id);
+        } catch (dbError) {
+          print('Database performance calculation/connection failed. Using local fallback. Error: $dbError');
+          performance = StudentPerformanceService.calculatePerformanceLocalFallback(attendance, exams);
+        }
+      }
 
       emit(
         state.copyWith(
@@ -85,7 +100,9 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
         subjectId: event.subjectId,
       );
 
-      final performance = StudentPerformanceService.calculatePerformance(
+      // SNAPPY LOCAL COMPUTATION: For rapid UI filters (e.g. subject-specific calendar or date range filters),
+      // we use the local fallback calculation so user gets instantaneous updates without db roundtrip.
+      final performance = StudentPerformanceService.calculatePerformanceLocalFallback(
         attendance,
         state.exams,
       );
@@ -124,5 +141,75 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
       );
     }
   }
-}
 
+  /// Establishes Supabase streams on student changes for instant reactive dashboard sync
+  void _setupRealtimeStreams(String studentId) {
+    if (_subscribedStudentId == studentId) return; // Already subscribed
+
+    _cancelRealtimeStreams();
+    _subscribedStudentId = studentId;
+
+    final client = Supabase.instance.client;
+
+    try {
+      // 1. Listen to 'attendance' updates
+      _attendanceSub = client
+          .from('attendance')
+          .stream(primaryKey: ['id'])
+          .eq('student_id', studentId)
+          .listen((_) {
+            print('Supabase Realtime: Attendance changed. Syncing...');
+            add(LoadStudentData());
+          }, onError: (e) {
+            print('Attendance Realtime Stream error: $e');
+          });
+    } catch (e) {
+      print('Failed to setup Realtime Attendance Stream: $e');
+    }
+
+    try {
+      // 2. Listen to 'subject_attendance' updates
+      _subjectAttendanceSub = client
+          .from('subject_attendance')
+          .stream(primaryKey: ['id'])
+          .eq('student_id', studentId)
+          .listen((_) {
+            print('Supabase Realtime: Subject Attendance changed. Syncing...');
+            add(LoadStudentData());
+          }, onError: (e) {
+            print('Subject Attendance Realtime Stream error: $e');
+          });
+    } catch (e) {
+      print('Failed to setup Realtime Subject Attendance Stream: $e');
+    }
+
+    try {
+      // 3. Listen to 'marks' updates
+      _marksSub = client
+          .from('marks')
+          .stream(primaryKey: ['id'])
+          .eq('student_id', studentId)
+          .listen((_) {
+            print('Supabase Realtime: Marks changed. Syncing...');
+            add(LoadStudentData());
+          }, onError: (e) {
+            print('Marks Realtime Stream error: $e');
+          });
+    } catch (e) {
+      print('Failed to setup Realtime Marks Stream: $e');
+    }
+  }
+
+  void _cancelRealtimeStreams() {
+    _attendanceSub?.cancel();
+    _subjectAttendanceSub?.cancel();
+    _marksSub?.cancel();
+    _subscribedStudentId = null;
+  }
+
+  @override
+  Future<void> close() {
+    _cancelRealtimeStreams();
+    return super.close();
+  }
+}

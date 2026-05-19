@@ -8,10 +8,7 @@ void main() async {
 
   print('--- TESTING ATTENDANCE TABLE ---');
   try {
-    final response = await supabase
-        .from('attendance')
-        .select()
-        .limit(2);
+    final response = await supabase.from('attendance').select().limit(2);
     print('attendance output: $response');
   } catch (e) {
     print('attendance table error: $e');

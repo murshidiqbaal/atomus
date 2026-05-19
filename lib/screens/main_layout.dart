@@ -228,8 +228,10 @@ class _MainLayoutState extends State<MainLayout> {
                   );
                 }
 
-                final attendancePct =
-                    state.studentInfo!.attendancePercentage / 100.0;
+                final performance = state.performance;
+                final attendancePct = performance != null
+                    ? performance.attendancePercentage / 100.0
+                    : state.studentInfo!.attendancePercentage / 100.0;
 
                 double totalObtained = 0;
                 double totalPossible = 0;
@@ -239,11 +241,15 @@ class _MainLayoutState extends State<MainLayout> {
                     totalPossible += subject.totalMarks;
                   }
                 }
-                final marksPct =
-                    totalPossible > 0 ? totalObtained / totalPossible : 0.0;
-                final overallPct = state.exams.isEmpty
-                    ? attendancePct
-                    : marksPct * 0.7 + attendancePct * 0.3;
+                final marksPct = performance != null
+                    ? performance.marksPercentage / 100.0
+                    : (totalPossible > 0 ? totalObtained / totalPossible : 0.0);
+
+                final overallPct = performance != null
+                    ? performance.academicPerformanceScore / 100.0
+                    : (state.exams.isEmpty
+                        ? attendancePct
+                        : marksPct * 0.7 + attendancePct * 0.3);
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(

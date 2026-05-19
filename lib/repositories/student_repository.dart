@@ -132,4 +132,19 @@ class StudentRepository {
       return [];
     }
   }
+
+  /// Fetches stored student performance from the student_academic_performance table
+  Future<Map<String, dynamic>?> getStudentPerformanceFromDb(String studentId) async {
+    try {
+      final response = await _supabase
+          .from('student_academic_performance')
+          .select()
+          .eq('student_id', studentId)
+          .maybeSingle();
+      return response;
+    } catch (e) {
+      print('Error fetching student performance from DB: $e');
+      return null;
+    }
+  }
 }

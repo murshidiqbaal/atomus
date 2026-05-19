@@ -22,23 +22,29 @@ class SubjectPerformance {
 class StudentPerformanceModel {
   final double attendancePercentage; // 0.0 to 100.0
   final double marksPercentage; // 0.0 to 100.0
-  final double academicPerformance; // 0.0 to 100.0 (overall composite scoring)
+  final double academicPerformanceScore; // 0.0 to 100.0 (overall composite scoring)
   final String progressStatus; // 'Excellent', 'Good', 'Average', 'Needs Improvement', 'At Risk'
+  final int performanceRank; // Class / Course / Batch rank
   final List<SubjectPerformance> subjectWisePerformance;
+
+  // Backward compatibility getter:
+  double get academicPerformance => academicPerformanceScore;
 
   const StudentPerformanceModel({
     required this.attendancePercentage,
     required this.marksPercentage,
-    required this.academicPerformance,
+    double? academicPerformance,
+    double? academicPerformanceScore,
     required this.progressStatus,
+    this.performanceRank = 1,
     required this.subjectWisePerformance,
-  });
+  }) : academicPerformanceScore = academicPerformanceScore ?? academicPerformance ?? 0.0;
 
   Color get progressColor {
-    if (academicPerformance >= 90.0) return AppColors.success;
-    if (academicPerformance >= 75.0) return AppColors.primary;
-    if (academicPerformance >= 60.0) return AppColors.accent;
-    if (academicPerformance >= 40.0) return AppColors.info;
+    if (academicPerformanceScore >= 90.0) return AppColors.success;
+    if (academicPerformanceScore >= 75.0) return AppColors.primary;
+    if (academicPerformanceScore >= 60.0) return AppColors.accent;
+    if (academicPerformanceScore >= 40.0) return AppColors.info;
     return Colors.redAccent;
   }
 
@@ -50,3 +56,5 @@ class StudentPerformanceModel {
     return 'At Risk';
   }
 }
+
+typedef StudentAcademicPerformanceModel = StudentPerformanceModel;
