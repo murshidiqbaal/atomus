@@ -12,7 +12,9 @@ class AnnouncementRepository {
           .select()
           .eq('is_active', true)
           .lte('start_date', now) // Only show if started
-          .or('end_date.is.null,end_date.gt.$now') // Show if no end date or not ended
+          .or(
+            'end_date.is.null,end_date.gt.$now',
+          ) // Show if no end date or not ended
           .order('created_at', ascending: false);
 
       final List<dynamic> data = response as List<dynamic>;

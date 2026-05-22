@@ -190,7 +190,7 @@ class _MainLayoutState extends State<MainLayout> {
                     value: isDark,
                     onChanged: (_) =>
                         context.read<ThemeBloc>().add(ToggleTheme()),
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                   onTap: () => context.read<ThemeBloc>().add(ToggleTheme()),
                 );
@@ -248,8 +248,8 @@ class _MainLayoutState extends State<MainLayout> {
                 final overallPct = performance != null
                     ? performance.academicPerformanceScore / 100.0
                     : (state.exams.isEmpty
-                        ? attendancePct
-                        : marksPct * 0.7 + attendancePct * 0.3);
+                          ? attendancePct
+                          : marksPct * 0.7 + attendancePct * 0.3);
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(
@@ -324,10 +324,7 @@ class _MainLayoutState extends State<MainLayout> {
           children: [
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
             Text(
               '$pct%',
@@ -440,9 +437,9 @@ class _MainLayoutState extends State<MainLayout> {
               } catch (e) {
                 if (context.mounted) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },

@@ -7,8 +7,8 @@ class AnnouncementBloc extends Bloc<AnnouncementEvent, AnnouncementState> {
   final AnnouncementRepository _repository;
 
   AnnouncementBloc({required AnnouncementRepository repository})
-      : _repository = repository,
-        super(AnnouncementState()) {
+    : _repository = repository,
+      super(AnnouncementState()) {
     on<LoadAnnouncements>(_onLoadAnnouncements);
     on<DismissAnnouncement>(_onDismissAnnouncement);
   }
@@ -20,16 +20,22 @@ class AnnouncementBloc extends Bloc<AnnouncementEvent, AnnouncementState> {
     emit(state.copyWith(status: AnnouncementStatus.loading));
     try {
       final announcements = await _repository.getActiveAnnouncements();
-      emit(state.copyWith(
-        status: AnnouncementStatus.success,
-        announcements: announcements,
-        currentAnnouncement: announcements.isNotEmpty ? announcements.first : null,
-      ));
+      emit(
+        state.copyWith(
+          status: AnnouncementStatus.success,
+          announcements: announcements,
+          currentAnnouncement: announcements.isNotEmpty
+              ? announcements.first
+              : null,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status: AnnouncementStatus.failure,
-        errorMessage: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          status: AnnouncementStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 
@@ -45,9 +51,11 @@ class AnnouncementBloc extends Bloc<AnnouncementEvent, AnnouncementState> {
 
     if (currentIndex != -1 && currentIndex < state.announcements.length - 1) {
       // Show next announcement
-      emit(state.copyWith(
-        currentAnnouncement: state.announcements[currentIndex + 1],
-      ));
+      emit(
+        state.copyWith(
+          currentAnnouncement: state.announcements[currentIndex + 1],
+        ),
+      );
     } else {
       // No more announcements
       emit(state.copyWith(clearCurrent: true));

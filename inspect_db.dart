@@ -32,7 +32,10 @@ void main() async {
 
   print('\n--- TESTING SUBJECT_ATTENDANCE ---');
   try {
-    final response = await supabase.from('subject_attendance').select().limit(2);
+    final response = await supabase
+        .from('subject_attendance')
+        .select()
+        .limit(2);
     print('Subject Attendance: $response');
   } catch (e) {
     print('Subject Attendance error: $e');
@@ -40,7 +43,10 @@ void main() async {
 
   print('\n--- TESTING STUDENT_ACADEMIC_PERFORMANCE ---');
   try {
-    final response = await supabase.from('student_academic_performance').select().limit(2);
+    final response = await supabase
+        .from('student_academic_performance')
+        .select()
+        .limit(2);
     print('Student Academic Performance: $response');
   } catch (e) {
     print('Student Academic Performance error: $e');

@@ -6,8 +6,8 @@ import 'theme_state.dart';
 class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   ThemeBloc() : super(const ThemeState(ThemeMode.light)) {
     on<ToggleTheme>((event, emit) {
-      final newMode = state.themeMode == ThemeMode.light 
-          ? ThemeMode.dark 
+      final newMode = state.themeMode == ThemeMode.light
+          ? ThemeMode.dark
           : ThemeMode.light;
       emit(ThemeState(newMode));
     });

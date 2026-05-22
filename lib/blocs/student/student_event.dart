@@ -22,7 +22,12 @@ class LoadAttendance extends StudentEvent {
   final String? courseId;
   final String? subjectId;
 
-  const LoadAttendance({this.startDate, this.endDate, this.courseId, this.subjectId});
+  const LoadAttendance({
+    this.startDate,
+    this.endDate,
+    this.courseId,
+    this.subjectId,
+  });
 
   @override
   List<Object?> get props => [startDate, endDate, courseId, subjectId];

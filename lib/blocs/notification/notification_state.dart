@@ -37,6 +37,5 @@ class NotificationState extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [status, notifications, unreadCount, errorMessage];
+  List<Object?> get props => [status, notifications, unreadCount, errorMessage];
 }

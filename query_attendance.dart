@@ -14,7 +14,9 @@ void main() async {
         .eq('student_id', '59a0e20d-039e-464d-982c-e5161bd96a64');
     print('Total records in attendance table: ${response.length}');
     for (var r in response) {
-      print('  - Date: ${r['attendance_date']}, Status: ${r['status']}, Period: ${r['period_number']}, Subject ID: ${r['subject_id']}');
+      print(
+        '  - Date: ${r['attendance_date']}, Status: ${r['status']}, Period: ${r['period_number']}, Subject ID: ${r['subject_id']}',
+      );
     }
   } catch (e) {
     print('Error: $e');
@@ -22,9 +24,7 @@ void main() async {
 
   print('\n--- ALL SUBJECT ATTENDANCE RECORDS ---');
   try {
-    final response = await supabase
-        .from('subject_attendance')
-        .select();
+    final response = await supabase.from('subject_attendance').select();
     print('Total records in subject_attendance table: ${response.length}');
   } catch (e) {
     print('Error: $e');

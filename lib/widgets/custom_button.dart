@@ -58,9 +58,16 @@ class _CustomButtonState extends State<CustomButton> {
           isPressed: _isPressed,
           borderRadius: 16,
           padding: EdgeInsets.zero,
-          color: widget.isOutline ? AppColors.neuBase : (_isPressed ? AppColors.primary.withOpacity(0.9) : AppColors.primary),
+          color: widget.isOutline
+              ? AppColors.neuBase
+              : (_isPressed
+                    ? AppColors.primary.withOpacity(0.9)
+                    : AppColors.primary),
           child: Center(
-            child: _buildChild(context, widget.isOutline ? AppColors.primary : Colors.white),
+            child: _buildChild(
+              context,
+              widget.isOutline ? AppColors.primary : Colors.white,
+            ),
           ),
         ),
       ),

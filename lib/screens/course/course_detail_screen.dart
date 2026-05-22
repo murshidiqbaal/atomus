@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/dummy_data.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/drive_network_image.dart';
 import '../../widgets/glass_background.dart';
 
 class CourseDetailScreen extends StatelessWidget {
@@ -31,19 +32,14 @@ class CourseDetailScreen extends StatelessWidget {
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (course.thumbnailUrl != null &&
-                        course.thumbnailUrl!.isNotEmpty)
-                      Image.network(course.thumbnailUrl!, fit: BoxFit.fill)
-                    else
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [AppColors.primary, AppColors.accent],
-                          ),
-                        ),
-                      ),
+                    DriveNetworkImage(
+                      driveId: course.thumbnailDriveId,
+                      fit: BoxFit.cover,
+                      highQuality: true,
+                      imageWidth: 1200,
+                      placeholderType: DrivePlaceholderType.banner,
+                      alt: '${course.name} banner',
+                    ),
                     const DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(

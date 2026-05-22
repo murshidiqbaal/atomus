@@ -33,10 +33,7 @@ class GlassBackground extends StatelessWidget {
         Positioned(
           top: 300,
           left: 150,
-          child: _GlowBlob(
-            color: Colors.blue.withOpacity(0.05),
-            size: 200,
-          ),
+          child: _GlowBlob(color: Colors.blue.withOpacity(0.05), size: 200),
         ),
         // The actual content
         child,
@@ -59,11 +56,7 @@ class _GlowBlob extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(
-            color: color,
-            blurRadius: size / 2,
-            spreadRadius: size / 4,
-          ),
+          BoxShadow(color: color, blurRadius: size / 2, spreadRadius: size / 4),
         ],
       ),
     );

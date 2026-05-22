@@ -23,20 +23,20 @@ class NotificationService {
   // Attendance alert channel (high importance so it shows as a heads-up)
   static const AndroidNotificationChannel _attendanceChannel =
       AndroidNotificationChannel(
-    'atomus_attendance',
-    'Attendance Alerts',
-    description: 'Alerts when a student is marked absent',
-    importance: Importance.max,
-    playSound: true,
-  );
+        'atomus_attendance',
+        'Attendance Alerts',
+        description: 'Alerts when a student is marked absent',
+        importance: Importance.max,
+        playSound: true,
+      );
 
   static const AndroidNotificationChannel _generalChannel =
       AndroidNotificationChannel(
-    'atomus_general',
-    'General Notifications',
-    description: 'Marks, fees and announcement updates',
-    importance: Importance.high,
-  );
+        'atomus_general',
+        'General Notifications',
+        description: 'Marks, fees and announcement updates',
+        importance: Importance.high,
+      );
 
   Future<void> initialize(NotificationRepository repository) async {
     // Register the background handler before anything else.
@@ -53,8 +53,7 @@ class NotificationService {
     if (settings.authorizationStatus == AuthorizationStatus.denied) return;
 
     // Initialize flutter_local_notifications.
-    const androidInit =
-        AndroidInitializationSettings('@mipmap/launcher_icon');
+    const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
     const iosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -68,7 +67,8 @@ class NotificationService {
     // Create Android notification channels.
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.createNotificationChannel(_attendanceChannel);
     await androidPlugin?.createNotificationChannel(_generalChannel);
 
@@ -89,7 +89,9 @@ class NotificationService {
     if (token != null) await repository.updateFcmToken(token);
 
     // Refresh token listener (token can rotate).
-    _fcm.onTokenRefresh.listen((newToken) => repository.updateFcmToken(newToken));
+    _fcm.onTokenRefresh.listen(
+      (newToken) => repository.updateFcmToken(newToken),
+    );
   }
 
   void _handleMessageOpen(RemoteMessage message) {

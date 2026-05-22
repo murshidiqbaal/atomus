@@ -8,13 +8,16 @@ void main() async {
 
   print('--- ALL PERFORMANCES ---');
   try {
-    final response = await supabase.from('student_academic_performance').select('''
+    final response = await supabase
+        .from('student_academic_performance')
+        .select('''
       *,
       students (
         full_name,
         roll_number
       )
-    ''').order('academic_performance_score', ascending: false);
+    ''')
+        .order('academic_performance_score', ascending: false);
     print(response);
   } catch (e) {
     print('Error: $e');

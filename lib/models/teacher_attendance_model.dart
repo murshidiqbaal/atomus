@@ -1,0 +1,138 @@
+enum TeacherAttendanceStatus { active, completed, missed }
+
+extension TeacherAttendanceStatusX on TeacherAttendanceStatus {
+  String get value {
+    switch (this) {
+      case TeacherAttendanceStatus.active:    return 'Active';
+      case TeacherAttendanceStatus.completed: return 'Completed';
+      case TeacherAttendanceStatus.missed:    return 'Missed';
+    }
+  }
+
+  static TeacherAttendanceStatus fromString(String s) {
+    switch (s) {
+      case 'Active':    return TeacherAttendanceStatus.active;
+      case 'Completed': return TeacherAttendanceStatus.completed;
+      default:          return TeacherAttendanceStatus.missed;
+    }
+  }
+}
+
+class TeacherAttendanceModel {
+  final String? id;
+  final String teacherId;
+  final String? campusId;
+  final String? subjectId;
+  final String? subjectName;
+  final String? courseId;
+  final String? batchId;
+  final DateTime attendanceDate;
+  final DateTime? startTime;
+  final DateTime? endTime;
+  final int? totalDurationMinutes;
+  final double? latitude;
+  final double? longitude;
+  final TeacherAttendanceStatus status;
+  final DateTime createdAt;
+
+  TeacherAttendanceModel({
+    this.id,
+    required this.teacherId,
+    this.campusId,
+    this.subjectId,
+    this.subjectName,
+    this.courseId,
+    this.batchId,
+    required this.attendanceDate,
+    this.startTime,
+    this.endTime,
+    this.totalDurationMinutes,
+    this.latitude,
+    this.longitude,
+    this.status = TeacherAttendanceStatus.active,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  factory TeacherAttendanceModel.fromMap(Map<String, dynamic> map) {
+    final subject = map['subjects'] as Map<String, dynamic>?;
+    return TeacherAttendanceModel(
+      id:                   map['id'] as String?,
+      teacherId:            map['teacher_id'] as String,
+      campusId:             map['campus_id'] as String?,
+      subjectId:            map['subject_id'] as String?,
+      subjectName:          subject?['name'] as String?,
+      courseId:             map['course_id'] as String?,
+      batchId:              map['batch_id'] as String?,
+      attendanceDate:       DateTime.parse(map['attendance_date'] as String),
+      startTime:            map['start_time'] != null
+                              ? DateTime.parse(map['start_time'] as String)
+                              : null,
+      endTime:              map['end_time'] != null
+                              ? DateTime.parse(map['end_time'] as String)
+                              : null,
+      totalDurationMinutes: map['total_duration_minutes'] as int?,
+      latitude:             (map['latitude'] as num?)?.toDouble(),
+      longitude:            (map['longitude'] as num?)?.toDouble(),
+      status:               TeacherAttendanceStatusX.fromString(
+                              map['attendance_status'] as String? ?? 'Active'),
+      createdAt:            map['created_at'] != null
+                              ? DateTime.parse(map['created_at'] as String)
+                              : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toInsertMap() {
+    return {
+      'teacher_id':       teacherId,
+      if (campusId  != null) 'campus_id':  campusId,
+      if (subjectId != null) 'subject_id': subjectId,
+      if (courseId  != null) 'course_id':  courseId,
+      if (batchId   != null) 'batch_id':   batchId,
+      'attendance_date':  attendanceDate.toIso8601String().split('T').first,
+      if (startTime != null) 'start_time': startTime!.toIso8601String(),
+      if (endTime   != null) 'end_time':   endTime!.toIso8601String(),
+      if (latitude  != null) 'latitude':   latitude,
+      if (longitude != null) 'longitude':  longitude,
+      'attendance_status': status.value,
+    };
+  }
+
+  bool get isActive    => status == TeacherAttendanceStatus.active;
+  bool get isCompleted => status == TeacherAttendanceStatus.completed;
+
+  String get durationLabel {
+    final minutes = totalDurationMinutes ??
+        (startTime != null && endTime != null
+            ? endTime!.difference(startTime!).inMinutes
+            : null);
+    if (minutes == null) return '--';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return h > 0 ? '${h}h ${m}m' : '${m}m';
+  }
+
+  TeacherAttendanceModel copyWith({
+    String? id,
+    DateTime? endTime,
+    TeacherAttendanceStatus? status,
+    int? totalDurationMinutes,
+  }) {
+    return TeacherAttendanceModel(
+      id:                   id ?? this.id,
+      teacherId:            teacherId,
+      campusId:             campusId,
+      subjectId:            subjectId,
+      subjectName:          subjectName,
+      courseId:             courseId,
+      batchId:              batchId,
+      attendanceDate:       attendanceDate,
+      startTime:            startTime,
+      endTime:              endTime ?? this.endTime,
+      totalDurationMinutes: totalDurationMinutes ?? this.totalDurationMinutes,
+      latitude:             latitude,
+      longitude:            longitude,
+      status:               status ?? this.status,
+      createdAt:            createdAt,
+    );
+  }
+}

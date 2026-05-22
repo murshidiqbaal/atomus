@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import 'neu_box.dart';
 
 class CustomCard extends StatelessWidget {

@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(flutter analyze *)",
-      "Bash(flutter pub *)"
+      "Bash(flutter pub *)",
+      "PowerShell(flutter analyze *)",
+      "Bash(not exist *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\vscode\\\\Atomus\\\\atomus\" -Force)",
+      "Bash(Select-Object -Property Name, PSIsContainer)",
+      "Bash(Format-Table)"
     ]
   }
 }

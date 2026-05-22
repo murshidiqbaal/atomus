@@ -18,15 +18,14 @@ class CourseBloc extends Bloc<CourseEvent, CourseState> {
     emit(state.copyWith(status: CourseStatus.loading));
     try {
       final courses = await courseRepository.getCourses();
-      emit(state.copyWith(
-        status: CourseStatus.success,
-        courses: courses,
-      ));
+      emit(state.copyWith(status: CourseStatus.success, courses: courses));
     } catch (e) {
-      emit(state.copyWith(
-        status: CourseStatus.failure,
-        errorMessage: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          status: CourseStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 
@@ -37,15 +36,14 @@ class CourseBloc extends Bloc<CourseEvent, CourseState> {
     emit(state.copyWith(status: CourseStatus.loading));
     try {
       final subjects = await courseRepository.getSubjects(event.courseId);
-      emit(state.copyWith(
-        status: CourseStatus.success,
-        subjects: subjects,
-      ));
+      emit(state.copyWith(status: CourseStatus.success, subjects: subjects));
     } catch (e) {
-      emit(state.copyWith(
-        status: CourseStatus.failure,
-        errorMessage: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          status: CourseStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 }

@@ -17,11 +17,16 @@ class FeeBloc extends Bloc<FeeEvent, FeeState> {
       final fees = await feeRepository.getFeeRecords();
       emit(state.copyWith(status: FeeStatus.success, fees: fees));
     } catch (e) {
-      emit(state.copyWith(status: FeeStatus.failure, errorMessage: e.toString()));
+      emit(
+        state.copyWith(status: FeeStatus.failure, errorMessage: e.toString()),
+      );
     }
   }
 
-  Future<void> _onPayFeeRequested(PayFeeRequested event, Emitter<FeeState> emit) async {
+  Future<void> _onPayFeeRequested(
+    PayFeeRequested event,
+    Emitter<FeeState> emit,
+  ) async {
     // Optimistic or simple implementation
     await feeRepository.payFee(event.feeTitle);
     add(LoadFeeData()); // Refresh data

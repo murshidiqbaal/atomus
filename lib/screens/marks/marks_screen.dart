@@ -15,16 +15,17 @@ class MarksScreen extends StatelessWidget {
     studentBloc.add(LoadStudentData());
     await studentBloc.stream
         .firstWhere((s) => s.status != StudentStatus.loading)
-        .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state);
+        .timeout(
+          const Duration(seconds: 4),
+          onTimeout: () => studentBloc.state,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Academic Record'),
-      ),
+      appBar: AppBar(title: const Text('Academic Record')),
       body: BlocBuilder<StudentBloc, StudentState>(
         builder: (context, state) {
           if (state.status == StudentStatus.loading) {
@@ -39,7 +40,9 @@ class MarksScreen extends StatelessWidget {
                 builder: (context, constraints) => SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: const Center(
                       child: Text('No examination records found.'),
                     ),
@@ -63,57 +66,85 @@ class MarksScreen extends StatelessWidget {
                 return CustomCard(
                   padding: EdgeInsets.zero,
                   child: ExpansionTile(
-                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
-                    collapsedShape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(20)),
+                    ),
+                    collapsedShape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(20)),
+                    ),
                     iconColor: AppColors.accent,
                     collapsedIconColor: AppColors.primary,
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    tilePadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     title: Text(
                       exam.title.toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: 1.0),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        letterSpacing: 1.0,
+                      ),
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4.0),
                       child: Text(
                         'CONCLUDED ON ${exam.date.toUpperCase()}',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                     childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                     children: [
                       const NeuDivider(),
                       const SizedBox(height: 20),
-                      ...exam.subjects.map((subject) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    subject.subject,
-                                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14),
+                      ...exam.subjects.map(
+                        (subject) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  subject.subject,
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
                                   ),
                                 ),
-                                Text(
-                                  '${subject.marksObtained}/${subject.totalMarks}',
-                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                              ),
+                              Text(
+                                '${subject.marksObtained}/${subject.totalMarks}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
                                 ),
-                                const SizedBox(width: 16),
-                                NeuBox(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  borderRadius: 10,
-                                  isPressed: true,
-                                  child: Text(
-                                    subject.grade,
-                                    style: const TextStyle(
-                                      color: AppColors.accent,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 12,
-                                    ),
+                              ),
+                              const SizedBox(width: 16),
+                              NeuBox(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                borderRadius: 10,
+                                isPressed: true,
+                                child: Text(
+                                  subject.grade,
+                                  style: const TextStyle(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
                                   ),
                                 ),
-                              ],
-                            ),
-                          )),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 );

@@ -19,6 +19,7 @@ import '../../blocs/student/student_state.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/announcement_popup.dart';
 import '../../widgets/custom_card.dart';
+import '../../widgets/drive_network_image.dart';
 import '../../widgets/glass_background.dart';
 import '../../widgets/marquee_widget.dart';
 import '../../widgets/neu_box.dart';
@@ -63,7 +64,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await Future.wait([
       studentBloc.stream
           .firstWhere((s) => s.status != StudentStatus.loading)
-          .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state),
+          .timeout(
+            const Duration(seconds: 4),
+            onTimeout: () => studentBloc.state,
+          ),
       feeBloc.stream
           .firstWhere((s) => s.status != FeeStatus.loading)
           .timeout(const Duration(seconds: 4), onTimeout: () => feeBloc.state),
@@ -160,150 +164,150 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                        // Header — menu + notifications only (theme toggle moved to drawer)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            NeuBox(
-                              width: 50,
-                              height: 50,
-                              borderRadius: 12,
-                              padding: EdgeInsets.zero,
-                              onTap: () => Scaffold.of(context).openDrawer(),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.menu_rounded,
-                                  color: AppColors.primary,
+                          // Header — menu + notifications only (theme toggle moved to drawer)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              NeuBox(
+                                width: 50,
+                                height: 50,
+                                borderRadius: 12,
+                                padding: EdgeInsets.zero,
+                                onTap: () => Scaffold.of(context).openDrawer(),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.menu_rounded,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                               ),
-                            ),
-                            BlocBuilder<NotificationBloc, NotificationState>(
-                              builder: (context, notifState) {
-                                final unread = notifState.unreadCount;
-                                return Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    NeuBox(
-                                      width: 50,
-                                      height: 50,
-                                      borderRadius: 12,
-                                      padding: EdgeInsets.zero,
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const NotificationScreen(),
+                              BlocBuilder<NotificationBloc, NotificationState>(
+                                builder: (context, notifState) {
+                                  final unread = notifState.unreadCount;
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      NeuBox(
+                                        width: 50,
+                                        height: 50,
+                                        borderRadius: 12,
+                                        padding: EdgeInsets.zero,
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const NotificationScreen(),
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.notifications_none_rounded,
+                                            color: AppColors.primary,
+                                          ),
                                         ),
                                       ),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.notifications_none_rounded,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                    ),
-                                    if (unread > 0)
-                                      Positioned(
-                                        right: 4,
-                                        top: 4,
-                                        child: Container(
-                                          constraints: const BoxConstraints(
-                                            minWidth: 18,
-                                            minHeight: 18,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 4,
-                                          ),
-                                          decoration: const BoxDecoration(
-                                            color: AppColors.error,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              unread > 99 ? '99+' : '$unread',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w900,
+                                      if (unread > 0)
+                                        Positioned(
+                                          right: 4,
+                                          top: 4,
+                                          child: Container(
+                                            constraints: const BoxConstraints(
+                                              minWidth: 18,
+                                              minHeight: 18,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                            ),
+                                            decoration: const BoxDecoration(
+                                              color: AppColors.error,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                unread > 99 ? '99+' : '$unread',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 32),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
 
-                        // Student Profile Card
-                        CustomCard(
-                          padding: const EdgeInsets.all(24),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ProgressScreen(),
-                              ),
-                            );
-                          },
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 100,
-                                height: 100,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 100,
-                                      height: 100,
-                                      child: CircularProgressIndicator(
-                                        value: academicPerformance,
-                                        strokeWidth: 10,
-                                        backgroundColor: AppColors.primary
-                                            .withOpacity(0.1),
-                                        color: progressColor,
-                                        strokeCap: StrokeCap.round,
-                                      ),
-                                    ),
-                                    Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          '${(academicPerformance * 100).toInt()}%',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 24,
-                                              ),
-                                        ),
-                                        Text(
-                                          'Overall',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                          // Student Profile Card
+                          CustomCard(
+                            padding: const EdgeInsets.all(24),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProgressScreen(),
                                 ),
-                              ),
-                              const SizedBox(width: 24),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Academic Performance',
+                              );
+                            },
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 100,
+                                  height: 100,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 100,
+                                        height: 100,
+                                        child: CircularProgressIndicator(
+                                          value: academicPerformance,
+                                          strokeWidth: 10,
+                                          backgroundColor: AppColors.primary
+                                              .withOpacity(0.1),
+                                          color: progressColor,
+                                          strokeCap: StrokeCap.round,
+                                        ),
+                                      ),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${(academicPerformance * 100).toInt()}%',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleLarge
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 24,
+                                                ),
+                                          ),
+                                          Text(
+                                            'Overall',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Academic Performance',
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium
@@ -366,366 +370,373 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
 
-                        const SizedBox(height: 16),
-                        _buildCourseMarquee(context),
-                        const SizedBox(height: 32),
+                          const SizedBox(height: 16),
+                          _buildCourseMarquee(context),
+                          const SizedBox(height: 32),
 
-                        // Academic Insights Grid
-                        Row(
-                          children: [
-                            Expanded(
-                              child: CustomCard(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const ProgressScreen(),
-                                    ),
-                                  );
-                                },
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.insights_rounded,
-                                      color: AppColors.accent,
-                                      size: 28,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    Text(
-                                      'MARKS',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelLarge
-                                          ?.copyWith(
-                                            color: AppColors.textSecondary,
-                                            letterSpacing: 1.5,
+                          // Academic Insights Grid
+                          Row(
+                            children: [
+                              Expanded(
+                                child: CustomCard(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const ProgressScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.insights_rounded,
+                                        color: AppColors.accent,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Text(
+                                        'MARKS',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(
+                                              color: AppColors.textSecondary,
+                                              letterSpacing: 1.5,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.baseline,
+                                        textBaseline: TextBaseline.alphabetic,
+                                        children: [
+                                          Text(
+                                            '${marksPercentage.toInt()}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .displaySmall
+                                                ?.copyWith(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).primaryColor,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
                                           ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.baseline,
-                                      textBaseline: TextBaseline.alphabetic,
-                                      children: [
-                                        Text(
-                                          '${marksPercentage.toInt()}',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .displaySmall
-                                              ?.copyWith(
-                                                color: Theme.of(
-                                                  context,
-                                                ).primaryColor,
-                                                fontWeight: FontWeight.w800,
+                                          Text(
+                                            '%',
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).primaryColor.withOpacity(0.5),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      StatusBadge(
+                                        status: BadgeStatus.fromProgress(
+                                          marksPercentage / 100.0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: CustomCard(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.calendar_month,
+                                        color: AppColors.success,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Text(
+                                        'ATTENDANCE',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(
+                                              color: AppColors.textSecondary,
+                                              letterSpacing: 1.5,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.baseline,
+                                        textBaseline: TextBaseline.alphabetic,
+                                        children: [
+                                          Text(
+                                            '${attendancePercentage.toInt()}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .displaySmall
+                                                ?.copyWith(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).primaryColor,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                          ),
+                                          Text(
+                                            '%',
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).primaryColor.withOpacity(0.5),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      StatusBadge(
+                                        status: BadgeStatus.fromProgress(
+                                          attendancePercentage / 100.0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 40),
+
+                          // Recent Evaluations
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildSectionHeader(
+                                context,
+                                'Recent Evaluations',
+                              ),
+                              TextButton(
+                                onPressed: () {},
+                                child: const Text(
+                                  'ARCHIVE',
+                                  style: TextStyle(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 11,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Today's attendance card
+                          _buildTodayAttendanceCard(context, todayRecord),
+                          const SizedBox(height: 12),
+
+                          // Latest exam marks card
+                          if (state.exams.isNotEmpty) ...[
+                            CustomCard(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        state.exams.first.title.toUpperCase(),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      Text(
+                                        state.exams.first.date,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const NeuDivider(),
+                                  const SizedBox(height: 16),
+                                  ...state.exams.first.subjects
+                                      .take(2)
+                                      .map(
+                                        (subject) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                subject.subject,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
-                                        ),
-                                        Text(
-                                          '%',
-                                          style: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).primaryColor.withOpacity(0.5),
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    StatusBadge(
-                                      status: BadgeStatus.fromProgress(
-                                        marksPercentage / 100.0,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: CustomCard(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_month,
-                                      color: AppColors.success,
-                                      size: 28,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    Text(
-                                      'ATTENDANCE',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelLarge
-                                          ?.copyWith(
-                                            color: AppColors.textSecondary,
-                                            letterSpacing: 1.5,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.baseline,
-                                      textBaseline: TextBaseline.alphabetic,
-                                      children: [
-                                        Text(
-                                          '${attendancePercentage.toInt()}',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .displaySmall
-                                              ?.copyWith(
-                                                color: Theme.of(
-                                                  context,
-                                                ).primaryColor,
-                                                fontWeight: FontWeight.w800,
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .primaryColor
+                                                      .withOpacity(0.05),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  '${subject.marksObtained}/${subject.totalMarks}',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).primaryColor,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
                                               ),
-                                        ),
-                                        Text(
-                                          '%',
-                                          style: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).primaryColor.withOpacity(0.5),
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    StatusBadge(
-                                      status: BadgeStatus.fromProgress(
-                                        attendancePercentage / 100.0,
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 40),
-
-                        // Recent Evaluations
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildSectionHeader(context, 'Recent Evaluations'),
-                            TextButton(
-                              onPressed: () {},
-                              child: const Text(
-                                'ARCHIVE',
-                                style: TextStyle(
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 11,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Today's attendance card
-                        _buildTodayAttendanceCard(context, todayRecord),
-                        const SizedBox(height: 12),
-
-                        // Latest exam marks card
-                        if (state.exams.isNotEmpty) ...[
-                          CustomCard(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                          ] else ...[
+                            const CustomCard(
+                              padding: EdgeInsets.all(24),
+                              child: Center(
+                                child: Column(
                                   children: [
-                                    Text(
-                                      state.exams.first.title.toUpperCase(),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 14,
-                                        letterSpacing: 0.5,
-                                      ),
+                                    Icon(
+                                      Icons.assignment_late_outlined,
+                                      color: AppColors.textSecondary,
+                                      size: 32,
                                     ),
+                                    SizedBox(height: 12),
                                     Text(
-                                      state.exams.first.date,
-                                      style: const TextStyle(
+                                      'No recent evaluations found.',
+                                      style: TextStyle(
                                         color: AppColors.textSecondary,
-                                        fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
-                                const NeuDivider(),
-                                const SizedBox(height: 16),
-                                ...state.exams.first.subjects
-                                    .take(2)
-                                    .map(
-                                      (subject) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              subject.subject,
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(context)
-                                                    .primaryColor
-                                                    .withOpacity(0.05),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                '${subject.marksObtained}/${subject.totalMarks}',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).primaryColor,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                              ],
-                            ),
-                          ),
-                        ] else ...[
-                          const CustomCard(
-                            padding: EdgeInsets.all(24),
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.assignment_late_outlined,
-                                    color: AppColors.textSecondary,
-                                    size: 32,
-                                  ),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'No recent evaluations found.',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
-                          ),
-                        ],
-                        const SizedBox(height: 40),
+                          ],
+                          const SizedBox(height: 40),
 
-                        // Financial Overview
-                        _buildSectionHeader(context, 'Financial Overview'),
-                        const SizedBox(height: 16),
-                        BlocBuilder<FeeBloc, FeeState>(
-                          builder: (context, feeState) {
-                            if (feeState.status == FeeStatus.loading) {
-                              return const Center(
-                                child: LinearProgressIndicator(),
-                              );
-                            }
-                            if (feeState.fees.isEmpty) return const SizedBox();
+                          // Financial Overview
+                          _buildSectionHeader(context, 'Financial Overview'),
+                          const SizedBox(height: 16),
+                          BlocBuilder<FeeBloc, FeeState>(
+                            builder: (context, feeState) {
+                              if (feeState.status == FeeStatus.loading) {
+                                return const Center(
+                                  child: LinearProgressIndicator(),
+                                );
+                              }
+                              if (feeState.fees.isEmpty) {
+                                return const SizedBox();
+                              }
 
-                            final firstFee = feeState.fees.first;
+                              final firstFee = feeState.fees.first;
 
-                            return CustomCard(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  NeuBox(
-                                    width: 50,
-                                    height: 50,
-                                    borderRadius: 12,
-                                    isPressed: true,
-                                    padding: EdgeInsets.zero,
-                                    child: const Icon(
-                                      Icons.account_balance_wallet_outlined,
-                                      color: AppColors.warning,
+                              return CustomCard(
+                                padding: const EdgeInsets.all(20),
+                                child: Row(
+                                  children: [
+                                    NeuBox(
+                                      width: 50,
+                                      height: 50,
+                                      borderRadius: 12,
+                                      isPressed: true,
+                                      padding: EdgeInsets.zero,
+                                      child: const Icon(
+                                        Icons.account_balance_wallet_outlined,
+                                        color: AppColors.warning,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'OUTSTANDING BALANCE',
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'OUTSTANDING BALANCE',
+                                            style: TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 1.0,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '\$${firstFee.amount.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 20,
+                                              color: Theme.of(
+                                                context,
+                                              ).primaryColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {},
+                                      child: NeuBox(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 10,
+                                        ),
+                                        borderRadius: 12,
+                                        color: AppColors.accent,
+                                        child: const Text(
+                                          'SETTLE',
                                           style: TextStyle(
-                                            color: AppColors.textSecondary,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
+                                            fontSize: 11,
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w900,
                                             letterSpacing: 1.0,
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '\$${firstFee.amount.toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 20,
-                                            color: Theme.of(
-                                              context,
-                                            ).primaryColor,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () {},
-                                    child: NeuBox(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                      borderRadius: 12,
-                                      color: AppColors.accent,
-                                      child: const Text(
-                                        'SETTLE',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 1.0,
-                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
                   // Announcement Popup Overlay
                   BlocBuilder<AnnouncementBloc, AnnouncementState>(
                     builder: (context, announcementState) {
@@ -814,35 +825,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: Stack(
                             children: [
                               // Background Image
-                              if (course.thumbnailUrl != null &&
-                                  course.thumbnailUrl!.isNotEmpty)
-                                Positioned.fill(
-                                  child: Image.network(
-                                    course.thumbnailUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Container(
-                                              color: AppColors.primary
-                                                  .withOpacity(0.1),
-                                            ),
-                                  ),
-                                )
-                              else
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          AppColors.primary.withOpacity(0.8),
-                                          AppColors.primary,
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                              Positioned.fill(
+                                child: DriveNetworkImage(
+                                  driveId: course.thumbnailDriveId,
+                                  fit: BoxFit.cover,
+                                  placeholderType: DrivePlaceholderType.banner,
+                                  alt: '${course.name} thumbnail',
                                 ),
+                              ),
 
                               // Overlay Gradient for readability
                               Positioned.fill(

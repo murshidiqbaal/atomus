@@ -41,12 +41,11 @@ class StudentState extends Equatable {
 
   @override
   List<Object?> get props => [
-        status,
-        studentInfo,
-        exams,
-        attendance,
-        performance,
-        errorMessage,
-      ];
+    status,
+    studentInfo,
+    exams,
+    attendance,
+    performance,
+    errorMessage,
+  ];
 }
-

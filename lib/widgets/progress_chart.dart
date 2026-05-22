@@ -31,15 +31,17 @@ class ProgressChart extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: labels
-              .map((label) => Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 1.0,
-                    ),
-                  ))
+              .map(
+                (label) => Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              )
               .toList(),
         ),
       ],
@@ -123,7 +125,7 @@ class _ChartPainter extends CustomPainter {
     final Paint pointPaint = Paint()
       ..color = AppColors.accent
       ..style = PaintingStyle.fill;
-    
+
     final Paint pointOutlinePaint = Paint()
       ..color = isDarkMode ? const Color(0xFF020617) : AppColors.neuBase
       ..style = PaintingStyle.fill;

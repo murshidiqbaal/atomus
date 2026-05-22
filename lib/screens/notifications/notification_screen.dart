@@ -18,7 +18,10 @@ class NotificationScreen extends StatelessWidget {
     notificationBloc.add(LoadNotifications());
     await notificationBloc.stream
         .firstWhere((s) => s.status != NotificationStatus.loading)
-        .timeout(const Duration(seconds: 4), onTimeout: () => notificationBloc.state);
+        .timeout(
+          const Duration(seconds: 4),
+          onTimeout: () => notificationBloc.state,
+        );
   }
 
   @override
@@ -58,9 +61,9 @@ class NotificationScreen extends StatelessWidget {
                       builder: (context, state) {
                         return TextButton(
                           onPressed: state.unreadCount > 0
-                              ? () => context
-                                    .read<NotificationBloc>()
-                                    .add(MarkAllNotificationsRead())
+                              ? () => context.read<NotificationBloc>().add(
+                                  MarkAllNotificationsRead(),
+                                )
                               : null,
                           child: Text(
                             'MARK ALL',
@@ -94,33 +97,37 @@ class NotificationScreen extends StatelessWidget {
                         backgroundColor: AppColors.primary,
                         onRefresh: () => _handleRefresh(context),
                         child: LayoutBuilder(
-                          builder: (context, constraints) => SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_none_rounded,
-                                      size: 64,
-                                      color: AppColors.textSecondary.withOpacity(0.3),
+                          builder: (context, constraints) =>
+                              SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: constraints.maxHeight,
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.notifications_none_rounded,
+                                          size: 64,
+                                          color: AppColors.textSecondary
+                                              .withOpacity(0.3),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'No notifications yet',
+                                          style: TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'No notifications yet',
-                                      style: TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
                         ),
                       );
                     }
@@ -218,10 +225,7 @@ class _NotificationCard extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback onTap;
 
-  const _NotificationCard({
-    required this.notification,
-    required this.onTap,
-  });
+  const _NotificationCard({required this.notification, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

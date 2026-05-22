@@ -52,10 +52,13 @@ class NotificationRepository {
   Future<void> updateFcmToken(String token) async {
     if (_uid == null) return;
     try {
-      await _supabase.from('parents').update({
-        'fcm_token': token,
-        'last_active': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', _uid!);
+      await _supabase
+          .from('parents')
+          .update({
+            'fcm_token': token,
+            'last_active': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', _uid!);
     } catch (e) {
       print('NotificationRepository.updateFcmToken error: $e');
     }
@@ -70,10 +73,6 @@ class NotificationRepository {
         .stream(primaryKey: ['id'])
         .eq('parent_id', _uid!)
         .order('created_at', ascending: false)
-        .map(
-          (rows) => rows
-              .map((m) => NotificationModel.fromMap(m))
-              .toList(),
-        );
+        .map((rows) => rows.map((m) => NotificationModel.fromMap(m)).toList());
   }
 }

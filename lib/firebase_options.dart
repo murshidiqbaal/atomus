@@ -65,5 +65,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'atomus-77489.firebasestorage.app',
     iosBundleId: 'com.example.atomus',
   );
-
 }

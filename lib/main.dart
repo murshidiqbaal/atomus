@@ -1,47 +1,26 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'theme/app_theme.dart';
-import 'repositories/auth_repository.dart';
-import 'repositories/student_repository.dart';
-import 'repositories/fee_repository.dart';
-import 'repositories/announcement_repository.dart';
-import 'repositories/course_repository.dart';
-import 'repositories/notification_repository.dart';
-import 'blocs/auth/auth_bloc.dart';
-import 'blocs/auth/auth_event.dart';
-import 'blocs/student/student_bloc.dart';
-import 'blocs/fee/fee_bloc.dart';
-import 'blocs/announcement/announcement_bloc.dart';
-import 'blocs/announcement/announcement_event.dart';
-import 'blocs/course/course_bloc.dart';
-import 'blocs/course/course_event.dart';
 import 'blocs/theme/theme_bloc.dart';
 import 'blocs/theme/theme_state.dart';
-import 'blocs/notification/notification_bloc.dart';
-import 'blocs/notification/notification_event.dart';
 import 'screens/splash_screen.dart';
-import 'services/notification_service.dart';
 
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'core/constants/supabase_constants.dart';
+import 'app_bootstrap.dart';
+import 'app_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase
-  await Supabase.initialize(
-    url: SupabaseConstants.url,
-    anonKey: SupabaseConstants.anonKey,
-  );
+  // Run structured, non-blocking asynchronous system bootstrap
+  final bootstrap = AppBootstrap();
+  final bootstrapResult = await bootstrap.bootstrap();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  runApp(
+    AppProviders(
+      bootstrapResult: bootstrapResult,
+      child: const AtomusApp(),
+    ),
   );
-
-  runApp(const AtomusApp());
 }
 
 class AtomusApp extends StatelessWidget {
@@ -49,68 +28,18 @@ class AtomusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiRepositoryProvider(
-      providers: [
-        RepositoryProvider(create: (_) => AuthRepository()),
-        RepositoryProvider(create: (_) => StudentRepository()),
-        RepositoryProvider(create: (_) => FeeRepository()),
-        RepositoryProvider(create: (_) => AnnouncementRepository()),
-        RepositoryProvider(create: (_) => CourseRepository()),
-        RepositoryProvider(create: (_) => NotificationRepository()),
-      ],
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider(create: (_) => ThemeBloc()),
-          BlocProvider(
-            create: (context) => AuthBloc(
-              authRepository: context.read<AuthRepository>(),
-            )..add(AppStarted()),
-          ),
-          BlocProvider(
-            create: (context) => StudentBloc(
-              studentRepository: context.read<StudentRepository>(),
-            ),
-          ),
-          BlocProvider(
-            create: (context) => FeeBloc(
-              feeRepository: context.read<FeeRepository>(),
-            ),
-          ),
-          BlocProvider(
-            create: (context) => AnnouncementBloc(
-              repository: context.read<AnnouncementRepository>(),
-            )..add(LoadAnnouncements()),
-          ),
-          BlocProvider(
-            create: (context) => CourseBloc(
-              courseRepository: context.read<CourseRepository>(),
-            )..add(LoadCourses()),
-          ),
-          BlocProvider(
-            create: (context) {
-              final bloc = NotificationBloc(
-                repository: context.read<NotificationRepository>(),
-              );
-              // Initialize FCM and start realtime stream after bloc is created.
-              // Initialization is deferred until the user is authenticated;
-              // the AuthBloc triggers this via the splash screen.
-              return bloc;
-            },
-          ),
-        ],
-        child: BlocBuilder<ThemeBloc, ThemeState>(
-          builder: (context, themeState) {
-            return MaterialApp(
-              title: 'Atomus',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: themeState.themeMode,
-              home: const SplashScreen(),
-            );
-          },
-        ),
-      ),
+    return BlocBuilder<ThemeBloc, ThemeState>(
+      builder: (context, themeState) {
+        return MaterialApp(
+          title: 'Atomus',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeState.themeMode,
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
+

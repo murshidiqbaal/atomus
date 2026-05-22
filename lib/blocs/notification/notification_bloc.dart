@@ -5,13 +5,12 @@ import '../../services/notification_service.dart';
 import 'notification_event.dart';
 import 'notification_state.dart';
 
-class NotificationBloc
-    extends Bloc<NotificationEvent, NotificationState> {
+class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final NotificationRepository _repository;
 
   NotificationBloc({required NotificationRepository repository})
-      : _repository = repository,
-        super(const NotificationState()) {
+    : _repository = repository,
+      super(const NotificationState()) {
     on<LoadNotifications>(_onLoad);
     on<StartNotificationStream>(_onStartStream);
     on<MarkNotificationRead>(_onMarkRead);
@@ -27,16 +26,20 @@ class NotificationBloc
       final notifications = await _repository.getNotifications();
       final unread = notifications.where((n) => !n.isRead).length;
       await NotificationService.instance.setBadgeCount(unread);
-      emit(state.copyWith(
-        status: NotificationStatus.success,
-        notifications: notifications,
-        unreadCount: unread,
-      ));
+      emit(
+        state.copyWith(
+          status: NotificationStatus.success,
+          notifications: notifications,
+          unreadCount: unread,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status: NotificationStatus.failure,
-        errorMessage: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          status: NotificationStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 
@@ -58,7 +61,7 @@ class NotificationBloc
           unreadCount: unread,
         );
       },
-      onError: (_, __) => state.copyWith(
+      onError: (_, _) => state.copyWith(
         status: NotificationStatus.failure,
         errorMessage: 'Realtime connection error',
       ),
@@ -83,8 +86,9 @@ class NotificationBloc
     Emitter<NotificationState> emit,
   ) async {
     await _repository.markAllAsRead();
-    final updated =
-        state.notifications.map((n) => n.copyWith(isRead: true)).toList();
+    final updated = state.notifications
+        .map((n) => n.copyWith(isRead: true))
+        .toList();
     await NotificationService.instance.setBadgeCount(0);
     emit(state.copyWith(notifications: updated, unreadCount: 0));
   }

@@ -31,7 +31,7 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
     emit(state.copyWith(status: StudentStatus.loading));
     try {
       final info = await studentRepository.getStudentInfo();
-      
+
       List<ExamSession> exams = [];
       if (info != null) {
         exams = await studentRepository.getExamSessions(info.id);
@@ -56,12 +56,21 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
       StudentAcademicPerformanceModel? performance;
       if (info != null) {
         try {
-          performance = await StudentPerformanceService.calculateAndStorePerformance(info.id);
+          performance =
+              await StudentPerformanceService.calculateAndStorePerformance(
+                info.id,
+              );
           // Set up real-time reactive streams
           _setupRealtimeStreams(info.id);
         } catch (dbError) {
-          print('Database performance calculation/connection failed. Using local fallback. Error: $dbError');
-          performance = StudentPerformanceService.calculatePerformanceLocalFallback(attendance, exams);
+          print(
+            'Database performance calculation/connection failed. Using local fallback. Error: $dbError',
+          );
+          performance =
+              StudentPerformanceService.calculatePerformanceLocalFallback(
+                attendance,
+                exams,
+              );
         }
       }
 
@@ -102,10 +111,11 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
 
       // SNAPPY LOCAL COMPUTATION: For rapid UI filters (e.g. subject-specific calendar or date range filters),
       // we use the local fallback calculation so user gets instantaneous updates without db roundtrip.
-      final performance = StudentPerformanceService.calculatePerformanceLocalFallback(
-        attendance,
-        state.exams,
-      );
+      final performance =
+          StudentPerformanceService.calculatePerformanceLocalFallback(
+            attendance,
+            state.exams,
+          );
 
       emit(
         state.copyWith(
@@ -157,12 +167,15 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
           .from('attendance')
           .stream(primaryKey: ['id'])
           .eq('student_id', studentId)
-          .listen((_) {
-            print('Supabase Realtime: Attendance changed. Syncing...');
-            add(LoadStudentData());
-          }, onError: (e) {
-            print('Attendance Realtime Stream error: $e');
-          });
+          .listen(
+            (_) {
+              print('Supabase Realtime: Attendance changed. Syncing...');
+              add(LoadStudentData());
+            },
+            onError: (e) {
+              print('Attendance Realtime Stream error: $e');
+            },
+          );
     } catch (e) {
       print('Failed to setup Realtime Attendance Stream: $e');
     }
@@ -173,12 +186,17 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
           .from('subject_attendance')
           .stream(primaryKey: ['id'])
           .eq('student_id', studentId)
-          .listen((_) {
-            print('Supabase Realtime: Subject Attendance changed. Syncing...');
-            add(LoadStudentData());
-          }, onError: (e) {
-            print('Subject Attendance Realtime Stream error: $e');
-          });
+          .listen(
+            (_) {
+              print(
+                'Supabase Realtime: Subject Attendance changed. Syncing...',
+              );
+              add(LoadStudentData());
+            },
+            onError: (e) {
+              print('Subject Attendance Realtime Stream error: $e');
+            },
+          );
     } catch (e) {
       print('Failed to setup Realtime Subject Attendance Stream: $e');
     }
@@ -189,12 +207,15 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
           .from('marks')
           .stream(primaryKey: ['id'])
           .eq('student_id', studentId)
-          .listen((_) {
-            print('Supabase Realtime: Marks changed. Syncing...');
-            add(LoadStudentData());
-          }, onError: (e) {
-            print('Marks Realtime Stream error: $e');
-          });
+          .listen(
+            (_) {
+              print('Supabase Realtime: Marks changed. Syncing...');
+              add(LoadStudentData());
+            },
+            onError: (e) {
+              print('Marks Realtime Stream error: $e');
+            },
+          );
     } catch (e) {
       print('Failed to setup Realtime Marks Stream: $e');
     }

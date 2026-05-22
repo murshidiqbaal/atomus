@@ -8,6 +8,7 @@ import '../widgets/app_background.dart';
 import '../widgets/neu_box.dart';
 import 'login_screen.dart';
 import 'main_layout.dart';
+import 'teacher/teacher_main_layout.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -59,22 +60,27 @@ class _SplashScreenState extends State<SplashScreen>
       listener: (context, state) {
         if (state.status == AuthStatus.authenticated ||
             state.status == AuthStatus.unauthenticated) {
+          final navigator = Navigator.of(context);
           Future.delayed(const Duration(seconds: 1), () {
-            if (mounted) {
-              Navigator.of(context).pushReplacement(
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      state.status == AuthStatus.authenticated
-                      ? const MainLayout()
-                      : const LoginScreen(),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                        return FadeTransition(opacity: animation, child: child);
-                      },
-                  transitionDuration: const Duration(milliseconds: 1000),
-                ),
-              );
+            if (!mounted) return;
+            Widget destination;
+            if (state.status == AuthStatus.authenticated) {
+              destination = state.isTeacher
+                  ? const TeacherMainLayout()
+                  : const MainLayout();
+            } else {
+              destination = const LoginScreen();
             }
+            navigator.pushReplacement(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    destination,
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) =>
+                        FadeTransition(opacity: animation, child: child),
+                transitionDuration: const Duration(milliseconds: 1000),
+              ),
+            );
           });
         }
       },

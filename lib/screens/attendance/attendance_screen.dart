@@ -66,19 +66,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _handleRefresh() async {
     final studentBloc = context.read<StudentBloc>();
     studentBloc.add(LoadStudentData());
-    
+
     final newState = await studentBloc.stream
         .firstWhere((s) => s.status != StudentStatus.loading)
-        .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state);
-        
+        .timeout(
+          const Duration(seconds: 4),
+          onTimeout: () => studentBloc.state,
+        );
+
     final studentInfo = newState.studentInfo;
-    if (studentInfo?.courseId != null && _selectedCourseId != studentInfo!.courseId) {
+    if (studentInfo?.courseId != null &&
+        _selectedCourseId != studentInfo!.courseId) {
       setState(() {
         _selectedCourseId = studentInfo.courseId;
       });
       context.read<CourseBloc>().add(LoadSubjects(_selectedCourseId!));
     }
-    
+
     _loadAttendanceForMonth(_selectedMonth);
   }
 
@@ -121,9 +125,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               int absent = 0;
               int late = 0;
               for (var r in dayRecords) {
-                if (r.status == 'Present')
+                if (r.status == 'Present') {
                   present++;
-                else if (r.status == 'Absent')
+                } else if (r.status == 'Absent')
                   absent++;
                 else if (r.status == 'Late')
                   late++;
@@ -163,289 +167,299 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               onRefresh: _handleRefresh,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 child: Column(
-                children: [
-                  // Month and Subject Selectors
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4, bottom: 6),
-                              child: Text(
-                                'MONTH',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.2,
-                                  color: AppColors.textSecondary,
+                  children: [
+                    // Month and Subject Selectors
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4, bottom: 6),
+                                child: Text(
+                                  'MONTH',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ),
-                            ),
-                            CustomCard(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 3,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 32,
-                                      minHeight: 32,
+                              CustomCard(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 3,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 32,
+                                        minHeight: 32,
+                                      ),
+                                      onPressed: _previousMonth,
+                                      icon: const Icon(
+                                        Icons.chevron_left,
+                                        color: AppColors.primary,
+                                        size: 20,
+                                      ),
                                     ),
-                                    onPressed: _previousMonth,
-                                    icon: const Icon(
-                                      Icons.chevron_left,
-                                      color: AppColors.primary,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        DateFormat(
-                                          'MMM yyyy',
-                                        ).format(_selectedMonth).toUpperCase(),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 13,
-                                          letterSpacing: 1.0,
-                                          color: AppColors.primary,
+                                    Expanded(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          DateFormat('MMM yyyy')
+                                              .format(_selectedMonth)
+                                              .toUpperCase(),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 13,
+                                            letterSpacing: 1.0,
+                                            color: AppColors.primary,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 32,
-                                      minHeight: 32,
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 32,
+                                        minHeight: 32,
+                                      ),
+                                      onPressed: _nextMonth,
+                                      icon: const Icon(
+                                        Icons.chevron_right,
+                                        color: AppColors.primary,
+                                        size: 20,
+                                      ),
                                     ),
-                                    onPressed: _nextMonth,
-                                    icon: const Icon(
-                                      Icons.chevron_right,
-                                      color: AppColors.primary,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(flex: 5, child: _buildFilters(context)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (state.status == StudentStatus.loading)
-                    const Padding(
-                      padding: EdgeInsets.all(40),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else ...[
-                    // Summary chips
-                    Row(
-                      children: [
-                        _buildSummaryCard(
-                          'PRESENT',
-                          presentCount,
-                          AppColors.success,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildSummaryCard(
-                          'ABSENT',
-                          absentCount,
-                          AppColors.error,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildSummaryCard('LATE', lateCount, AppColors.warning),
+                        const SizedBox(width: 12),
+                        Expanded(flex: 5, child: _buildFilters(context)),
                       ],
                     ),
                     const SizedBox(height: 16),
 
-                    // Calendar card
-                    CustomCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
+                    if (state.status == StudentStatus.loading)
+                      const Padding(
+                        padding: EdgeInsets.all(40),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else ...[
+                      // Summary chips
+                      Row(
                         children: [
-                          // Weekday header row
-                          Row(
-                            children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-                                .map(
-                                  (d) => Expanded(
+                          _buildSummaryCard(
+                            'PRESENT',
+                            presentCount,
+                            AppColors.success,
+                          ),
+                          const SizedBox(width: 10),
+                          _buildSummaryCard(
+                            'ABSENT',
+                            absentCount,
+                            AppColors.error,
+                          ),
+                          const SizedBox(width: 10),
+                          _buildSummaryCard(
+                            'LATE',
+                            lateCount,
+                            AppColors.warning,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Calendar card
+                      CustomCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            // Weekday header row
+                            Row(
+                              children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+                                  .map(
+                                    (d) => Expanded(
+                                      child: Center(
+                                        child: Text(
+                                          d,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w900,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                            const SizedBox(height: 10),
+                            // Day cells
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 7,
+                                    mainAxisSpacing: 5,
+                                    crossAxisSpacing: 5,
+                                    childAspectRatio: 1,
+                                  ),
+                              itemCount: startOffset + daysInMonth,
+                              itemBuilder: (context, index) {
+                                if (index < startOffset) {
+                                  return const SizedBox();
+                                }
+                                final day = index - startOffset + 1;
+                                final status = recordMap[day];
+                                final date = DateTime(
+                                  _selectedMonth.year,
+                                  _selectedMonth.month,
+                                  day,
+                                );
+                                final isToday =
+                                    date.year == today.year &&
+                                    date.month == today.month &&
+                                    date.day == today.day;
+                                final isFuture = date.isAfter(
+                                  DateTime(today.year, today.month, today.day),
+                                );
+
+                                Color? bgColor;
+                                Color textColor =
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimary;
+
+                                if (!isFuture && status != null) {
+                                  switch (status) {
+                                    case 'Present':
+                                      bgColor = AppColors.success;
+                                      textColor = Colors.white;
+                                      break;
+                                    case 'Absent':
+                                      bgColor = AppColors.error;
+                                      textColor = Colors.white;
+                                      break;
+                                    case 'Late':
+                                      bgColor = AppColors.warning;
+                                      textColor = Colors.white;
+                                      break;
+                                  }
+                                }
+
+                                final isSelected =
+                                    _selectedDate.year == date.year &&
+                                    _selectedDate.month == date.month &&
+                                    _selectedDate.day == date.day;
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    if (!isFuture) {
+                                      setState(() {
+                                        _selectedDate = date;
+                                      });
+                                    }
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    decoration: BoxDecoration(
+                                      color: bgColor != null
+                                          ? bgColor.withOpacity(
+                                              isSelected ? 0.8 : 1.0,
+                                            )
+                                          : isSelected
+                                          ? AppColors.primary.withOpacity(0.2)
+                                          : (isToday
+                                                ? AppColors.primary.withOpacity(
+                                                    0.08,
+                                                  )
+                                                : Colors.transparent),
+                                      shape: BoxShape.circle,
+                                      border: isSelected
+                                          ? Border.all(
+                                              color:
+                                                  bgColor ?? AppColors.primary,
+                                              width: 2.0,
+                                            )
+                                          : isToday && bgColor == null
+                                          ? Border.all(
+                                              color: AppColors.primary,
+                                              width: 1.5,
+                                            )
+                                          : null,
+                                    ),
                                     child: Center(
                                       child: Text(
-                                        d,
-                                        style: const TextStyle(
+                                        '$day',
+                                        style: TextStyle(
                                           fontSize: 11,
-                                          fontWeight: FontWeight.w900,
-                                          color: AppColors.textSecondary,
+                                          fontWeight:
+                                              (isToday ||
+                                                  bgColor != null ||
+                                                  isSelected)
+                                              ? FontWeight.w900
+                                              : FontWeight.w500,
+                                          color: isFuture
+                                              ? AppColors.textSecondary
+                                                    .withOpacity(0.3)
+                                              : (bgColor != null
+                                                    ? Colors.white
+                                                    : (isSelected
+                                                          ? AppColors.primary
+                                                          : textColor)),
                                         ),
                                       ),
                                     ),
                                   ),
-                                )
-                                .toList(),
-                          ),
-                          const SizedBox(height: 10),
-                          // Day cells
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 7,
-                                  mainAxisSpacing: 5,
-                                  crossAxisSpacing: 5,
-                                  childAspectRatio: 1,
-                                ),
-                            itemCount: startOffset + daysInMonth,
-                            itemBuilder: (context, index) {
-                              if (index < startOffset) return const SizedBox();
-                              final day = index - startOffset + 1;
-                              final status = recordMap[day];
-                              final date = DateTime(
-                                _selectedMonth.year,
-                                _selectedMonth.month,
-                                day,
-                              );
-                              final isToday =
-                                  date.year == today.year &&
-                                  date.month == today.month &&
-                                  date.day == today.day;
-                              final isFuture = date.isAfter(
-                                DateTime(today.year, today.month, today.day),
-                              );
-
-                              Color? bgColor;
-                              Color textColor =
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? AppColors.textPrimaryDark
-                                  : AppColors.textPrimary;
-
-                              if (!isFuture && status != null) {
-                                switch (status) {
-                                  case 'Present':
-                                    bgColor = AppColors.success;
-                                    textColor = Colors.white;
-                                    break;
-                                  case 'Absent':
-                                    bgColor = AppColors.error;
-                                    textColor = Colors.white;
-                                    break;
-                                  case 'Late':
-                                    bgColor = AppColors.warning;
-                                    textColor = Colors.white;
-                                    break;
-                                }
-                              }
-
-                              final isSelected =
-                                  _selectedDate.year == date.year &&
-                                  _selectedDate.month == date.month &&
-                                  _selectedDate.day == date.day;
-
-                              return GestureDetector(
-                                onTap: () {
-                                  if (!isFuture) {
-                                    setState(() {
-                                      _selectedDate = date;
-                                    });
-                                  }
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  decoration: BoxDecoration(
-                                    color: bgColor != null
-                                        ? bgColor.withOpacity(
-                                            isSelected ? 0.8 : 1.0,
-                                          )
-                                        : isSelected
-                                        ? AppColors.primary.withOpacity(0.2)
-                                        : (isToday
-                                              ? AppColors.primary.withOpacity(
-                                                  0.08,
-                                                )
-                                              : Colors.transparent),
-                                    shape: BoxShape.circle,
-                                    border: isSelected
-                                        ? Border.all(
-                                            color: bgColor ?? AppColors.primary,
-                                            width: 2.0,
-                                          )
-                                        : isToday && bgColor == null
-                                        ? Border.all(
-                                            color: AppColors.primary,
-                                            width: 1.5,
-                                          )
-                                        : null,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '$day',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight:
-                                            (isToday ||
-                                                bgColor != null ||
-                                                isSelected)
-                                            ? FontWeight.w900
-                                            : FontWeight.w500,
-                                        color: isFuture
-                                            ? AppColors.textSecondary
-                                                  .withOpacity(0.3)
-                                            : (bgColor != null
-                                                  ? Colors.white
-                                                  : (isSelected
-                                                        ? AppColors.primary
-                                                        : textColor)),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          // Legend
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildLegend('Present', AppColors.success),
-                              const SizedBox(width: 20),
-                              _buildLegend('Absent', AppColors.error),
-                              const SizedBox(width: 20),
-                              _buildLegend('Late', AppColors.warning),
-                            ],
-                          ),
-                        ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            // Legend
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _buildLegend('Present', AppColors.success),
+                                const SizedBox(width: 20),
+                                _buildLegend('Absent', AppColors.error),
+                                const SizedBox(width: 20),
+                                _buildLegend('Late', AppColors.warning),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildAttendanceHoursCard(
-                      records,
-                      context.read<CourseBloc>().state.subjects,
-                    ),
+                      const SizedBox(height: 24),
+                      _buildAttendanceHoursCard(
+                        records,
+                        context.read<CourseBloc>().state.subjects,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
         ),
       ),
     );
@@ -661,7 +675,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 teacherName = 'Teacher of ${subject.name}';
               }
 
-              final periodIndex = record.periodNumber ?? (displayRecords.indexOf(record) + 1);
+              final periodIndex =
+                  record.periodNumber ?? (displayRecords.indexOf(record) + 1);
 
               return Column(
                 mainAxisSize: MainAxisSize.min,

@@ -27,13 +27,12 @@ class FeesScreen extends StatelessWidget {
     // Get student details dynamically from StudentBloc context
     final studentState = context.read<StudentBloc>().state;
     final studentName = studentState.studentInfo?.fullName ?? 'Alexander Davis';
-    final studentGrade = studentState.studentInfo?.grade ?? 'Grade 10 - Science';
+    final studentGrade =
+        studentState.studentInfo?.grade ?? 'Grade 10 - Science';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Financial Services'),
-      ),
+      appBar: AppBar(title: const Text('Financial Services')),
       body: BlocBuilder<FeeBloc, FeeState>(
         builder: (context, state) {
           if (state.status == FeeStatus.loading) {
@@ -48,62 +47,94 @@ class FeesScreen extends StatelessWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(24.0),
               children: [
-              CustomCard(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  children: [
-                    const NeuBox(
-                      width: 160,
-                      height: 160,
-                      borderRadius: 20,
-                      isPressed: true,
-                      child: Center(
-                        child: Icon(Icons.qr_code_2_rounded, size: 100, color: AppColors.primary),
+                CustomCard(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      const NeuBox(
+                        width: 160,
+                        height: 160,
+                        borderRadius: 20,
+                        isPressed: true,
+                        child: Center(
+                          child: Icon(
+                            Icons.qr_code_2_rounded,
+                            size: 100,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                    const Text(
-                      'SECURE CHECKOUT',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 2.0, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Scan the generated identifier using your authorized banking application.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 32),
-                    CustomButton(
-                      text: 'GENERATE RECEIPT',
-                      onPressed: () {
-                        final paidFees = state.fees.where((f) => f.isPaid).toList();
-                        if (paidFees.isNotEmpty) {
-                          _showReceiptBottomSheet(context, paidFees.first, studentName, studentGrade);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('No paid transactions found to generate receipts.'),
-                              backgroundColor: AppColors.warning,
-                            ),
-                          );
-                        }
-                      },
-                      isOutline: true,
-                    ),
-                  ],
+                      const SizedBox(height: 32),
+                      const Text(
+                        'SECURE CHECKOUT',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          letterSpacing: 2.0,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Scan the generated identifier using your authorized banking application.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      CustomButton(
+                        text: 'GENERATE RECEIPT',
+                        onPressed: () {
+                          final paidFees = state.fees
+                              .where((f) => f.isPaid)
+                              .toList();
+                          if (paidFees.isNotEmpty) {
+                            _showReceiptBottomSheet(
+                              context,
+                              paidFees.first,
+                              studentName,
+                              studentGrade,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'No paid transactions found to generate receipts.',
+                                ),
+                                backgroundColor: AppColors.warning,
+                              ),
+                            );
+                          }
+                        },
+                        isOutline: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 40),
-              const Text(
-                'Transaction History',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-              ),
-              const SizedBox(height: 20),
-              ...state.fees.map((fee) => Padding(
+                const SizedBox(height: 40),
+                const Text(
+                  'Transaction History',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ...state.fees.map(
+                  (fee) => Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: InkWell(
                       onTap: fee.isPaid
-                          ? () => _showReceiptBottomSheet(context, fee, studentName, studentGrade)
+                          ? () => _showReceiptBottomSheet(
+                              context,
+                              fee,
+                              studentName,
+                              studentGrade,
+                            )
                           : null,
                       borderRadius: BorderRadius.circular(16),
                       child: CustomCard(
@@ -116,8 +147,12 @@ class FeesScreen extends StatelessWidget {
                               isPressed: true,
                               padding: EdgeInsets.zero,
                               child: Icon(
-                                fee.isPaid ? Icons.receipt_long_rounded : Icons.account_balance_wallet_rounded,
-                                color: fee.isPaid ? AppColors.success : AppColors.warning,
+                                fee.isPaid
+                                    ? Icons.receipt_long_rounded
+                                    : Icons.account_balance_wallet_rounded,
+                                color: fee.isPaid
+                                    ? AppColors.success
+                                    : AppColors.warning,
                                 size: 24,
                               ),
                             ),
@@ -131,16 +166,28 @@ class FeesScreen extends StatelessWidget {
                                       Expanded(
                                         child: Text(
                                           fee.title.toUpperCase(),
-                                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.5),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14,
+                                            letterSpacing: 0.5,
+                                          ),
                                         ),
                                       ),
                                       if (fee.isPaid)
                                         Container(
-                                          margin: const EdgeInsets.only(left: 8),
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          margin: const EdgeInsets.only(
+                                            left: 8,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: AppColors.success.withOpacity(0.12),
-                                            borderRadius: BorderRadius.circular(6),
+                                            color: AppColors.success
+                                                .withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
                                           ),
                                           child: const Text(
                                             'RECEIPT',
@@ -159,7 +206,11 @@ class FeesScreen extends StatelessWidget {
                                     fee.isPaid
                                         ? 'REF: ${fee.receiptId} • Tap to view'
                                         : 'MATURES: ${DateFormat('MMM d, yyyy').format(fee.dueDate)}',
-                                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w700),
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -169,13 +220,19 @@ class FeesScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   '\$${fee.amount.toStringAsFixed(2)}',
-                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   fee.isPaid ? 'CLEARED' : 'PENDING',
                                   style: TextStyle(
-                                    color: fee.isPaid ? AppColors.success : AppColors.warning,
+                                    color: fee.isPaid
+                                        ? AppColors.success
+                                        : AppColors.warning,
                                     fontWeight: FontWeight.w900,
                                     fontSize: 10,
                                     letterSpacing: 1.0,
@@ -187,7 +244,8 @@ class FeesScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                  )),
+                  ),
+                ),
               ],
             ),
           );
@@ -209,11 +267,15 @@ class FeesScreen extends StatelessWidget {
       builder: (context) {
         final paymentDateStr = fee.paymentDate != null
             ? DateFormat('MMMM d, yyyy - hh:mm a').format(fee.paymentDate!)
-            : DateFormat('MMMM d, yyyy').format(DateTime.now().subtract(const Duration(days: 1)));
+            : DateFormat(
+                'MMMM d, yyyy',
+              ).format(DateTime.now().subtract(const Duration(days: 1)));
 
         return Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF151521), // Luxurious dark backdrop matching deep slate theme
+            color: Color(
+              0xFF151521,
+            ), // Luxurious dark backdrop matching deep slate theme
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
             boxShadow: [
               BoxShadow(
@@ -242,7 +304,7 @@ class FeesScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Verification Circle Badge with ambient outer glow rings
               Container(
                 width: 80,
@@ -292,15 +354,13 @@ class FeesScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Ticket-style metadata box
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F0F18),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.04),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.04)),
                 ),
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -315,7 +375,7 @@ class FeesScreen extends StatelessWidget {
                     _buildReceiptRow('Student Beneficiary', studentName),
                     const SizedBox(height: 14),
                     _buildReceiptRow('Academic Grade', studentGrade),
-                    
+
                     // Dashed ticket separator line
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 20),
@@ -332,17 +392,25 @@ class FeesScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    
+
                     _buildReceiptRow('Settlement Date', paymentDateStr),
                     const SizedBox(height: 14),
-                    _buildReceiptRow('Amount Settled', '\$${fee.amount.toStringAsFixed(2)}', isBold: true),
+                    _buildReceiptRow(
+                      'Amount Settled',
+                      '\$${fee.amount.toStringAsFixed(2)}',
+                      isBold: true,
+                    ),
                     const SizedBox(height: 14),
-                    _buildReceiptRow('Payment Status', 'CLEARED / SUCCESS', valueColor: AppColors.success),
+                    _buildReceiptRow(
+                      'Payment Status',
+                      'CLEARED / SUCCESS',
+                      valueColor: AppColors.success,
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Action triggers
               Row(
                 children: [
@@ -352,7 +420,9 @@ class FeesScreen extends StatelessWidget {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Receipt reference link copied successfully!'),
+                            content: Text(
+                              'Receipt reference link copied successfully!',
+                            ),
                             backgroundColor: AppColors.success,
                           ),
                         );
@@ -377,7 +447,12 @@ class FeesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, {bool isBold = false, Color? valueColor}) {
+  Widget _buildReceiptRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? valueColor,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,

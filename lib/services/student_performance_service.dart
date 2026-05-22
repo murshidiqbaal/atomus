@@ -24,7 +24,9 @@ class StudentPerformanceService {
 
   /// Fetches raw data from Supabase, calculates metrics, computes ranking,
   /// upserts records in 'student_academic_performance', and returns the performance model.
-  static Future<StudentAcademicPerformanceModel> calculateAndStorePerformance(String studentId) async {
+  static Future<StudentAcademicPerformanceModel> calculateAndStorePerformance(
+    String studentId,
+  ) async {
     try {
       // 1. Fetch Student Details
       final studentData = await _supabase
@@ -50,7 +52,9 @@ class StudentPerformanceService {
             .select()
             .eq('student_id', studentId);
       } catch (e) {
-        print('subject_attendance table access failed/not available: $e. Falling back to attendance.');
+        print(
+          'subject_attendance table access failed/not available: $e. Falling back to attendance.',
+        );
       }
 
       // If empty or lookup failed, fall back to the active production attendance table
@@ -125,21 +129,26 @@ class StudentPerformanceService {
       // 6. Calculate Composite Score (30% Attendance, 70% Marks)
       double academicPerformanceScore = 0.0;
       if (totalPossibleMarks > 0 && totalPeriods > 0) {
-        academicPerformanceScore = (marksPercentage * 0.70) + (attendancePercentage * 0.30);
+        academicPerformanceScore =
+            (marksPercentage * 0.70) + (attendancePercentage * 0.30);
       } else if (totalPossibleMarks > 0) {
         academicPerformanceScore = marksPercentage;
       } else {
         academicPerformanceScore = attendancePercentage;
       }
 
-      final progressStatus = StudentPerformanceModel.getStatusLabel(academicPerformanceScore);
+      final progressStatus = StudentPerformanceModel.getStatusLabel(
+        academicPerformanceScore,
+      );
 
       // 7. Resolve Subjects and calculate Subject-Wise Performance breakdowns
       final Map<String, String> subjectIdToName = {};
-      
+
       // Resolve from subjects table
       try {
-        final subjectsList = await _supabase.from('subjects').select('id, name');
+        final subjectsList = await _supabase
+            .from('subjects')
+            .select('id, name');
         for (final s in subjectsList) {
           final sId = s['id'] as String;
           final sName = s['name'] as String;
@@ -154,7 +163,9 @@ class StudentPerformanceService {
       for (final r in attendanceRecords) {
         final sId = r['subject_id'] as String?;
         if (sId != null) {
-          attendanceBySubject.putIfAbsent(sId, () => []).add(Map<String, dynamic>.from(r));
+          attendanceBySubject
+              .putIfAbsent(sId, () => [])
+              .add(Map<String, dynamic>.from(r));
         }
       }
 
@@ -163,7 +174,9 @@ class StudentPerformanceService {
       for (final m in marksData) {
         final sId = m['subject_id'] as String?;
         if (sId != null) {
-          marksBySubject.putIfAbsent(sId, () => []).add(Map<String, dynamic>.from(m));
+          marksBySubject
+              .putIfAbsent(sId, () => [])
+              .add(Map<String, dynamic>.from(m));
         }
       }
 
@@ -175,7 +188,9 @@ class StudentPerformanceService {
       final List<SubjectPerformance> subjectWiseList = [];
 
       for (final subId in allSubjectIds) {
-        final subName = subjectIdToName[subId] ?? 'Subject (${subId.substring(0, min(8, subId.length))})';
+        final subName =
+            subjectIdToName[subId] ??
+            'Subject (${subId.substring(0, min(8, subId.length))})';
 
         // Subject attendance
         final subAttendance = attendanceBySubject[subId] ?? [];
@@ -226,7 +241,9 @@ class StudentPerformanceService {
         );
       }
 
-      subjectWiseList.sort((a, b) => b.combinedScore.compareTo(a.combinedScore));
+      subjectWiseList.sort(
+        (a, b) => b.combinedScore.compareTo(a.combinedScore),
+      );
 
       // 8. Compute Dynamic Rankings inside Course
       int performanceRank = 1;
@@ -242,7 +259,8 @@ class StudentPerformanceService {
 
         for (final p in allCoursePerformances) {
           final sId = p['student_id'] as String;
-          double score = (p['academic_performance_score'] as num?)?.toDouble() ?? 0.0;
+          double score =
+              (p['academic_performance_score'] as num?)?.toDouble() ?? 0.0;
           if (sId == studentId) {
             score = academicPerformanceScore;
             currentIncluded = true;
@@ -251,11 +269,16 @@ class StudentPerformanceService {
         }
 
         if (!currentIncluded) {
-          performanceList.add({'student_id': studentId, 'score': academicPerformanceScore});
+          performanceList.add({
+            'student_id': studentId,
+            'score': academicPerformanceScore,
+          });
         }
 
         // Sort descending by performance score
-        performanceList.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
+        performanceList.sort(
+          (a, b) => (b['score'] as double).compareTo(a['score'] as double),
+        );
 
         // Find current student's rank
         for (int i = 0; i < performanceList.length; i++) {
@@ -284,14 +307,20 @@ class StudentPerformanceService {
         'campus_id': campusId,
         'course_id': courseId,
         'batch_id': batchId,
-        'attendance_percentage': double.parse(attendancePercentage.toStringAsFixed(2)),
+        'attendance_percentage': double.parse(
+          attendancePercentage.toStringAsFixed(2),
+        ),
         'marks_percentage': double.parse(marksPercentage.toStringAsFixed(2)),
-        'academic_performance_score': double.parse(academicPerformanceScore.toStringAsFixed(2)),
+        'academic_performance_score': double.parse(
+          academicPerformanceScore.toStringAsFixed(2),
+        ),
         'progress_status': progressStatus,
         'performance_rank': performanceRank,
         'total_exams': examIds.length,
         'total_periods': totalPeriods,
-        'present_periods': double.parse(totalAttendanceWeightSum.toStringAsFixed(2)),
+        'present_periods': double.parse(
+          totalAttendanceWeightSum.toStringAsFixed(2),
+        ),
         'absent_periods': absentCount,
         'late_periods': lateCount,
         'leave_periods': leaveCount,
@@ -362,14 +391,18 @@ class StudentPerformanceService {
 
     double overallAcademicPerformance = 0.0;
     if (totalPossibleMarks > 0 && totalAttendanceMarkedCount > 0) {
-      overallAcademicPerformance = (overallMarksPercentage * 0.70) + (overallAttendancePercentage * 0.30);
+      overallAcademicPerformance =
+          (overallMarksPercentage * 0.70) +
+          (overallAttendancePercentage * 0.30);
     } else if (totalPossibleMarks > 0) {
       overallAcademicPerformance = overallMarksPercentage;
     } else {
       overallAcademicPerformance = overallAttendancePercentage;
     }
 
-    final overallStatus = StudentPerformanceModel.getStatusLabel(overallAcademicPerformance);
+    final overallStatus = StudentPerformanceModel.getStatusLabel(
+      overallAcademicPerformance,
+    );
 
     // Subject-wise breakdowns fallback
     final Map<String, String> subjectIdToName = {};
@@ -395,7 +428,9 @@ class StudentPerformanceService {
     final Map<String, List<AttendanceRecord>> attendanceBySubject = {};
     for (final record in attendance) {
       if (record.subjectId != null) {
-        final name = subjectIdToName[record.subjectId!] ?? 'Subject (${record.subjectId!.substring(0, min(8, record.subjectId!.length))})';
+        final name =
+            subjectIdToName[record.subjectId!] ??
+            'Subject (${record.subjectId!.substring(0, min(8, record.subjectId!.length))})';
         attendanceBySubject.putIfAbsent(name, () => []).add(record);
       }
     }

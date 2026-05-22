@@ -25,7 +25,9 @@ class AnnouncementState {
     return AnnouncementState(
       status: status ?? this.status,
       announcements: announcements ?? this.announcements,
-      currentAnnouncement: clearCurrent ? null : (currentAnnouncement ?? this.currentAnnouncement),
+      currentAnnouncement: clearCurrent
+          ? null
+          : (currentAnnouncement ?? this.currentAnnouncement),
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }

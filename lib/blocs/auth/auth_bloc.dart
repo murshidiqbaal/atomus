@@ -15,28 +15,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onAppStarted(AppStarted event, Emitter<AuthState> emit) async {
     final isAuthenticated = await authRepository.isAuthenticated();
     if (isAuthenticated) {
-      emit(state.copyWith(status: AuthStatus.authenticated));
+      final savedRole = await authRepository.getSavedRole();
+      final role = savedRole == LoginUserRole.teacher
+          ? UserRole.teacher
+          : UserRole.parent;
+      emit(state.copyWith(status: AuthStatus.authenticated, userRole: role));
     } else {
       emit(state.copyWith(status: AuthStatus.unauthenticated));
     }
   }
 
-  Future<void> _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
-    emit(state.copyWith(status: AuthStatus.loading, clearError: true)); // Clear error on start
+  Future<void> _onLoginRequested(
+    LoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(state.copyWith(status: AuthStatus.loading, clearError: true));
     try {
-      final success = await authRepository.login(event.username, event.password);
-      if (success) {
-        emit(const AuthState(status: AuthStatus.authenticated)); // Fresh state, no error
-      } else {
-        emit(const AuthState(status: AuthStatus.unauthenticated, errorMessage: 'Login failed'));
-      }
+      final loginRole = await authRepository.login(event.username, event.password);
+      final role = loginRole == LoginUserRole.teacher
+          ? UserRole.teacher
+          : UserRole.parent;
+      emit(AuthState(status: AuthStatus.authenticated, userRole: role));
     } catch (e) {
-      emit(AuthState(status: AuthStatus.unauthenticated, errorMessage: e.toString()));
+      emit(AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      ));
     }
   }
 
-  Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
+  Future<void> _onLogoutRequested(
+    LogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
     await authRepository.logout();
-    emit(state.copyWith(status: AuthStatus.unauthenticated));
+    emit(const AuthState(status: AuthStatus.unauthenticated));
   }
 }

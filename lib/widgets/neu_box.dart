@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../theme/app_colors.dart';
 
-/// A hybrid container that provides Neumorphism (Light Mode) 
+/// A hybrid container that provides Neumorphism (Light Mode)
 /// and Glassmorphism (Dark Mode).
 class NeuBox extends StatelessWidget {
   final Widget child;
@@ -89,10 +89,7 @@ class NeuBox extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.glassBase,
                 borderRadius: BorderRadius.circular(borderRadius),
-                border: Border.all(
-                  color: AppColors.glassBorder,
-                  width: 1.5,
-                ),
+                border: Border.all(color: AppColors.glassBorder, width: 1.5),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,

@@ -20,7 +20,10 @@ class ProgressScreen extends StatelessWidget {
     studentBloc.add(LoadStudentData());
     await studentBloc.stream
         .firstWhere((s) => s.status != StudentStatus.loading)
-        .timeout(const Duration(seconds: 4), onTimeout: () => studentBloc.state);
+        .timeout(
+          const Duration(seconds: 4),
+          onTimeout: () => studentBloc.state,
+        );
   }
 
   @override
@@ -82,7 +85,8 @@ class ProgressScreen extends StatelessWidget {
 
             // Compute statistics
             double peakScore = 0;
-            if (performance != null && performance.subjectWisePerformance.isNotEmpty) {
+            if (performance != null &&
+                performance.subjectWisePerformance.isNotEmpty) {
               peakScore = performance.subjectWisePerformance
                   .map((p) => p.combinedScore)
                   .reduce((a, b) => a > b ? a : b);
@@ -103,70 +107,82 @@ class ProgressScreen extends StatelessWidget {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Academic Trajectory',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Academic Trajectory',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    CustomCard(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          ProgressChart(
-                            dataPoints: chartDataPoints,
-                            labels: chartLabels,
-                          ),
-                          const SizedBox(height: 32),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildStatItem('PEAK', '${peakScore.toInt()}%', AppColors.success),
-                              _buildStatItem('AVG', '${avgScore.toInt()}%', AppColors.accent),
-                              _buildStatItem('TREND', '$trendSign${trendScore.toInt()}%', AppColors.info),
-                            ],
-                          ),
-                        ],
+                      const SizedBox(height: 24),
+                      CustomCard(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            ProgressChart(
+                              dataPoints: chartDataPoints,
+                              labels: chartLabels,
+                            ),
+                            const SizedBox(height: 32),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatItem(
+                                  'PEAK',
+                                  '${peakScore.toInt()}%',
+                                  AppColors.success,
+                                ),
+                                _buildStatItem(
+                                  'AVG',
+                                  '${avgScore.toInt()}%',
+                                  AppColors.accent,
+                                ),
+                                _buildStatItem(
+                                  'TREND',
+                                  '$trendSign${trendScore.toInt()}%',
+                                  AppColors.info,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 40),
-                    const Text(
-                      'Composite Scoring Breakdown',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                      const SizedBox(height: 40),
+                      const Text(
+                        'Composite Scoring Breakdown',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildAnalyticalBreakdown(
-                      context,
-                      marksPercentage: marksPercentage,
-                      attendancePercentage: attendancePercentage,
-                    ),
+                      const SizedBox(height: 24),
+                      _buildAnalyticalBreakdown(
+                        context,
+                        marksPercentage: marksPercentage,
+                        attendancePercentage: attendancePercentage,
+                      ),
 
-                    const SizedBox(height: 40),
-                    const Text(
-                      'Subject Proficiency',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                      const SizedBox(height: 40),
+                      const Text(
+                        'Subject Proficiency',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    ..._buildProficiencyList(context, performance),
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(height: 24),
+                      ..._buildProficiencyList(context, performance),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
               ),
-            ),
             );
           },
         ),
@@ -309,13 +325,32 @@ class ProgressScreen extends StatelessWidget {
       // Return a refined template list if performance object isn't fully ready
       final proficiencies = [
         {'subject': 'MATHEMATICS', 'value': 0.85, 'color': AppColors.primary},
-        {'subject': 'PHYSICAL SCIENCES', 'value': 0.80, 'color': AppColors.accent},
-        {'subject': 'LITERATURE & ARTS', 'value': 0.88, 'color': AppColors.info},
-        {'subject': 'SOCIAL STUDIES', 'value': 0.82, 'color': AppColors.success},
+        {
+          'subject': 'PHYSICAL SCIENCES',
+          'value': 0.80,
+          'color': AppColors.accent,
+        },
+        {
+          'subject': 'LITERATURE & ARTS',
+          'value': 0.88,
+          'color': AppColors.info,
+        },
+        {
+          'subject': 'SOCIAL STUDIES',
+          'value': 0.82,
+          'color': AppColors.success,
+        },
       ];
 
       return proficiencies
-          .map((p) => _buildProficiencyRow(context, p['subject'] as String, p['value'] as double, p['color'] as Color))
+          .map(
+            (p) => _buildProficiencyRow(
+              context,
+              p['subject'] as String,
+              p['value'] as double,
+              p['color'] as Color,
+            ),
+          )
           .toList();
     }
 
@@ -386,10 +421,7 @@ class ProgressScreen extends StatelessWidget {
                 width: MediaQuery.of(context).size.width * value * 0.75,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      color.withOpacity(0.7),
-                      color,
-                    ],
+                    colors: [color.withOpacity(0.7), color],
                   ),
                 ),
               ),

@@ -10,6 +10,7 @@ import '../widgets/custom_button.dart';
 import '../widgets/neu_box.dart';
 import '../repositories/auth_repository.dart';
 import 'main_layout.dart';
+import 'teacher/teacher_main_layout.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,8 +35,11 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state.status == AuthStatus.authenticated) {
+          final destination = state.isTeacher
+              ? const TeacherMainLayout()
+              : const MainLayout();
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MainLayout()),
+            MaterialPageRoute(builder: (_) => destination),
           );
         } else if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                         ),
                       ),
-                        NeuInset(
+                      NeuInset(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         borderRadius: 16,
                         child: TextField(
@@ -222,28 +226,31 @@ class _LoginScreenState extends State<LoginScreen> {
                             return;
                           }
                           context.read<AuthBloc>().add(
-                                LoginRequested(
-                                  username: _usernameController.text.trim(),
-                                  password: _passwordController.text,
-                                ),
-                              );
+                            LoginRequested(
+                              username: _usernameController.text.trim(),
+                              password: _passwordController.text,
+                            ),
+                          );
                         },
                       );
                     },
                   ),
 
                   const SizedBox(height: 60),
-                  
+
                   // Generate Test Patient Button
                   TextButton.icon(
                     onPressed: () async {
                       showDialog(
                         context: context,
                         barrierDismissible: false,
-                        builder: (context) => const Center(child: CircularProgressIndicator()),
+                        builder: (context) =>
+                            const Center(child: CircularProgressIndicator()),
                       );
                       try {
-                        final creds = await context.read<AuthRepository>().generatePatientCredentials();
+                        final creds = await context
+                            .read<AuthRepository>()
+                            .generatePatientCredentials();
                         if (context.mounted) {
                           Navigator.pop(context); // close dialog
                           setState(() {
@@ -269,7 +276,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       }
                     },
-                    icon: const Icon(Icons.person_add_alt_1, color: AppColors.accent, size: 20),
+                    icon: const Icon(
+                      Icons.person_add_alt_1,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
                     label: Text(
                       'Generate Test Patient',
                       style: TextStyle(
@@ -289,7 +300,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         MaterialPageRoute(builder: (_) => const MainLayout()),
                       );
                     },
-                    icon: Icon(Icons.fast_forward_rounded, color: AppColors.primary.withOpacity(0.5), size: 18),
+                    icon: Icon(
+                      Icons.fast_forward_rounded,
+                      color: AppColors.primary.withOpacity(0.5),
+                      size: 18,
+                    ),
                     label: Text(
                       'BYPASS TO DASHBOARD (DEV ONLY)',
                       style: TextStyle(

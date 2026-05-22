@@ -1,17 +1,23 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/dummy_data.dart';
+import '../services/parent_identity_service.dart';
 
 class StudentRepository {
   final _supabase = Supabase.instance.client;
+  final _parentIdentityService = ParentIdentityService();
 
   Future<StudentInfo?> getStudentInfo() async {
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null)
+      if (user == null) {
         throw Exception('User session not found. Please log in again.');
+      }
 
-      print('Fetching linked student for Parent Auth ID: ${user.id}');
+      final parent = await _parentIdentityService.resolveCurrentParent();
+      final parentId = parent['id']?.toString();
+
+      print('Fetching linked student for Parent ID: $parentId');
 
       // Fetch the student record linked to this parent
       // Relationship: students.parent_id -> parents.id
@@ -26,11 +32,13 @@ class StudentRepository {
               email
             )
           ''')
-          .eq('parent_id', user.id)
+          .eq('parent_id', parentId!)
           .maybeSingle();
 
       if (studentData == null) {
-        print('NOTICE: No student record found linked to this parent (Auth ID: ${user.id}).');
+        print(
+          'NOTICE: No student record found linked to this parent (Parent ID: $parentId).',
+        );
         return null;
       }
 
@@ -44,10 +52,12 @@ class StudentRepository {
 
   Future<void> updateStudent(StudentInfo student) async {
     try {
+      final parent = await _parentIdentityService.resolveCurrentParent();
       await _supabase
           .from('students')
           .update(student.toMap())
-          .eq('id', student.id);
+          .eq('id', student.id)
+          .eq('parent_id', parent['id'].toString());
     } catch (e) {
       print('Error updating student: $e');
       throw Exception('Failed to update profile details.');
@@ -74,29 +84,32 @@ class StudentRepository {
           .eq('student_id', studentId);
 
       final List<dynamic> data = response as List<dynamic>;
-      
+
       // Group results by exam title/name to merge different exam entries representing the same exam session (e.g. uploaded by admin & teacher separately)
       final Map<String, List<ExamMark>> mergedMarksByExamName = {};
       final Map<String, Map<String, dynamic>> examDetailsByExamName = {};
 
       for (var item in data) {
         final examData = item['exams'] ?? item;
-        final examName = (examData['name'] ?? examData['title'] ?? 'Examination').toString().trim();
+        final examName =
+            (examData['name'] ?? examData['title'] ?? 'Examination')
+                .toString()
+                .trim();
         final examKey = examName.toLowerCase(); // Case-insensitive merge key
-        
+
         if (!mergedMarksByExamName.containsKey(examKey)) {
           mergedMarksByExamName[examKey] = [];
           examDetailsByExamName[examKey] = item;
         }
-        
+
         final newMark = ExamMark.fromMap(item);
         final subjectKey = newMark.subject.trim().toLowerCase();
-        
+
         // Check if this subject is already uploaded for this merged exam session (e.g., duplicate upload by admin & teacher)
         final existingIndex = mergedMarksByExamName[examKey]!.indexWhere(
-          (m) => m.subject.trim().toLowerCase() == subjectKey
+          (m) => m.subject.trim().toLowerCase() == subjectKey,
         );
-        
+
         if (existingIndex >= 0) {
           final existingMark = mergedMarksByExamName[examKey]![existingIndex];
           // Keep the record with the higher marks
@@ -109,7 +122,10 @@ class StudentRepository {
       }
 
       return mergedMarksByExamName.entries.map((entry) {
-        return ExamSession.fromMap(examDetailsByExamName[entry.key]!, entry.value);
+        return ExamSession.fromMap(
+          examDetailsByExamName[entry.key]!,
+          entry.value,
+        );
       }).toList();
     } catch (e) {
       print('Error fetching exam sessions: $e');
@@ -132,16 +148,22 @@ class StudentRepository {
       if (batchId != null) query = query.eq('batch_id', batchId);
       if (courseId != null) query = query.eq('course_id', courseId);
       if (subjectId != null) query = query.eq('subject_id', subjectId);
-      
+
       if (startDate != null) {
-        query = query.gte('attendance_date', startDate.toIso8601String().split('T')[0]);
+        query = query.gte(
+          'attendance_date',
+          startDate.toIso8601String().split('T')[0],
+        );
       }
       if (endDate != null) {
-        query = query.lte('attendance_date', endDate.toIso8601String().split('T')[0]);
+        query = query.lte(
+          'attendance_date',
+          endDate.toIso8601String().split('T')[0],
+        );
       }
 
       final response = await query.order('attendance_date', ascending: false);
-      
+
       final List<dynamic> data = response as List<dynamic>;
       return data.map((item) => AttendanceRecord.fromMap(item)).toList();
     } catch (e) {
@@ -152,7 +174,9 @@ class StudentRepository {
   }
 
   /// Fetches stored student performance from the student_academic_performance table
-  Future<Map<String, dynamic>?> getStudentPerformanceFromDb(String studentId) async {
+  Future<Map<String, dynamic>?> getStudentPerformanceFromDb(
+    String studentId,
+  ) async {
     try {
       final response = await _supabase
           .from('student_academic_performance')

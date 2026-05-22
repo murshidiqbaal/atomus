@@ -22,8 +22,10 @@ class SubjectPerformance {
 class StudentPerformanceModel {
   final double attendancePercentage; // 0.0 to 100.0
   final double marksPercentage; // 0.0 to 100.0
-  final double academicPerformanceScore; // 0.0 to 100.0 (overall composite scoring)
-  final String progressStatus; // 'Excellent', 'Good', 'Average', 'Needs Improvement', 'At Risk'
+  final double
+  academicPerformanceScore; // 0.0 to 100.0 (overall composite scoring)
+  final String
+  progressStatus; // 'Excellent', 'Good', 'Average', 'Needs Improvement', 'At Risk'
   final int performanceRank; // Class / Course / Batch rank
   final List<SubjectPerformance> subjectWisePerformance;
 
@@ -38,7 +40,8 @@ class StudentPerformanceModel {
     required this.progressStatus,
     this.performanceRank = 1,
     required this.subjectWisePerformance,
-  }) : academicPerformanceScore = academicPerformanceScore ?? academicPerformance ?? 0.0;
+  }) : academicPerformanceScore =
+           academicPerformanceScore ?? academicPerformance ?? 0.0;
 
   Color get progressColor {
     if (academicPerformanceScore >= 90.0) return AppColors.success;
