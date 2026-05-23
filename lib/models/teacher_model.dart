@@ -13,6 +13,7 @@ class TeacherModel {
   final bool isActive;
   final String? fcmToken;
   final List<TeacherSubjectAssignment> subjects;
+  final List<TeacherCourseAssignment> courses;
 
   const TeacherModel({
     required this.id,
@@ -29,6 +30,7 @@ class TeacherModel {
     this.isActive = true,
     this.fcmToken,
     this.subjects = const [],
+    this.courses = const [],
   });
 
   factory TeacherModel.fromMap(Map<String, dynamic> map, {Map<String, dynamic>? campusData}) {
@@ -52,7 +54,10 @@ class TeacherModel {
   bool get hasCampusCoordinates =>
       campusLatitude != null && campusLongitude != null;
 
-  TeacherModel copyWith({List<TeacherSubjectAssignment>? subjects}) {
+  TeacherModel copyWith({
+    List<TeacherSubjectAssignment>? subjects,
+    List<TeacherCourseAssignment>? courses,
+  }) {
     return TeacherModel(
       id: id,
       fullName: fullName,
@@ -68,6 +73,7 @@ class TeacherModel {
       isActive: isActive,
       fcmToken: fcmToken,
       subjects: subjects ?? this.subjects,
+      courses: courses ?? this.courses,
     );
   }
 }
@@ -140,4 +146,31 @@ class CampusLocation {
       radiusMeters: (map['geofence_radius_meters'] as int?) ?? 25,
     );
   }
+}
+
+class TeacherCourseAssignment {
+  final String id;
+  final String courseId;
+  final String courseName;
+  final String? campusId;
+
+  const TeacherCourseAssignment({
+    required this.id,
+    required this.courseId,
+    required this.courseName,
+    this.campusId,
+  });
+
+  factory TeacherCourseAssignment.fromMap(Map<String, dynamic> map) {
+    final course = map['courses'] as Map<String, dynamic>?;
+    return TeacherCourseAssignment(
+      id: map['id'] as String,
+      courseId: map['course_id'] as String,
+      courseName: course?['name'] as String? ?? map['course_id'] as String,
+      campusId: map['campus_id'] as String?,
+    );
+  }
+
+  @override
+  String toString() => courseName;
 }

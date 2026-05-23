@@ -2,6 +2,7 @@ import 'package:atomus/blocs/course/course_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../blocs/course/course_bloc.dart';
 import '../../blocs/course/course_state.dart';
@@ -605,130 +606,165 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         )
         .toList();
 
-    // Map records to exactly 5 periods (Period 1 to Period 5) in a non-sequential manner
-    final List<AttendanceRecord> displayRecords = List.generate(5, (index) {
-      final periodNum = index + 1;
-      return dailyRecords.firstWhere(
-        (r) => r.periodNumber == periodNum,
-        orElse: () => AttendanceRecord(
-          id: 'dummy_$periodNum',
-          studentId: '',
-          date: _selectedDate,
-          status: 'Unmarked',
-          periodNumber: periodNum,
-        ),
+    // Determine day-wise status (take the first available record for the day, or default to Unmarked)
+    final record = dailyRecords.isNotEmpty
+        ? dailyRecords.first
+        : AttendanceRecord(
+            id: 'dummy',
+            studentId: '',
+            date: _selectedDate,
+            status: 'Unmarked',
+          );
+
+    Color bgColor;
+    if (record.status == 'Present') {
+      bgColor = AppColors.success;
+    } else if (record.status == 'Absent') {
+      bgColor = AppColors.error;
+    } else if (record.status == 'Late') {
+      bgColor = AppColors.warning;
+    } else {
+      bgColor = Theme.of(context).brightness == Brightness.dark
+          ? Colors.white.withOpacity(0.08)
+          : Colors.black.withOpacity(0.05);
+    }
+
+    String subjectName = 'Unassigned';
+    String teacherName = 'N/A';
+    if (record.subjectId != null) {
+      final subject = subjects.firstWhere(
+        (s) => s.id == record.subjectId,
+        orElse: () => Subject(id: '', name: 'Unknown Subject'),
       );
-    });
+      subjectName = subject.name;
+      teacherName = 'Teacher of ${subject.name}';
+    }
 
     return CustomCard(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
+            padding: const EdgeInsets.only(bottom: 16.0),
             child: Text(
-              'PERIOD-WISE ATTENDANCE - ${DateFormat('MMM d').format(_selectedDate).toUpperCase()}',
+              'DAILY ATTENDANCE - ${DateFormat('MMM d, yyyy').format(_selectedDate).toUpperCase()}',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
+                letterSpacing: 1.5,
                 color: AppColors.textSecondary,
               ),
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: displayRecords.map((record) {
-              Color bgColor;
-              Color textColor;
-              String text;
-              if (record.status == 'Present') {
-                bgColor = AppColors.success;
-                textColor = Colors.white;
-                text = 'P';
-              } else if (record.status == 'Absent') {
-                bgColor = AppColors.error;
-                textColor = Colors.white;
-                text = 'A';
-              } else if (record.status == 'Late') {
-                bgColor = AppColors.warning;
-                textColor = Colors.white;
-                text = 'L';
-              } else {
-                bgColor = Theme.of(context).brightness == Brightness.dark
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.03)
+                  : Colors.black.withOpacity(0.02),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.white.withOpacity(0.08)
-                    : Colors.black.withOpacity(0.05);
-                textColor = AppColors.textSecondary.withOpacity(0.7);
-                text = '-';
-              }
-
-              String subjectName = 'Unassigned';
-              String teacherName = 'N/A';
-              if (record.subjectId != null) {
-                final subject = subjects.firstWhere(
-                  (s) => s.id == record.subjectId,
-                  orElse: () => Subject(id: '', name: 'Unknown Subject'),
-                );
-                subjectName = subject.name;
-                teacherName = 'Teacher of ${subject.name}';
-              }
-
-              final periodIndex =
-                  record.periodNumber ?? (displayRecords.indexOf(record) + 1);
-
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Tooltip(
-                    message: 'Subject: $subjectName\nTeacher: $teacherName',
-                    triggerMode: TooltipTriggerMode.longPress,
-                    preferBelow: false,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.9)
-                          : Colors.black.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    textStyle: TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.black
-                          : Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: bgColor,
-                      child: Text(
-                        text,
-                        style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                    : Colors.black.withOpacity(0.05),
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: bgColor.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          record.status == 'Present'
+                              ? LucideIcons.checkCircle
+                              : record.status == 'Absent'
+                                  ? LucideIcons.xCircle
+                                  : record.status == 'Late'
+                                      ? LucideIcons.clock
+                                      : LucideIcons.helpCircle,
+                          color: record.status != 'Unmarked' ? bgColor : AppColors.textSecondary,
+                          size: 32,
                         ),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  record.status.toUpperCase(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    letterSpacing: 1.5,
+                    color: record.status != 'Unmarked' ? bgColor : AppColors.textSecondary,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'P$periodIndex',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                      color: record.status != 'Unmarked'
-                          ? bgColor
-                          : AppColors.textSecondary.withOpacity(0.6),
+                ),
+                if (record.status != 'Unmarked') ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.04)
+                          : Colors.black.withOpacity(0.03),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          subjectName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(LucideIcons.user, size: 12, color: AppColors.textSecondary),
+                            const SizedBox(width: 6),
+                            Text(
+                              teacherName,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              );
-            }).toList(),
+                if (record.status == 'Unmarked') ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'No attendance marked for this day.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 }
+

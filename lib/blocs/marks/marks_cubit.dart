@@ -6,6 +6,7 @@ import 'marks_state.dart';
 
 class MarksCubit extends Cubit<MarksState> {
   final MarksEntryRepository _repo;
+  MarksEntryRepository get repo => _repo;
 
   MarksCubit({required MarksEntryRepository repository})
       : _repo = repository,
@@ -86,7 +87,54 @@ class MarksCubit extends Cubit<MarksState> {
     } catch (e) {
       emit(state.copyWith(
         status:       MarksLoadStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      ));
+    }
+  }
+
+  Future<void> createExam({
+    required String name,
+    required DateTime date,
+    required double totalMarks,
+    required String batchId,
+    required String subjectId,
+    required List<String> subjectIds,
+    String? courseId,
+  }) async {
+    emit(state.copyWith(status: MarksLoadStatus.loading));
+    try {
+      await _repo.createExam(
+        name: name,
+        date: date,
+        totalMarks: totalMarks,
+        batchId: batchId,
+        subjectId: subjectId,
+        courseId: courseId,
+      );
+      final exams = await _repo.fetchAssignedExams(subjectIds: subjectIds);
+      emit(state.copyWith(status: MarksLoadStatus.success, exams: exams, saved: true));
+    } catch (e) {
+      emit(state.copyWith(
+        status:       MarksLoadStatus.failure,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      ));
+    }
+  }
+
+  Future<void> deleteExam({
+    required String examId,
+    required String subjectId,
+    required List<String> subjectIds,
+  }) async {
+    emit(state.copyWith(status: MarksLoadStatus.loading));
+    try {
+      await _repo.deleteExam(examId, subjectId);
+      final exams = await _repo.fetchAssignedExams(subjectIds: subjectIds);
+      emit(state.copyWith(status: MarksLoadStatus.success, exams: exams));
+    } catch (e) {
+      emit(state.copyWith(
+        status:       MarksLoadStatus.failure,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
       ));
     }
   }

@@ -17,6 +17,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
     required String batchId,
     DateTime? date,
     String? courseId,
+    String? campusId,
   }) async {
     final sessionDate = date ?? DateTime.now();
     emit(state.copyWith(
@@ -32,6 +33,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
         batchId:   batchId,
         date:      sessionDate,
         courseId:  courseId,
+        campusId:  campusId,
       );
       emit(state.copyWith(
         status:  StudentAttendanceLoadStatus.success,
@@ -62,6 +64,13 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
     emit(state.copyWith(entries: updated, saved: false));
   }
 
+  void setRemarks(String studentId, String remarks) {
+    final updated = state.entries.map((e) {
+      return e.studentId == studentId ? e.copyWith(remarks: remarks.isEmpty ? null : remarks) : e;
+    }).toList();
+    emit(state.copyWith(entries: updated, saved: false));
+  }
+
   // Mark all present at once.
   void markAllPresent() {
     final updated = state.entries
@@ -70,28 +79,43 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
     emit(state.copyWith(entries: updated, saved: false));
   }
 
+  // Clear all statuses back to present or unmarked.
+  void clearAll() {
+    final updated = state.entries
+        .map((e) => e.copyWith(status: StudentAttendanceStatus.present, remarks: null))
+        .toList();
+    emit(state.copyWith(entries: updated, saved: false));
+  }
+
   Future<void> saveAttendance(
     String teacherId, {
     String? teacherName,
     String? campusId,
+    int? periodNumber,
+    String? periodLabel,
   }) async {
     if (state.entries.isEmpty) return;
     emit(state.copyWith(status: StudentAttendanceLoadStatus.saving));
     try {
+      final mappedEntries = state.entries.map((e) {
+        return e.copyWith(periodNumber: periodNumber, periodLabel: periodLabel);
+      }).toList();
+
       await _repo.saveAttendance(
         teacherId:   teacherId,
-        entries:     state.entries,
+        entries:     mappedEntries,
         teacherName: teacherName,
         campusId:    campusId,
       );
       emit(state.copyWith(
         status: StudentAttendanceLoadStatus.success,
         saved:  true,
+        entries: mappedEntries,
       ));
     } catch (e) {
       emit(state.copyWith(
         status:       StudentAttendanceLoadStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
       ));
     }
   }

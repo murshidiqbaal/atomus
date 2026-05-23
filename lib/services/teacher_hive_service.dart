@@ -7,6 +7,7 @@ class TeacherHiveService {
   static const String _pendingMarksBox      = 'teacher_pending_marks';
   static const String _cachedStudentsBox    = 'teacher_cached_students';
   static const String _assignmentsBox       = 'teacher_assignments';
+  static const String _activeSessionBox     = 'teacher_active_session';
 
   // Singleton instance
   static final TeacherHiveService _instance = TeacherHiveService._internal();
@@ -25,6 +26,7 @@ class TeacherHiveService {
       _openBox(_pendingMarksBox),
       _openBox(_cachedStudentsBox),
       _openBox(_assignmentsBox),
+      _openBox(_activeSessionBox),
     ]);
     _initialized = true;
   }
@@ -78,6 +80,24 @@ class TeacherHiveService {
     if (raw == null) return [];
     final list = jsonDecode(raw) as List;
     return list.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  // ── Active class session (survive app restart) ────────────────
+  Future<void> saveActiveSession(Map<String, dynamic> session) async {
+    final box = _getBox(_activeSessionBox);
+    await box.put('active', jsonEncode(session));
+  }
+
+  Map<String, dynamic>? getActiveSession() {
+    final box = _getBox(_activeSessionBox);
+    final raw = box.get('active');
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  Future<void> clearActiveSession() async {
+    final box = _getBox(_activeSessionBox);
+    await box.delete('active');
   }
 
   // ── Pending teacher attendance ────────────────────────────────

@@ -14,13 +14,13 @@ class TeacherRepository {
       final user = _supabase.auth.currentUser;
       if (user == null) return null;
 
-      final uid   = user.id;
+      final uid = user.id;
       final email = user.email;
 
       // Try auth_user_id first, then id, then email
       for (final filter in [
         {'col': 'auth_user_id', 'val': uid},
-        {'col': 'id',           'val': uid},
+        {'col': 'id', 'val': uid},
         if (email != null) {'col': 'email', 'val': email},
       ]) {
         try {
@@ -30,12 +30,12 @@ class TeacherRepository {
               .eq(filter['col']!, filter['val']!)
               .limit(1);
           if (rows.isNotEmpty) {
-            final row      = rows.first;
+            final row = rows.first;
             final campusMap = row['campuses'] as Map<String, dynamic>?;
-            final teacher  = TeacherModel.fromMap(row, campusData: campusMap);
-            final withSubjects = await _attachSubjects(teacher);
+            final teacher = TeacherModel.fromMap(row, campusData: campusMap);
+            final withAssignments = await _attachAssignments(teacher);
             await _hive.saveTeacherProfile(row);
-            return withSubjects;
+            return withAssignments;
           }
         } catch (_) {}
       }
@@ -54,32 +54,70 @@ class TeacherRepository {
     }
   }
 
-  Future<TeacherModel> _attachSubjects(TeacherModel teacher) async {
+  Future<TeacherModel> _attachAssignments(TeacherModel teacher) async {
+    List<TeacherSubjectAssignment> subjects = [];
+    List<TeacherCourseAssignment> courses = [];
+
+    // Fetch subjects
     try {
       final rows = await _supabase
           .from('teacher_subjects')
-          .select('*, subjects(name), courses(name), batches(name)')
-          .eq('teacher_id', teacher.id)
-          .eq('is_active', true);
+          .select('*, subjects(name, course_id, courses(name)), batches(name)')
+          .eq('teacher_id', teacher.id); // is_active removed from schema
 
-      final assignments = (rows as List)
-          .map((r) => TeacherSubjectAssignment.fromMap(r as Map<String, dynamic>))
-          .toList();
-
-      final mapList = assignments.map((a) => {
-        'id': a.id,
-        'subject_id': a.subjectId,
-        'subject_name': a.subjectName,
-        'course_id': a.courseId,
-        'batch_id': a.batchId,
-        'batch_name': a.batchName,
+      subjects = (rows as List).map((r) {
+        final subject = r['subjects'] as Map<String, dynamic>?;
+        final batch = r['batches'] as Map<String, dynamic>?;
+        final course = subject?['courses'] as Map<String, dynamic>?;
+        return TeacherSubjectAssignment(
+          id: r['id'] as String,
+          subjectId: r['subject_id'] as String,
+          subjectName: subject?['name'] as String? ?? 'Unknown Subject',
+          courseId:
+              subject?['course_id'] as String?, // get course_id from subject
+          courseName:
+              course?['name']
+                  as String?, // get courseName from subjects.courses
+          batchId: r['batch_id'] as String?,
+          batchName: batch?['name'] as String?,
+        );
       }).toList();
-      await _hive.saveAssignments(mapList);
 
-      return teacher.copyWith(subjects: assignments);
-    } catch (_) {
-      return teacher;
+      final mapList = subjects
+          .map(
+            (a) => <String, dynamic>{
+              'id': a.id,
+              'subject_id': a.subjectId,
+              'subject_name': a.subjectName,
+              'course_id': a.courseId,
+              'batch_id': a.batchId,
+              'batch_name': a.batchName,
+            },
+          )
+          .toList();
+      await _hive.saveAssignments(mapList);
+    } catch (e) {
+      print('Error fetching teacher_subjects: $e');
     }
+
+    // Fetch courses
+    try {
+      final rows = await _supabase
+          .from('teacher_courses')
+          .select('*, courses!inner(name, campus_courses!inner(campus_id))')
+          .eq('teacher_id', teacher.id)
+          .eq('courses.campus_courses.campus_id', teacher.campusId as Object);
+
+      courses = (rows as List).map((r) {
+        // Need to handle the nested courses -> name structure correctly
+        final cMap = Map<String, dynamic>.from(r);
+        final coursesData = cMap['courses'] as Map<String, dynamic>?;
+        cMap['courses'] = {'name': coursesData?['name']};
+        return TeacherCourseAssignment.fromMap(cMap);
+      }).toList();
+    } catch (_) {}
+
+    return teacher.copyWith(subjects: subjects, courses: courses);
   }
 
   // Returns all students in a given batch, filtered to the teacher's campus.
@@ -90,12 +128,19 @@ class TeacherRepository {
     try {
       var query = _supabase
           .from('students')
-          .select('id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id')
-          .eq('batch_id', batchId)
-          .order('roll_number', ascending: true);
+          .select(
+            'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id',
+          )
+          .eq('batch_id', batchId);
 
-      final rows = await query;
-      final students = (rows as List).map((r) => r as Map<String, dynamic>).toList();
+      if (campusId != null && campusId.isNotEmpty) {
+        query = query.eq('campus_id', campusId);
+      }
+
+      final rows = await query.order('roll_number', ascending: true);
+      final students = (rows as List)
+          .map((r) => r as Map<String, dynamic>)
+          .toList();
       await _hive.cacheStudents(batchId, students);
       return students;
     } catch (_) {
@@ -107,7 +152,10 @@ class TeacherRepository {
     try {
       await _supabase
           .from('teachers')
-          .update({'fcm_token': token, 'last_active': DateTime.now().toIso8601String()})
+          .update({
+            'fcm_token': token,
+            'last_active': DateTime.now().toIso8601String(),
+          })
           .eq('id', teacherId);
     } catch (_) {}
   }

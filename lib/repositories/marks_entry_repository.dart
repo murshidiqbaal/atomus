@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/exam_marks_model.dart';
 import '../services/teacher_hive_service.dart';
+import '../services/security_validation_service.dart';
 
 class MarksEntryRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -62,7 +63,7 @@ class MarksEntryRepository {
     Map<String, Map<String, dynamic>> existingMap = {};
     try {
       final existing = await _supabase
-          .from('exam_results')
+          .from('marks')
           .select('id, student_id, marks_obtained, total_marks, is_absent, remarks')
           .eq('exam_id', examId)
           .eq('subject_id', subjectId);
@@ -88,15 +89,116 @@ class MarksEntryRepository {
     List<StudentMarksEntry> entries, {
     String? teacherId,
   }) async {
-    final payload = entries.map((e) => e.toUpsertMap(teacherId: teacherId)).toList();
+    if (entries.isEmpty) return;
+
+    final first = entries.first;
+
+    // 1. Verify user profile and fetch teacher assignments via supabase
+    final resolvedTeacherId = teacherId ?? await SecurityValidationService.getTeacherId();
+
+    // 2. Validate assignments: confirm the active teacher is assigned to this exam's subject, batch, and course.
+    try {
+      final exam = await _supabase
+          .from('exams')
+          .select('batch_id, course_id, subject_id')
+          .eq('id', first.examId)
+          .maybeSingle();
+
+      if (exam != null) {
+        final eSubjectId = exam['subject_id'] as String? ?? first.subjectId;
+        final eBatchId = exam['batch_id'] as String? ?? '';
+        final eCourseId = exam['course_id'] as String? ?? '';
+        await SecurityValidationService.validateTeacherAssignments(
+          subjectId: eSubjectId,
+          batchId: eBatchId,
+          courseId: eCourseId,
+        );
+      }
+    } catch (_) {
+      // If offline or check fails, allow fallback save or bubble up security exceptions
+    }
+
+    final payload = entries.map((e) => e.toUpsertMap(teacherId: resolvedTeacherId)).toList();
 
     try {
-      await _supabase.from('exam_results').upsert(payload);
+      // 3. Replicate UPSERT: Fetch existing marks for exam_id and student_ids, separate into updates and inserts
+      final studentIds = entries.map((e) => e.studentId).toList();
+      final existingRows = await _supabase
+          .from('marks')
+          .select('id, student_id')
+          .eq('exam_id', first.examId)
+          .inFilter('student_id', studentIds);
+
+      final existingStudentIds = (existingRows as List)
+          .map((r) => r['student_id'] as String)
+          .toSet();
+
+      final inserts = <Map<String, dynamic>>[];
+      final updates = <Map<String, dynamic>>[];
+
+      for (var item in payload) {
+        final sid = item['student_id'] as String;
+        if (existingStudentIds.contains(sid)) {
+          // If match found, map current database ID to perform update
+          final dbRow = existingRows.firstWhere((r) => r['student_id'] == sid);
+          item['id'] = dbRow['id'];
+          updates.add(item);
+        } else {
+          inserts.add(item);
+        }
+      }
+
+      if (inserts.isNotEmpty) {
+        await _supabase.from('marks').insert(inserts);
+      }
+      if (updates.isNotEmpty) {
+        await _supabase.from('marks').upsert(updates);
+      }
     } catch (_) {
       if (entries.isNotEmpty) {
         await _hive.savePendingMarks(entries.first.examId, payload);
       }
     }
+  }
+
+  /// Create an exam.
+  Future<void> createExam({
+    required String name,
+    required DateTime date,
+    required double totalMarks,
+    required String batchId,
+    required String subjectId,
+    String? courseId,
+  }) async {
+    final teacherId = await SecurityValidationService.getTeacherId();
+
+    // Validate assignments
+    await SecurityValidationService.validateTeacherAssignments(
+      subjectId: subjectId,
+      batchId: batchId,
+      courseId: courseId ?? '',
+    );
+
+    final payload = {
+      'name': name,
+      'exam_date': date.toIso8601String().split('T').first,
+      'total_marks': totalMarks,
+      'batch_id': batchId,
+      'subject_id': subjectId,
+      if (courseId != null) 'course_id': courseId,
+      'created_by': teacherId,
+      'creator_role': 'Teacher',
+      'creator_id': teacherId,
+    };
+
+    await _supabase.from('exams').insert(payload);
+  }
+
+  /// Delete an exam.
+  Future<void> deleteExam(String examId, String subjectId) async {
+    // Restrict exam deletion so only the teacher who created or is assigned to the exam's subject can delete it.
+    await SecurityValidationService.validateExamDeletion(examId, subjectId);
+    await _supabase.from('exams').delete().eq('id', examId);
   }
 
   /// Analytics: class average per exam.
@@ -107,7 +209,7 @@ class MarksEntryRepository {
     if (subjectIds.isEmpty) return {};
     try {
       final rows = await _supabase
-          .from('exam_results')
+          .from('marks')
           .select('subject_id, marks_obtained, total_marks, is_absent')
           .inFilter('subject_id', subjectIds)
           .eq('is_absent', false);

@@ -1,4 +1,4 @@
-enum ProfileUploadTarget { parent, student }
+enum ProfileUploadTarget { parent, student, teacher }
 
 extension ProfileUploadTargetX on ProfileUploadTarget {
   String get apiValue {
@@ -7,6 +7,8 @@ extension ProfileUploadTargetX on ProfileUploadTarget {
         return 'parent';
       case ProfileUploadTarget.student:
         return 'student';
+      case ProfileUploadTarget.teacher:
+        return 'teacher';
     }
   }
 
@@ -16,13 +18,20 @@ extension ProfileUploadTargetX on ProfileUploadTarget {
         return 'Parent';
       case ProfileUploadTarget.student:
         return 'Student';
+      case ProfileUploadTarget.teacher:
+        return 'Teacher';
     }
   }
 
   static ProfileUploadTarget fromApiValue(String value) {
-    return value == 'student'
-        ? ProfileUploadTarget.student
-        : ProfileUploadTarget.parent;
+    switch (value) {
+      case 'student':
+        return ProfileUploadTarget.student;
+      case 'teacher':
+        return ProfileUploadTarget.teacher;
+      default:
+        return ProfileUploadTarget.parent;
+    }
   }
 }
 

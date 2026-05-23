@@ -11,5 +11,9 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
           : ThemeMode.light;
       emit(ThemeState(newMode));
     });
+
+    on<SetThemeMode>((event, emit) {
+      emit(ThemeState(event.mode));
+    });
   }
 }

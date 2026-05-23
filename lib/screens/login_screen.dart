@@ -8,7 +8,6 @@ import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/neu_box.dart';
-import '../repositories/auth_repository.dart';
 import 'main_layout.dart';
 import 'teacher/teacher_main_layout.dart';
 
@@ -38,9 +37,9 @@ class _LoginScreenState extends State<LoginScreen> {
           final destination = state.isTeacher
               ? const TeacherMainLayout()
               : const MainLayout();
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => destination),
-          );
+          Navigator.of(
+            context,
+          ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
         } else if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -78,18 +77,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
                   Text(
-                    'Signature Access',
+                    'Atomus Academics',
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       color: AppColors.primary,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Exclusively for Atomus Parents',
+                    'ATOMUS PORTAL',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
-                      letterSpacing: 0.5,
+                      letterSpacing: 2.0,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 60),
@@ -101,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Padding(
                         padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
                         child: Text(
-                          'IDENTIFIER',
+                          'EMAIL',
                           style: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(
                                 color: AppColors.primary.withOpacity(0.6),
@@ -120,14 +121,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                           decoration: const InputDecoration(
-                            hintText: 'Email or Mobile',
+                            hintText: 'atomus@gmail.com',
                             hintStyle: TextStyle(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.normal,
                             ),
                             prefixIcon: Icon(
-                              Icons.person_outline,
-                              color: AppColors.accent,
+                              Icons.email_outlined,
+                              color: AppColors.primary,
                               size: 20,
                             ),
                             border: InputBorder.none,
@@ -147,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Padding(
                         padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
                         child: Text(
-                          'ACCESS KEY',
+                          'PORTAL PASSWORD',
                           style: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(
                                 color: AppColors.primary.withOpacity(0.6),
@@ -166,14 +167,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                           decoration: const InputDecoration(
-                            hintText: 'Enter Password',
+                            hintText: 'Enter password',
                             hintStyle: TextStyle(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.normal,
                             ),
                             prefixIcon: Icon(
                               Icons.lock_outline,
-                              color: AppColors.accent,
+                              color: AppColors.primary,
                               size: 20,
                             ),
                             suffixIcon: Icon(
@@ -196,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: TextButton(
                       onPressed: () {},
                       child: Text(
-                        'Request New Key',
+                        'Forgot Password?',
                         style: TextStyle(
                           color: AppColors.primary.withOpacity(0.7),
                           fontWeight: FontWeight.w700,
@@ -212,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (context, state) {
                       return CustomButton(
-                        text: 'AUTHORIZE',
+                        text: 'SIGN IN',
                         isLoading: state.status == AuthStatus.loading,
                         onPressed: () {
                           if (_usernameController.text.isEmpty ||
@@ -238,86 +239,44 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 60),
 
-                  // Generate Test Patient Button
-                  TextButton.icon(
-                    onPressed: () async {
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) =>
-                            const Center(child: CircularProgressIndicator()),
-                      );
-                      try {
-                        final creds = await context
-                            .read<AuthRepository>()
-                            .generatePatientCredentials();
-                        if (context.mounted) {
-                          Navigator.pop(context); // close dialog
-                          setState(() {
-                            _usernameController.text = creds['email']!;
-                            _passwordController.text = creds['password']!;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Test patient generated!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          Navigator.pop(context); // close dialog
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString()),
-                              backgroundColor: AppColors.error,
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    icon: const Icon(
-                      Icons.person_add_alt_1,
-                      color: AppColors.accent,
-                      size: 20,
-                    ),
-                    label: Text(
-                      'Generate Test Patient',
-                      style: TextStyle(
-                        color: AppColors.primary.withOpacity(0.8),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                  // Generate Test Credentials (Teacher context fallback description)
+                  Text(
+                    'For mock credentials, check database config.',
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withOpacity(0.8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // Bypass Button for Testing
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const MainLayout()),
-                      );
-                    },
-                    icon: Icon(
-                      Icons.fast_forward_rounded,
-                      color: AppColors.primary.withOpacity(0.5),
-                      size: 18,
-                    ),
-                    label: Text(
-                      'BYPASS TO DASHBOARD (DEV ONLY)',
-                      style: TextStyle(
-                        color: AppColors.primary.withOpacity(0.5),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
+                  // // Bypass Button for Testing
+                  // TextButton.icon(
+                  //   onPressed: () {
+                  //     Navigator.of(context).pushReplacement(
+                  //       MaterialPageRoute(
+                  //         builder: (_) => const TeacherMainLayout(),
+                  //       ),
+                  //     );
+                  //   },
+                  //   icon: Icon(
+                  //     Icons.fast_forward_rounded,
+                  //     color: AppColors.primary.withOpacity(0.6),
+                  //     size: 18,
+                  //   ),
+                  //   label: Text(
+                  //     'BYPASS TO TEACHER DASHBOARD (DEV ONLY)',
+                  //     style: TextStyle(
+                  //       color: AppColors.primary.withOpacity(0.6),
+                  //       fontWeight: FontWeight.w800,
+                  //       fontSize: 12,
+                  //       letterSpacing: 1.0,
+                  //     ),
+                  //   ),
+                  // ),
 
-                  const SizedBox(height: 20),
-
+                  // const SizedBox(height: 20),
                   const NeuDivider(),
                   const SizedBox(height: 32),
 
@@ -333,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text(
                       'Contact Institution Registrar',
                       style: TextStyle(
-                        color: AppColors.accent,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.0,
                       ),

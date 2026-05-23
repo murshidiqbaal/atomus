@@ -101,17 +101,6 @@ class GeofenceService {
     }
   }
 
-  // Stream of positions during an active session (battery-efficient 30s interval).
-  Stream<Position> activeSessionLocationStream() {
-    return Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.medium,
-        distanceFilter: 10, // update only when moved 10m
-        timeLimit: Duration(seconds: 30),
-      ),
-    );
-  }
-
   // Haversine formula for accurate earth-surface distance in metres.
   double _haversineDistance(
     double lat1, double lon1,

@@ -13,11 +13,15 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
   Future<void> loadTodaySession(String teacherId) async {
     emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading));
     try {
-      final session = await _repo.fetchTodayActiveSession(teacherId);
-      final pct     = await _repo.fetchMonthlyAttendancePercentage(teacherId);
+      final session   = await _repo.fetchTodayActiveSession(teacherId);
+      final completed = session == null
+          ? await _repo.fetchTodayCompletedSession(teacherId)
+          : null;
+      final pct       = await _repo.fetchMonthlyAttendancePercentage(teacherId);
       emit(state.copyWith(
         status:            TeacherAttendanceLoadStatus.success,
         activeSession:     session,
+        completedSession:  completed,
         monthlyPercentage: pct,
       ));
     } catch (e) {
@@ -49,8 +53,9 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
         longitude: longitude,
       );
       emit(state.copyWith(
-        status:        TeacherAttendanceLoadStatus.success,
-        activeSession: session,
+        status:           TeacherAttendanceLoadStatus.success,
+        activeSession:    session,
+        clearCompleted:   true,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -69,9 +74,10 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
       final completed = await _repo.endSession(active);
       final history   = [completed, ...state.history];
       emit(state.copyWith(
-        status:        TeacherAttendanceLoadStatus.success,
-        clearSession:  true,
-        history:       history,
+        status:           TeacherAttendanceLoadStatus.success,
+        clearSession:     true,
+        completedSession: completed,
+        history:          history,
       ));
     } catch (e) {
       emit(state.copyWith(

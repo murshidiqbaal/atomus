@@ -9,7 +9,7 @@ class TeacherAttendanceRepository {
 
   TeacherAttendanceRepository({required TeacherHiveService hive}) : _hive = hive;
 
-  // Start a teacher attendance session. Returns the created record.
+  // Start a teacher attendance session. Prevents duplicate active sessions.
   Future<TeacherAttendanceModel> startSession({
     required String teacherId,
     required String? campusId,
@@ -21,6 +21,10 @@ class TeacherAttendanceRepository {
   }) async {
     final now   = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+
+    // Guard: block if an active session already exists in DB
+    final existing = await fetchTodayActiveSession(teacherId);
+    if (existing != null) return existing;
 
     final record = TeacherAttendanceModel(
       teacherId:      teacherId,
@@ -41,15 +45,18 @@ class TeacherAttendanceRepository {
           .upsert(record.toInsertMap())
           .select()
           .single();
-      return TeacherAttendanceModel.fromMap(inserted);
+      final saved = TeacherAttendanceModel.fromMap(inserted);
+      await _hive.saveActiveSession(saved.toInsertMap()..['id'] = saved.id);
+      return saved;
     } catch (_) {
-      // Offline: queue for later sync
+      // Offline: persist to pending queue and active session cache
       await _hive.savePendingTeacherAttendance(record.toInsertMap());
+      await _hive.saveActiveSession(record.toInsertMap());
       return record;
     }
   }
 
-  // End the active session.
+  // End the active session and clear from Hive.
   Future<TeacherAttendanceModel> endSession(TeacherAttendanceModel active) async {
     final now      = DateTime.now();
     final duration = now.difference(active.startTime!).inMinutes;
@@ -64,8 +71,9 @@ class TeacherAttendanceRepository {
         await _supabase
             .from('teacher_attendance')
             .update({
-              'end_time':          now.toIso8601String(),
-              'attendance_status': TeacherAttendanceStatus.completed.value,
+              'end_time':               now.toIso8601String(),
+              'attendance_status':      TeacherAttendanceStatus.completed.value,
+              'total_duration_minutes': duration,
             })
             .eq('id', active.id!);
       } else {
@@ -77,10 +85,11 @@ class TeacherAttendanceRepository {
       await _hive.savePendingTeacherAttendance(updated.toInsertMap());
     }
 
+    await _hive.clearActiveSession();
     return updated;
   }
 
-  // Fetch today's active session for the teacher, if any.
+  // Fetch today's active session; falls back to Hive when offline.
   Future<TeacherAttendanceModel?> fetchTodayActiveSession(String teacherId) async {
     try {
       final today = DateTime.now().toIso8601String().split('T').first;
@@ -90,6 +99,38 @@ class TeacherAttendanceRepository {
           .eq('teacher_id', teacherId)
           .eq('attendance_date', today)
           .eq('attendance_status', 'Active')
+          .limit(1);
+
+      if (rows.isEmpty) {
+        await _hive.clearActiveSession();
+        return null;
+      }
+      final session = TeacherAttendanceModel.fromMap(rows.first);
+      await _hive.saveActiveSession(Map<String, dynamic>.from(rows.first));
+      return session;
+    } catch (_) {
+      // Offline: restore from Hive
+      final cached = _hive.getActiveSession();
+      if (cached == null) return null;
+      try {
+        return TeacherAttendanceModel.fromMap(cached);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  // Fetch today's most recent completed session.
+  Future<TeacherAttendanceModel?> fetchTodayCompletedSession(String teacherId) async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T').first;
+      final rows  = await _supabase
+          .from('teacher_attendance')
+          .select('*, subjects(name)')
+          .eq('teacher_id', teacherId)
+          .eq('attendance_date', today)
+          .eq('attendance_status', 'Completed')
+          .order('end_time', ascending: false)
           .limit(1);
 
       if (rows.isEmpty) return null;

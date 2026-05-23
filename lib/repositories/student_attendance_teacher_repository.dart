@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/student_attendance_entry_model.dart';
 import '../services/teacher_hive_service.dart';
+import '../services/security_validation_service.dart';
 
 class StudentAttendanceTeacherRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -16,22 +17,56 @@ class StudentAttendanceTeacherRepository {
     required String batchId,
     required DateTime date,
     String? courseId,
+    String? campusId,
   }) async {
     final dateStr = date.toIso8601String().split('T').first;
+
+    // Special Batches Fallback Logic
+    bool useCohortFallback = false;
+    String? resolvedCourseId = courseId;
+    
+    try {
+      final batchData = await _supabase
+          .from('batches')
+          .select('name, course_id')
+          .eq('id', batchId)
+          .maybeSingle();
+      if (batchData != null) {
+        final name = (batchData['name'] as String? ?? '').toLowerCase();
+        resolvedCourseId ??= batchData['course_id'] as String?;
+        if (name.contains('any') ||
+            name.contains('morning') ||
+            name.contains('evening') ||
+            name.contains('afternoon')) {
+          useCohortFallback = true;
+        }
+      }
+    } catch (_) {}
 
     // Fetch students
     List<Map<String, dynamic>> students;
     try {
-      final rows = await _supabase
-          .from('students')
-          .select(
-              'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id')
-          .eq('batch_id', batchId)
-          .order('roll_number', ascending: true);
+      var query = _supabase.from('students').select(
+          'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id');
+      
+      if (batchId.isEmpty && resolvedCourseId != null) {
+        // Course-level attendance: fetch all students in the course
+        query = query.eq('course_id', resolvedCourseId);
+      } else if (useCohortFallback && resolvedCourseId != null) {
+        query = query.eq('course_id', resolvedCourseId);
+      } else {
+        query = query.eq('batch_id', batchId);
+      }
+
+      if (campusId != null && campusId.isNotEmpty) {
+        query = query.eq('campus_id', campusId);
+      }
+      
+      final rows = await query.order('roll_number', ascending: true);
       students = (rows as List).map((r) => Map<String, dynamic>.from(r)).toList();
-      await _hive.cacheStudents(batchId, students);
+      await _hive.cacheStudents(batchId.isEmpty ? resolvedCourseId ?? 'course' : batchId, students);
     } catch (_) {
-      students = _hive.getCachedStudents(batchId) ?? [];
+      students = _hive.getCachedStudents(batchId.isEmpty ? resolvedCourseId ?? 'course' : batchId) ?? [];
     }
 
     if (students.isEmpty) return [];
@@ -39,11 +74,19 @@ class StudentAttendanceTeacherRepository {
     // Fetch existing attendance records for today
     Map<String, Map<String, dynamic>> existingMap = {};
     try {
-      final existing = await _supabase
+      var query = _supabase
           .from('attendance')
           .select('id, student_id, status, marked_by, marked_at')
-          .eq('subject_id', subjectId)
           .eq('attendance_date', dateStr);
+
+      // Use courseId when subjectId is empty (course-level attendance)
+      if (subjectId.isEmpty && resolvedCourseId != null) {
+        query = query.eq('course_id', resolvedCourseId);
+      } else {
+        query = query.eq('subject_id', subjectId);
+      }
+
+      final existing = await query;
       for (final r in existing as List) {
         existingMap[(r as Map<String, dynamic>)['student_id'] as String] = r;
       }
@@ -66,6 +109,24 @@ class StudentAttendanceTeacherRepository {
     String? teacherName,
     String? campusId,
   }) async {
+    if (entries.isEmpty) return;
+
+    final first = entries.first;
+
+    // 1. Prevent future dates
+    final nowStr = DateTime.now().toIso8601String().split('T').first;
+    final dateStr = first.attendanceDate.toIso8601String().split('T').first;
+    if (first.attendanceDate.isAfter(DateTime.now()) && dateStr != nowStr) {
+      throw Exception('Cannot mark attendance for future dates.');
+    }
+
+    // 2. Validate assignments in teacher_subjects, teacher_batches, teacher_courses
+    await SecurityValidationService.validateTeacherAssignments(
+      subjectId: first.subjectId,
+      batchId: first.batchId ?? '',
+      courseId: first.courseId ?? '',
+    );
+
     final payload = entries
         .map((e) => e.toUpsertMap(
               teacherId,
@@ -75,7 +136,16 @@ class StudentAttendanceTeacherRepository {
         .toList();
 
     try {
-      await _supabase.from('attendance').upsert(payload);
+      // Determine the correct conflict key based on whether this is course-level or subject-level
+      final isCourseLevel = first.subjectId.isEmpty;
+      final conflictKey = isCourseLevel
+          ? 'student_id,course_id,attendance_date'
+          : 'student_id,subject_id,attendance_date';
+
+      // Pure upsert — DB unique constraint handles both inserts and updates.
+      await _supabase
+          .from('attendance')
+          .upsert(payload, onConflict: conflictKey);
     } catch (_) {
       final batchKey = entries.isNotEmpty ? entries.first.batchId ?? 'unknown' : 'unknown';
       await _hive.savePendingStudentAttendance(batchKey, payload);

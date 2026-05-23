@@ -45,6 +45,7 @@ import 'blocs/teacher_attendance/teacher_attendance_cubit.dart';
 import 'blocs/student_attendance/student_attendance_cubit.dart';
 import 'blocs/marks/marks_cubit.dart';
 import 'blocs/geofence/geofence_cubit.dart';
+import 'blocs/connectivity/connectivity_cubit.dart';
 
 class AppProviders extends StatelessWidget {
   final AppBootstrapResult bootstrapResult;
@@ -194,6 +195,9 @@ class AppProviders extends StatelessWidget {
             create: (ctx) => GeofenceCubit(
               geofenceService: ctx.read<GeofenceService>(),
             ),
+          ),
+          BlocProvider(
+            create: (_) => ConnectivityCubit(),
           ),
         ],
         child: child,
