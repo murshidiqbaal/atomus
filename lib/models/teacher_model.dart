@@ -14,6 +14,10 @@ class TeacherModel {
   final String? fcmToken;
   final List<TeacherSubjectAssignment> subjects;
   final List<TeacherCourseAssignment> courses;
+  final String? qualification;
+  final int? experienceYears;
+  final String? gender;
+  final String? address;
 
   const TeacherModel({
     required this.id,
@@ -31,6 +35,10 @@ class TeacherModel {
     this.fcmToken,
     this.subjects = const [],
     this.courses = const [],
+    this.qualification,
+    this.experienceYears,
+    this.gender,
+    this.address,
   });
 
   factory TeacherModel.fromMap(Map<String, dynamic> map, {Map<String, dynamic>? campusData}) {
@@ -48,23 +56,52 @@ class TeacherModel {
       geofenceRadiusMeters: (campusData?['geofence_radius_meters'] as int?) ?? 25,
       isActive: map['is_active'] as bool? ?? true,
       fcmToken: map['fcm_token'] as String?,
+      qualification: map['qualification'] as String?,
+      experienceYears: (map['experience_years'] as num?)?.toInt(),
+      gender: map['gender'] as String?,
+      address: map['address'] as String?,
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'full_name': fullName,
+      'email': email,
+      'phone_number': phoneNumber,
+      'employee_id': employeeId,
+      'profile_photo_drive_id': profilePhotoDriveId,
+      'campus_id': campusId,
+      'is_active': isActive,
+      'fcm_token': fcmToken,
+      'qualification': qualification,
+      'experience_years': experienceYears,
+      'gender': gender,
+      'address': address,
+    };
   }
 
   bool get hasCampusCoordinates =>
       campusLatitude != null && campusLongitude != null;
 
   TeacherModel copyWith({
+    String? fullName,
+    String? phoneNumber,
+    String? address,
+    String? qualification,
+    int? experienceYears,
+    String? gender,
+    String? profilePhotoDriveId,
     List<TeacherSubjectAssignment>? subjects,
     List<TeacherCourseAssignment>? courses,
   }) {
     return TeacherModel(
       id: id,
-      fullName: fullName,
+      fullName: fullName ?? this.fullName,
       email: email,
-      phoneNumber: phoneNumber,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       employeeId: employeeId,
-      profilePhotoDriveId: profilePhotoDriveId,
+      profilePhotoDriveId: profilePhotoDriveId ?? this.profilePhotoDriveId,
       campusId: campusId,
       campusName: campusName,
       campusLatitude: campusLatitude,
@@ -74,6 +111,10 @@ class TeacherModel {
       fcmToken: fcmToken,
       subjects: subjects ?? this.subjects,
       courses: courses ?? this.courses,
+      qualification: qualification ?? this.qualification,
+      experienceYears: experienceYears ?? this.experienceYears,
+      gender: gender ?? this.gender,
+      address: address ?? this.address,
     );
   }
 }

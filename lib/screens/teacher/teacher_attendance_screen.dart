@@ -14,7 +14,6 @@ import '../../models/teacher_attendance_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/custom_card.dart';
-import 'student_attendance_screen.dart';
 
 class TeacherAttendanceScreen extends StatefulWidget {
   const TeacherAttendanceScreen({super.key});
@@ -25,50 +24,73 @@ class TeacherAttendanceScreen extends StatefulWidget {
 }
 
 class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
-  Timer? _sessionTimer;
-  Duration _elapsed = Duration.zero;
+  Timer? _geofencePoll;
 
-  String? _selectedSubjectId;
-  String? _selectedCourseId;
-  String? _selectedBatchId;
+  DateTime _selectedMonth = DateTime.now();
+  DateTime _selectedDate = DateTime.now();
+
+  String? _filterCourseId;
+  String? _filterSubjectId;
 
   @override
   void initState() {
     super.initState();
-    _init();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
   Future<void> _init() async {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null) return;
-    await context.read<TeacherAttendanceCubit>().loadTodaySession(teacher.id);
-    if (mounted) _tryStartTimer();
+
+    final cubit = context.read<TeacherAttendanceCubit>();
+    await cubit.loadTodaySession(teacher.id);
+    await cubit.loadHistory(teacher.id, month: _selectedMonth);
+    if (!mounted) return;
+
+    _verifyLocation(silent: true);
+    _startGeofencePolling();
   }
 
-  void _tryStartTimer() {
-    final session = context.read<TeacherAttendanceCubit>().state.activeSession;
-    if (session?.startTime != null) {
-      _elapsed = DateTime.now().difference(session!.startTime!);
-      _sessionTimer?.cancel();
-      _sessionTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() => _elapsed += const Duration(seconds: 1));
-      });
-    }
-  }
-
-  void _stopTimer() {
-    _sessionTimer?.cancel();
-    _sessionTimer = null;
-    _elapsed = Duration.zero;
+  void _startGeofencePolling() {
+    _geofencePoll?.cancel();
+    _geofencePoll = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _verifyLocation(silent: true);
+    });
   }
 
   @override
   void dispose() {
-    _sessionTimer?.cancel();
+    _geofencePoll?.cancel();
     super.dispose();
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  void _previousMonth() {
+    setState(() {
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
+    });
+    _reloadHistory();
+  }
+
+  void _nextMonth() {
+    final next = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
+    final now = DateTime.now();
+    if (next.year > now.year ||
+        (next.year == now.year && next.month > now.month)) {
+      return;
+    }
+    setState(() => _selectedMonth = next);
+    _reloadHistory();
+  }
+
+  void _reloadHistory() {
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    if (teacher == null) return;
+    context
+        .read<TeacherAttendanceCubit>()
+        .loadHistory(teacher.id, month: _selectedMonth);
+  }
+
+  // ----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -78,32 +100,68 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: const Text('My Attendance',
-              style: TextStyle(fontWeight: FontWeight.w800)),
+          title: const Text(
+            'My Attendance',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
           centerTitle: true,
+          actions: [
+            BlocBuilder<GeofenceCubit, GeofenceState>(
+              builder: (ctx, geo) {
+                return IconButton(
+                  tooltip: 'Re-verify location',
+                  icon: Icon(
+                    LucideIcons.refreshCw,
+                    size: 18,
+                    color: geo.isChecking
+                        ? AppColors.textSecondary
+                        : AppColors.primary,
+                  ),
+                  onPressed: geo.isChecking
+                      ? null
+                      : () => _verifyLocation(silent: false),
+                );
+              },
+            ),
+          ],
         ),
         body: BlocConsumer<TeacherAttendanceCubit, TeacherAttendanceState>(
           listener: _attendanceListener,
           builder: (ctx, attState) {
             return BlocBuilder<TeacherDashboardCubit, TeacherDashboardState>(
               builder: (ctx2, dashState) {
+                final teacher = dashState.teacher;
                 return RefreshIndicator(
+                  color: AppColors.accent,
+                  backgroundColor: AppColors.primary,
                   onRefresh: () async {
-                    final t = dashState.teacher;
-                    if (t != null) {
-                      await ctx.read<TeacherAttendanceCubit>()
-                          .loadTodaySession(t.id);
-                    }
+                    if (teacher == null) return;
+                    final cubit = ctx.read<TeacherAttendanceCubit>();
+                    await cubit.loadTodaySession(teacher.id);
+                    await cubit.loadHistory(teacher.id,
+                        month: _selectedMonth);
+                    _verifyLocation(silent: true);
                   },
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                    children: [
-                      _buildDateHeader(),
-                      const SizedBox(height: 12),
-                      _buildBody(ctx, attState, dashState),
-                      const SizedBox(height: 20),
-                      _buildHistorySection(attState),
-                    ],
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 8),
+                    child: Column(
+                      children: [
+                        _buildGeofenceBanner(teacher),
+                        const SizedBox(height: 12),
+                        _buildPunchCard(ctx, attState, teacher),
+                        const SizedBox(height: 18),
+                        _buildMonthSelector(),
+                        const SizedBox(height: 16),
+                        _buildSummary(attState),
+                        const SizedBox(height: 16),
+                        _buildCalendar(attState),
+                        const SizedBox(height: 20),
+                        _buildSelectedDayCard(attState),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -116,166 +174,136 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
   void _attendanceListener(BuildContext ctx, TeacherAttendanceState state) {
     if (state.status == TeacherAttendanceLoadStatus.success) {
-      if (state.hasActiveSession) {
-        _tryStartTimer();
-      } else {
-        _stopTimer();
-      }
+      ctx.read<TeacherDashboardCubit>().load();
     }
     if (state.status == TeacherAttendanceLoadStatus.failure) {
       ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
         content: Text(state.errorMessage ?? 'An error occurred'),
         backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     }
   }
 
-  // ── Date header ────────────────────────────────────────────────────────────
+  // ----------------------------------------------------------------
 
-  Widget _buildDateHeader() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.calendar,
-                  size: 14, color: AppColors.primary),
-              const SizedBox(width: 6),
-              Text(
-                DateFormat('EEEE, d MMMM yyyy').format(DateTime.now()),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Main body dispatcher ───────────────────────────────────────────────────
-
-  Widget _buildBody(
-    BuildContext ctx,
-    TeacherAttendanceState attState,
-    TeacherDashboardState dashState,
-  ) {
-    // Phase 1: Active class session
-    if (attState.hasActiveSession) {
-      return _buildActiveSessionCard(
-          ctx, attState.activeSession!, attState.status);
-    }
-
-    // Phase 2: Class completed today
-    if (attState.completedSession != null) {
-      return Column(
-        children: [
-          _buildCompletedCard(attState.completedSession!),
-          const SizedBox(height: 12),
-          _buildStartNewSessionCard(ctx, attState, dashState.teacher),
-        ],
+  Widget _buildGeofenceBanner(dynamic teacher) {
+    final hasGeo = teacher != null && teacher.hasCampusCoordinates;
+    if (!hasGeo) {
+      return _bannerCard(
+        color: AppColors.info,
+        icon: LucideIcons.info,
+        title: 'No campus location set',
+        subtitle: 'Location validation is not required for your account.',
       );
     }
 
-    // Phase 3: No session yet — verify location + start class
-    return _buildCheckInCard(ctx, attState, dashState.teacher);
-  }
-
-  // ── Phase 3: Check-in card ─────────────────────────────────────────────────
-
-  Widget _buildCheckInCard(
-    BuildContext ctx,
-    TeacherAttendanceState attState,
-    dynamic teacher,
-  ) {
-    final isLoading = attState.status == TeacherAttendanceLoadStatus.loading;
-    return Column(
-      children: [
-        _buildLocationCard(teacher),
-        const SizedBox(height: 12),
-        _buildSubjectAndStartCard(ctx, attState, teacher, isLoading),
-      ],
-    );
-  }
-
-  // ── Location verification card ─────────────────────────────────────────────
-
-  Widget _buildLocationCard(dynamic teacher) {
-    if (teacher == null || !teacher.hasCampusCoordinates) {
-      return _buildNoLocationConfigCard();
-    }
     return BlocBuilder<GeofenceCubit, GeofenceState>(
       builder: (ctx, geo) {
-        return CustomCard(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row
-              Row(
-                children: [
-                  const Icon(LucideIcons.mapPin,
-                      size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 6),
-                  const Text('CAMPUS VERIFICATION',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textSecondary,
-                        letterSpacing: 1.2,
-                      )),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Status indicator
-              _buildGeofenceStatus(geo),
-              const SizedBox(height: 14),
-              // Action button
-              SizedBox(
-                width: double.infinity,
-                child: _buildVerifyButton(ctx, geo, teacher),
-              ),
-            ],
-          ),
+        late Color color;
+        late IconData icon;
+        late String title;
+        late String subtitle;
+
+        switch (geo.status) {
+          case GeofenceStatus.unknown:
+            color = AppColors.textSecondary;
+            icon = LucideIcons.mapPin;
+            title = 'Verifying location...';
+            subtitle = 'Hang on while we check your campus position.';
+            break;
+          case GeofenceStatus.checking:
+            color = AppColors.info;
+            icon = LucideIcons.loader;
+            title = 'Checking location...';
+            subtitle = 'Fetching your GPS position.';
+            break;
+          case GeofenceStatus.inside:
+            color = AppColors.success;
+            icon = LucideIcons.shieldCheck;
+            title = 'Inside campus';
+            subtitle =
+                '${geo.distanceMeters.toInt()}m from campus center - you can punch in.';
+            break;
+          case GeofenceStatus.outside:
+            color = AppColors.error;
+            icon = LucideIcons.shieldAlert;
+            title = 'Outside campus';
+            subtitle =
+                'You are ${geo.distanceMeters.toInt()}m away. Move closer to enable punch-in.';
+            break;
+          case GeofenceStatus.permissionDenied:
+            color = AppColors.error;
+            icon = LucideIcons.shieldOff;
+            title = 'Permission denied';
+            subtitle = 'Allow location access in device settings.';
+            break;
+          case GeofenceStatus.serviceDisabled:
+            color = AppColors.error;
+            icon = LucideIcons.wifiOff;
+            title = 'GPS disabled';
+            subtitle = 'Enable location services and try again.';
+            break;
+          case GeofenceStatus.error:
+            color = AppColors.error;
+            icon = LucideIcons.alertCircle;
+            title = 'Location error';
+            subtitle = geo.errorMessage ?? 'Could not determine your location.';
+            break;
+        }
+
+        return _bannerCard(
+          color: color,
+          icon: icon,
+          title: title,
+          subtitle: subtitle,
+          isLoading: geo.status == GeofenceStatus.checking,
         );
       },
     );
   }
 
-  Widget _buildNoLocationConfigCard() {
+  Widget _bannerCard({
+    required Color color,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    bool isLoading = false,
+  }) {
     return CustomCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.12),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(LucideIcons.info, color: AppColors.info, size: 20),
+            child: isLoading
+                ? Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: color),
+                  )
+                : Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('No Campus Location Set',
+                Text(title,
                     style: TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14)),
-                SizedBox(height: 2),
-                Text('Location validation is not required.',
-                    style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        color: color)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
@@ -285,469 +313,332 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     );
   }
 
-  Widget _buildGeofenceStatus(GeofenceState geo) {
-    late Color color;
-    late IconData icon;
-    late String title;
-    late String subtitle;
+  // ----------------------------------------------------------------
 
-    switch (geo.status) {
-      case GeofenceStatus.unknown:
-        color    = AppColors.textSecondary;
-        icon     = LucideIcons.mapPin;
-        title    = 'Location Not Verified';
-        subtitle = 'Tap "Verify Location" to check if you are on campus.';
-        break;
-      case GeofenceStatus.checking:
-        color    = AppColors.info;
-        icon     = LucideIcons.loader;
-        title    = 'Checking Location…';
-        subtitle = 'Fetching your GPS position.';
-        break;
-      case GeofenceStatus.inside:
-        color    = AppColors.success;
-        icon     = LucideIcons.checkCircle;
-        title    = 'Inside Campus';
-        subtitle = 'Distance: ${geo.distanceMeters.toInt()}m — You\'re good to go!';
-        break;
-      case GeofenceStatus.outside:
-        color    = AppColors.error;
-        icon     = LucideIcons.xCircle;
-        title    = 'Outside Campus';
-        subtitle = 'You are ${geo.distanceMeters.toInt()}m away. Move closer to campus.';
-        break;
-      case GeofenceStatus.permissionDenied:
-        color    = AppColors.error;
-        icon     = LucideIcons.shieldOff;
-        title    = 'Permission Denied';
-        subtitle = 'Please allow location access in device settings.';
-        break;
-      case GeofenceStatus.serviceDisabled:
-        color    = AppColors.error;
-        icon     = LucideIcons.wifi;
-        title    = 'GPS Disabled';
-        subtitle = 'Please enable location services and try again.';
-        break;
-      case GeofenceStatus.error:
-        color    = AppColors.error;
-        icon     = LucideIcons.alertCircle;
-        title    = 'Location Error';
-        subtitle = geo.errorMessage ?? 'Could not determine your location.';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          geo.status == GeofenceStatus.checking
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: color),
-                )
-              : Icon(icon, color: color, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: color)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVerifyButton(
-    BuildContext ctx,
-    GeofenceState geo,
-    dynamic teacher,
-  ) {
-    final isChecking = geo.status == GeofenceStatus.checking;
-    final isVerified = geo.status == GeofenceStatus.inside;
-
-    if (isVerified) {
-      return OutlinedButton.icon(
-        icon: const Icon(LucideIcons.refreshCw, size: 16),
-        label: const Text('Re-verify Location'),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
-        ),
-        onPressed: () => _verifyLocation(ctx, teacher),
-      );
-    }
-
-    return ElevatedButton.icon(
-      icon: isChecking
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
-            )
-          : const Icon(LucideIcons.locateFixed, size: 18),
-      label: Text(isChecking ? 'Locating…' : 'Verify Location'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10)),
-      ),
-      onPressed: isChecking ? null : () => _verifyLocation(ctx, teacher),
-    );
-  }
-
-  // ── Subject selector + Start Class card ───────────────────────────────────
-
-  Widget _buildSubjectAndStartCard(
+  Widget _buildPunchCard(
     BuildContext ctx,
     TeacherAttendanceState attState,
     dynamic teacher,
-    bool isLoading,
   ) {
-    return CustomCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final isLoading = attState.status == TeacherAttendanceLoadStatus.loading;
+    final now = DateTime.now();
+
+    // Once today's attendance is completed, lock the UI to the completed
+    // card. A stale "Active" row coming back from the server on refresh or
+    // a geofence poll must not re-expose the STOP button or alter the
+    // recorded punch-out time.
+    final completed = attState.completedSession;
+    if (completed != null && _isSameDay(completed.attendanceDate, now)) {
+      return _buildCompletedPunchCard(completed);
+    }
+
+    // Also guard against an active row dated to a previous day that hasn't
+    // been cleared on the server. Only treat it as active if it's for today.
+    final active = attState.activeSession;
+    if (attState.hasActiveSession &&
+        active != null &&
+        _isSameDay(active.attendanceDate, now)) {
+      // Already punched out (endTime set on the row): show the completed
+      // card and never expose the STOP button again.
+      if (active.endTime != null) {
+        return _buildCompletedPunchCard(active);
+      }
+      return _buildActivePunchCard(ctx, active, isLoading);
+    }
+
+    return _buildIdlePunchCard(ctx, teacher, isLoading);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Widget _buildIdlePunchCard(
+      BuildContext ctx, dynamic teacher, bool isLoading) {
+    return BlocBuilder<GeofenceCubit, GeofenceState>(
+      builder: (geoCtx, geo) {
+        final noCampus = teacher == null || !teacher.hasCampusCoordinates;
+        final insideCampus = noCampus || geo.status == GeofenceStatus.inside;
+        final hasFilters =
+            _filterCourseId != null && _filterSubjectId != null;
+        final canPunch = insideCampus && hasFilters;
+
+        String? disabledHint;
+        String label = 'PUNCH IN';
+        IconData icon = LucideIcons.play;
+        Color color = AppColors.success;
+        if (!insideCampus) {
+          label = 'OUTSIDE CAMPUS';
+          icon = LucideIcons.lock;
+          color = AppColors.textSecondary;
+          disabledHint = 'You must be inside the campus radius to punch in.';
+        } else if (!hasFilters) {
+          label = 'SELECT COURSE & SUBJECT';
+          icon = LucideIcons.filter;
+          color = AppColors.textSecondary;
+          disabledHint = 'Pick a course and a subject before punching in.';
+        }
+
+        return CustomCard(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(LucideIcons.bookOpen,
-                  size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
-              const Text('START CLASS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textSecondary,
-                    letterSpacing: 1.2,
-                  )),
+              Center(
+                child: _statusPill(
+                  label: 'NOT PUNCHED IN',
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Pick today's class and tap PUNCH IN.",
+                textAlign: TextAlign.center,
+                style:
+                    TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              _buildFilters(teacher),
+              const SizedBox(height: 16),
+              _buildBigPunchButton(
+                label: label,
+                icon: icon,
+                color: color,
+                isLoading: isLoading,
+                disabledHint: disabledHint,
+                onPressed: (canPunch && !isLoading)
+                    ? () => _startSession(ctx, teacher, geo)
+                    : null,
+              ),
             ],
           ),
-          const SizedBox(height: 14),
-          _buildSubjectSelector(teacher),
-          const SizedBox(height: 16),
-          BlocBuilder<GeofenceCubit, GeofenceState>(
-            builder: (geoCtx, geo) {
-              final noCampus = teacher?.campusLatitude == null;
-              final canStart = noCampus || geo.status == GeofenceStatus.inside;
-              return Column(
-                children: [
-                  if (!canStart && geo.status != GeofenceStatus.unknown)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.alertTriangle,
-                              size: 14, color: AppColors.error),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Verify location first to enable check-in.',
-                            style: TextStyle(
-                                fontSize: 12, color: AppColors.error),
-                          ),
-                        ],
-                      ),
-                    ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: isLoading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(LucideIcons.playCircle, size: 18),
-                      label: Text(
-                        canStart
-                            ? 'Start Class'
-                            : 'Verify Location First',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: canStart
-                            ? AppColors.success
-                            : AppColors.textSecondary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: (canStart && !isLoading)
-                          ? () => _startSession(ctx, teacher, geo)
-                          : null,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildSubjectSelector(dynamic teacher) {
-    final subjects = (teacher?.subjects as List?) ?? [];
-    if (subjects.isEmpty) {
+  Widget _buildFilters(dynamic teacher) {
+    final List assignments =
+        (teacher?.subjects as List?) ?? const <dynamic>[];
+    if (assignments.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.textSecondary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
           children: [
-            Icon(LucideIcons.inbox, size: 16, color: AppColors.textSecondary),
+            Icon(LucideIcons.inbox,
+                size: 16, color: AppColors.textSecondary),
             SizedBox(width: 8),
-            Text('No subjects assigned.',
-                style: TextStyle(color: AppColors.textSecondary)),
+            Expanded(
+              child: Text(
+                'No courses or subjects assigned to your account.',
+                style:
+                    TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+            ),
           ],
         ),
       );
     }
-    if (_selectedSubjectId == null) {
-      final s = subjects.first;
-      _selectedSubjectId = s.subjectId as String?;
-      _selectedCourseId  = s.courseId  as String?;
-      _selectedBatchId   = s.batchId   as String?;
+
+    // Build distinct course list from teacher assignments.
+    final Map<String, String> courses = {};
+    for (final a in assignments) {
+      final cid = a.courseId as String?;
+      if (cid == null) continue;
+      courses[cid] = (a.courseName as String?) ?? 'Course';
     }
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: 'Subject / Class',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedSubjectId,
-          isExpanded: true,
-          items: subjects.map<DropdownMenuItem<String>>((s) {
-            return DropdownMenuItem<String>(
-              value: s.subjectId as String,
-              child: Text(
-                '${s.subjectName}${s.batchName != null ? " · ${s.batchName}" : ""}',
-                style: const TextStyle(fontSize: 14),
-              ),
-            );
-          }).toList(),
-          onChanged: (val) {
-            if (val == null) return;
-            final s = subjects.firstWhere((x) => x.subjectId == val);
-            setState(() {
-              _selectedSubjectId = s.subjectId as String?;
-              _selectedCourseId  = s.courseId  as String?;
-              _selectedBatchId   = s.batchId   as String?;
-            });
-          },
+
+    // Subjects scoped by the currently selected course (if any).
+    final List subjectItems = _filterCourseId == null
+        ? assignments
+        : assignments.where((a) => a.courseId == _filterCourseId).toList();
+
+    // Self-heal stale selections (e.g., course changed -> subject mismatch).
+    if (_filterSubjectId != null &&
+        !subjectItems.any((a) => a.subjectId == _filterSubjectId)) {
+      _filterSubjectId = null;
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _filterDropdown<String>(
+            label: 'COURSE',
+            value: _filterCourseId,
+            hint: 'Select course',
+            items: courses.entries
+                .map((e) => DropdownMenuItem<String>(
+                      value: e.key,
+                      child: Text(e.value,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
+                    ))
+                .toList(),
+            onChanged: (val) {
+              setState(() {
+                _filterCourseId = val;
+                _filterSubjectId = null;
+              });
+            },
+          ),
         ),
-      ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _filterDropdown<String>(
+            label: 'SUBJECT',
+            value: _filterSubjectId,
+            hint: _filterCourseId == null
+                ? 'Pick course first'
+                : 'Select subject',
+            items: subjectItems
+                .map<DropdownMenuItem<String>>(
+                  (a) => DropdownMenuItem<String>(
+                    value: a.subjectId as String,
+                    child: Text(
+                      '${a.subjectName}${a.batchName != null ? " | ${a.batchName}" : ""}',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: subjectItems.isEmpty
+                ? null
+                : (val) => setState(() => _filterSubjectId = val),
+          ),
+        ),
+      ],
     );
   }
 
-  // ── Phase 1: Active session card ──────────────────────────────────────────
+  Widget _filterDropdown<T>({
+    required String label,
+    required T? value,
+    required String hint,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?>? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              hint: Text(
+                hint,
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+              items: items,
+              onChanged: onChanged,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-  Widget _buildActiveSessionCard(
+  Widget _buildActivePunchCard(
     BuildContext ctx,
     TeacherAttendanceModel session,
-    TeacherAttendanceLoadStatus loadStatus,
+    bool isLoading,
   ) {
-    final isLoading = loadStatus == TeacherAttendanceLoadStatus.loading;
-    final hours   = _elapsed.inHours;
-    final minutes = _elapsed.inMinutes % 60;
-    final seconds = _elapsed.inSeconds % 60;
+    return BlocBuilder<GeofenceCubit, GeofenceState>(
+      builder: (geoCtx, geo) {
+        final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+        final noCampus = teacher == null || !teacher.hasCampusCoordinates;
+        final canPunchOut = noCampus || geo.status == GeofenceStatus.inside;
 
-    return CustomCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          // Live badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.4)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.success,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text('CLASS IN SESSION',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                      color: AppColors.success,
-                      letterSpacing: 1.2,
-                    )),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Subject name
-          Text(
-            session.subjectName ?? 'Active Class',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Started at ${session.startTime != null ? DateFormat('hh:mm a').format(session.startTime!) : '--'}',
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 20),
-
-          // Timer
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+        return CustomCard(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          child: Column(
             children: [
-              _timerSegment(hours.toString().padLeft(2, '0'), 'HRS'),
-              _timerSeparator(),
-              _timerSegment(minutes.toString().padLeft(2, '0'), 'MIN'),
-              _timerSeparator(),
-              _timerSegment(seconds.toString().padLeft(2, '0'), 'SEC'),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(LucideIcons.users, size: 16),
-                  label: const Text('Take Attendance'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () => _goToStudentAttendance(ctx, session),
+              _statusPill(
+                label: 'PUNCHED IN',
+                color: AppColors.success,
+                showDot: true,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Punched in at ${session.startTime != null ? DateFormat('hh:mm a').format(session.startTime!) : '--'}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(LucideIcons.stopCircle, size: 16),
-                  label: const Text('End Class'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: isLoading
-                      ? null
-                      : () => _confirmEndSession(ctx),
-                ),
+              const SizedBox(height: 18),
+              _buildBigPunchButton(
+                label: canPunchOut ? 'PUNCH OUT' : 'OUTSIDE CAMPUS',
+                icon: canPunchOut ? LucideIcons.square : LucideIcons.lock,
+                color: canPunchOut
+                    ? AppColors.error
+                    : AppColors.textSecondary,
+                isLoading: isLoading,
+                disabledHint: canPunchOut
+                    ? null
+                    : 'You must be inside the campus radius to punch out.',
+                onPressed: (canPunchOut && !isLoading)
+                    ? () => _confirmEndSession(ctx)
+                    : null,
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // ── Phase 2: Completed session summary card ────────────────────────────────
-
-  Widget _buildCompletedCard(TeacherAttendanceModel session) {
+  Widget _buildCompletedPunchCard(TeacherAttendanceModel session) {
     return CustomCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          // Completion badge
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.4)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(LucideIcons.checkCircle,
-                    size: 14, color: AppColors.success),
-                const SizedBox(width: 6),
-                const Text('CLASS COMPLETED',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                      color: AppColors.success,
-                      letterSpacing: 1.2,
-                    )),
-              ],
-            ),
+          _statusPill(
+            label: 'ATTENDANCE COMPLETED',
+            color: AppColors.success,
+            icon: LucideIcons.checkCircle,
           ),
           const SizedBox(height: 16),
-
-          Text(
-            session.subjectName ?? 'Class',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Stats row
           Row(
             children: [
               Expanded(
                 child: _buildStatChip(
-                  icon: LucideIcons.clock,
-                  label: 'Check-In',
+                  icon: LucideIcons.logIn,
+                  label: 'Punch-In',
                   value: session.startTime != null
                       ? DateFormat('hh:mm a').format(session.startTime!)
                       : '--',
@@ -757,7 +648,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               Expanded(
                 child: _buildStatChip(
                   icon: LucideIcons.logOut,
-                  label: 'Check-Out',
+                  label: 'Punch-Out',
                   value: session.endTime != null
                       ? DateFormat('hh:mm a').format(session.endTime!)
                       : '--',
@@ -773,6 +664,50 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          const Text(
+            "You've already marked attendance for today.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPill({
+    required String label,
+    required Color color,
+    bool showDot = false,
+    IconData? icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showDot)
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+          if (icon != null) Icon(icon, size: 14, color: color),
+          if (showDot || icon != null) const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 10,
+              color: color,
+              letterSpacing: 1.5,
+            ),
+          ),
         ],
       ),
     );
@@ -784,129 +719,228 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     required String value,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
           Icon(icon, size: 16, color: AppColors.primary),
           const SizedBox(height: 4),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 10,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600)),
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 9,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary)),
+          Text(
+            value,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: AppColors.primary),
+          ),
         ],
       ),
     );
   }
 
-  // ── Start new session card (shown below completed card) ────────────────────
-
-  Widget _buildStartNewSessionCard(
-    BuildContext ctx,
-    TeacherAttendanceState attState,
-    dynamic teacher,
-  ) {
-    return _buildCheckInCard(ctx, attState, teacher);
-  }
-
-  // ── History section ────────────────────────────────────────────────────────
-
-  Widget _buildHistorySection(TeacherAttendanceState state) {
-    if (state.history.isEmpty) return const SizedBox.shrink();
+  Widget _buildBigPunchButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isLoading,
+    required VoidCallback? onPressed,
+    String? disabledHint,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('THIS MONTH',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textSecondary,
-              letterSpacing: 1.5,
-            )),
-        const SizedBox(height: 10),
-        ...state.history.map((r) => _buildHistoryTile(r)),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            icon: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: Colors.white),
+                  )
+                : Icon(icon, size: 22, color: Colors.white),
+            label: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                letterSpacing: 1.4,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              disabledBackgroundColor: color.withValues(alpha: 0.55),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: onPressed,
+          ),
+        ),
+        if (disabledHint != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(LucideIcons.alertTriangle,
+                  size: 12, color: AppColors.error),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  disabledHint,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildHistoryTile(TeacherAttendanceModel record) {
-    final Color color =
-        record.isCompleted ? AppColors.success : AppColors.error;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: CustomCard(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                record.isCompleted
-                    ? LucideIcons.checkCircle
-                    : LucideIcons.xCircle,
-                color: color,
-                size: 18,
-              ),
+  // ----------------------------------------------------------------
+
+  Widget _buildMonthSelector() {
+    final now = DateTime.now();
+    final canGoNext = !(_selectedMonth.year == now.year &&
+        _selectedMonth.month == now.month);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(
+            'MONTH',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: AppColors.textSecondary,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    record.subjectName ??
-                        DateFormat('EEEE').format(record.attendanceDate),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14),
-                  ),
-                  Text(
-                    DateFormat('d MMM yyyy').format(record.attendanceDate),
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                ],
+          ),
+        ),
+        CustomCard(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: _previousMonth,
+                icon: const Icon(Icons.chevron_left,
+                    color: AppColors.primary, size: 20),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+              Expanded(
+                child: Center(
                   child: Text(
-                    record.status.value,
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: color),
+                    DateFormat('MMMM yyyy')
+                        .format(_selectedMonth)
+                        .toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      letterSpacing: 1.0,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
-                if (record.durationLabel != '--')
-                  Text(
-                    record.durationLabel,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary),
-                  ),
-              ],
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: canGoNext ? _nextMonth : null,
+                icon: Icon(
+                  Icons.chevron_right,
+                  color: canGoNext
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withValues(alpha: 0.4),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ----------------------------------------------------------------
+
+  Widget _buildSummary(TeacherAttendanceState state) {
+    int present = 0;
+    int absent = 0;
+    int totalMinutes = 0;
+    final monthRecords = _monthRecords(state);
+    for (final r in monthRecords) {
+      if (r.isCompleted) {
+        present++;
+        totalMinutes += r.totalDurationMinutes ?? 0;
+      } else {
+        absent++;
+      }
+    }
+    final h = totalMinutes ~/ 60;
+    final m = totalMinutes % 60;
+    final hoursLabel = h > 0 ? '${h}h ${m}m' : '${m}m';
+
+    return Row(
+      children: [
+        _buildSummaryCard('PRESENT', '$present', AppColors.success),
+        const SizedBox(width: 10),
+        _buildSummaryCard('MISSED', '$absent', AppColors.error),
+        const SizedBox(width: 10),
+        _buildSummaryCard('HOURS', hoursLabel, AppColors.primary),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(String label, String value, Color color) {
+    return Expanded(
+      child: CustomCard(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 9,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: color,
+                ),
+              ),
             ),
           ],
         ),
@@ -914,61 +948,391 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     );
   }
 
-  // ── Timer widgets ──────────────────────────────────────────────────────────
+  // ----------------------------------------------------------------
 
-  Widget _timerSegment(String value, String label) {
-    return Column(
+  List<TeacherAttendanceModel> _monthRecords(TeacherAttendanceState state) {
+    return state.history.where((r) {
+      return r.attendanceDate.year == _selectedMonth.year &&
+          r.attendanceDate.month == _selectedMonth.month;
+    }).toList();
+  }
+
+  Widget _buildCalendar(TeacherAttendanceState state) {
+    final Map<int, TeacherAttendanceModel> recordMap = {};
+    for (final r in _monthRecords(state)) {
+      recordMap[r.attendanceDate.day] = r;
+    }
+    // Also include today's active session in calendar
+    final active = state.activeSession;
+    if (active != null &&
+        active.attendanceDate.year == _selectedMonth.year &&
+        active.attendanceDate.month == _selectedMonth.month) {
+      recordMap[active.attendanceDate.day] = active;
+    }
+    final completedToday = state.completedSession;
+    if (completedToday != null &&
+        completedToday.attendanceDate.year == _selectedMonth.year &&
+        completedToday.attendanceDate.month == _selectedMonth.month) {
+      recordMap[completedToday.attendanceDate.day] = completedToday;
+    }
+
+    final daysInMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month + 1,
+      0,
+    ).day;
+    final startOffset =
+        DateTime(_selectedMonth.year, _selectedMonth.month, 1).weekday - 1;
+    final today = DateTime.now();
+
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+                .map(
+                  (d) => Expanded(
+                    child: Center(
+                      child: Text(
+                        d,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 10),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 5,
+              crossAxisSpacing: 5,
+              childAspectRatio: 1,
+            ),
+            itemCount: startOffset + daysInMonth,
+            itemBuilder: (context, index) {
+              if (index < startOffset) return const SizedBox();
+              final day = index - startOffset + 1;
+              final record = recordMap[day];
+              final date =
+                  DateTime(_selectedMonth.year, _selectedMonth.month, day);
+              final isToday = date.year == today.year &&
+                  date.month == today.month &&
+                  date.day == today.day;
+              final isFuture = date
+                  .isAfter(DateTime(today.year, today.month, today.day));
+
+              Color? bgColor;
+              if (!isFuture && record != null) {
+                if (record.isCompleted) {
+                  bgColor = AppColors.success;
+                } else if (record.isActive) {
+                  bgColor = AppColors.warning;
+                } else {
+                  bgColor = AppColors.error;
+                }
+              }
+
+              final isSelected = _selectedDate.year == date.year &&
+                  _selectedDate.month == date.month &&
+                  _selectedDate.day == date.day;
+
+              return GestureDetector(
+                onTap: () {
+                  if (!isFuture) setState(() => _selectedDate = date);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: BoxDecoration(
+                    color: bgColor != null
+                        ? bgColor.withValues(alpha: isSelected ? 0.8 : 1.0)
+                        : isSelected
+                            ? AppColors.primary.withValues(alpha: 0.2)
+                            : (isToday
+                                ? AppColors.primary.withValues(alpha: 0.08)
+                                : Colors.transparent),
+                    shape: BoxShape.circle,
+                    border: isSelected
+                        ? Border.all(
+                            color: bgColor ?? AppColors.primary,
+                            width: 2.0,
+                          )
+                        : isToday && bgColor == null
+                            ? Border.all(
+                                color: AppColors.primary, width: 1.5)
+                            : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$day',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: (isToday ||
+                                bgColor != null ||
+                                isSelected)
+                            ? FontWeight.w900
+                            : FontWeight.w500,
+                        color: isFuture
+                            ? AppColors.textSecondary.withValues(alpha: 0.3)
+                            : (bgColor != null
+                                ? Colors.white
+                                : (isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary)),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLegend('Present', AppColors.success),
+              const SizedBox(width: 18),
+              _buildLegend('Active', AppColors.warning),
+              const SizedBox(width: 18),
+              _buildLegend('Missed', AppColors.error),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegend(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value,
-            style: const TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primary,
-              fontFeatures: [FontFeature.tabularFigures()],
-            )),
-        Text(label,
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
-              letterSpacing: 1,
-            )),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _timerSeparator() {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 12),
-      child: Text(' : ',
-          style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              color: AppColors.accent)),
+  // ----------------------------------------------------------------
+
+  Widget _buildSelectedDayCard(TeacherAttendanceState state) {
+    TeacherAttendanceModel? record;
+    for (final r in _monthRecords(state)) {
+      if (r.attendanceDate.day == _selectedDate.day &&
+          r.attendanceDate.month == _selectedDate.month &&
+          r.attendanceDate.year == _selectedDate.year) {
+        record = r;
+        break;
+      }
+    }
+    record ??= _matchesDate(state.activeSession, _selectedDate);
+    record ??= _matchesDate(state.completedSession, _selectedDate);
+
+    Color color;
+    IconData icon;
+    String statusLabel;
+    if (record == null) {
+      color = AppColors.textSecondary;
+      icon = LucideIcons.helpCircle;
+      statusLabel = 'NOT MARKED';
+    } else if (record.isCompleted) {
+      color = AppColors.success;
+      icon = LucideIcons.checkCircle;
+      statusLabel = 'PRESENT';
+    } else if (record.isActive) {
+      color = AppColors.warning;
+      icon = LucideIcons.clock;
+      statusLabel = 'IN PROGRESS';
+    } else {
+      color = AppColors.error;
+      icon = LucideIcons.xCircle;
+      statusLabel = 'MISSED';
+    }
+
+    return CustomCard(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              'DAILY ATTENDANCE - ${DateFormat('MMM d, yyyy').format(_selectedDate).toUpperCase()}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.03)
+                  : Colors.black.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.05),
+              ),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 32),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    letterSpacing: 1.5,
+                    color: color,
+                  ),
+                ),
+                if (record != null) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatChip(
+                          icon: LucideIcons.logIn,
+                          label: 'Punch-In',
+                          value: record.startTime != null
+                              ? DateFormat('hh:mm a')
+                                  .format(record.startTime!)
+                              : '--',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatChip(
+                          icon: LucideIcons.logOut,
+                          label: 'Punch-Out',
+                          value: record.endTime != null
+                              ? DateFormat('hh:mm a')
+                                  .format(record.endTime!)
+                              : '--',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatChip(
+                          icon: LucideIcons.timer,
+                          label: 'Duration',
+                          value: record.durationLabel,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'No attendance marked for this day.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  TeacherAttendanceModel? _matchesDate(
+      TeacherAttendanceModel? r, DateTime date) {
+    if (r == null) return null;
+    if (r.attendanceDate.year == date.year &&
+        r.attendanceDate.month == date.month &&
+        r.attendanceDate.day == date.day) {
+      return r;
+    }
+    return null;
+  }
 
-  Future<void> _verifyLocation(BuildContext ctx, dynamic teacher) async {
+  // ----------------------------------------------------------------
+
+  Future<void> _verifyLocation({required bool silent}) async {
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null || !teacher.hasCampusCoordinates) return;
-    await ctx.read<GeofenceCubit>().checkGeofence(
-          campusLatitude:  teacher.campusLatitude as double,
+    await context.read<GeofenceCubit>().checkGeofence(
+          campusLatitude: teacher.campusLatitude as double,
           campusLongitude: teacher.campusLongitude as double,
-          radiusMeters:    teacher.geofenceRadiusMeters as int,
+          radiusMeters: teacher.geofenceRadiusMeters as int,
         );
+    if (!silent && mounted) {
+      final geo = context.read<GeofenceCubit>().state;
+      if (geo.status == GeofenceStatus.inside) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text('Inside campus (${geo.distanceMeters.toInt()}m away)'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    }
   }
 
   Future<void> _startSession(
       BuildContext ctx, dynamic teacher, GeofenceState geo) async {
     if (teacher == null) return;
+    if (_filterCourseId == null || _filterSubjectId == null) return;
+
+    // Resolve batch from the chosen subject assignment.
+    String? batchId;
+    final assignments = (teacher.subjects as List?) ?? const <dynamic>[];
+    for (final a in assignments) {
+      if (a.subjectId == _filterSubjectId &&
+          a.courseId == _filterCourseId) {
+        batchId = a.batchId as String?;
+        break;
+      }
+    }
+
     await ctx.read<TeacherAttendanceCubit>().startSession(
           teacherId: teacher.id as String,
-          campusId:  teacher.campusId as String?,
-          subjectId: _selectedSubjectId,
-          courseId:  _selectedCourseId,
-          batchId:   _selectedBatchId,
-          latitude:  geo.position?.latitude,
+          campusId: teacher.campusId as String?,
+          subjectId: _filterSubjectId,
+          courseId: _filterCourseId,
+          batchId: batchId,
+          latitude: geo.position?.latitude,
           longitude: geo.position?.longitude,
         );
   }
@@ -977,9 +1341,16 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     showDialog(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('End Class?'),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Punch out for today?',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+        ),
         content: const Text(
-            'This will mark your attendance as completed for today.'),
+          "This will record your punch-out time and mark today's attendance as completed. You can only mark attendance once per day.",
+          style: TextStyle(fontSize: 13),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
@@ -987,34 +1358,17 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error),
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               Navigator.pop(dialogCtx);
               ctx.read<TeacherAttendanceCubit>().endSession();
             },
-            child: const Text('End Class',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Punch Out'),
           ),
         ],
       ),
     );
-  }
-
-  void _goToStudentAttendance(
-      BuildContext ctx, TeacherAttendanceModel session) {
-    if (session.subjectId == null || session.batchId == null) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('No batch assigned to this session.')),
-      );
-      return;
-    }
-    Navigator.of(ctx).push(MaterialPageRoute(
-      builder: (_) => StudentAttendanceScreen(
-        subjectId:   session.subjectId!,
-        subjectName: session.subjectName ?? 'Subject',
-        batchId:     session.batchId!,
-        courseId:    session.courseId,
-      ),
-    ));
   }
 }

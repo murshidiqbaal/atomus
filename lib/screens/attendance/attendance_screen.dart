@@ -629,15 +629,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           : Colors.black.withOpacity(0.05);
     }
 
-    String subjectName = 'Unassigned';
-    String teacherName = 'N/A';
-    if (record.subjectId != null) {
+    String subjectName = record.subjectName ?? 'Unassigned';
+    String teacherName = record.markerName ?? 'N/A';
+
+    if (subjectName == 'Unassigned' && record.subjectId != null) {
       final subject = subjects.firstWhere(
         (s) => s.id == record.subjectId,
         orElse: () => Subject(id: '', name: 'Unknown Subject'),
       );
       subjectName = subject.name;
-      teacherName = 'Teacher of ${subject.name}';
+    }
+    if (teacherName == 'N/A') {
+      teacherName = 'Teacher';
     }
 
     return CustomCard(

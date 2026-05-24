@@ -142,7 +142,12 @@ class StudentRepository {
     DateTime? endDate,
   }) async {
     try {
-      var query = _supabase.from('attendance').select();
+      var query = _supabase.from('attendance').select('''
+        *,
+        subjects (
+          name
+        )
+      ''');
 
       if (studentId != null) query = query.eq('student_id', studentId);
       if (batchId != null) query = query.eq('batch_id', batchId);

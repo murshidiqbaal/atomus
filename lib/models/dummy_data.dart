@@ -149,6 +149,9 @@ class AttendanceRecord {
   final DateTime date;
   final String status; // 'Present', 'Absent', 'Late'
   final int? periodNumber;
+  final String? markerName;
+  final String? markerRole;
+  final String? subjectName;
 
   AttendanceRecord({
     required this.id,
@@ -159,11 +162,15 @@ class AttendanceRecord {
     required this.date,
     required this.status,
     this.periodNumber,
+    this.markerName,
+    this.markerRole,
+    this.subjectName,
   });
 
   bool get isPresent => status == 'Present' || status == 'Late';
 
   factory AttendanceRecord.fromMap(Map<String, dynamic> map) {
+    final subject = map['subjects'] as Map<String, dynamic>?;
     return AttendanceRecord(
       id: map['id'].toString(),
       studentId: map['student_id'] ?? '',
@@ -177,6 +184,9 @@ class AttendanceRecord {
       periodNumber: map['period_number'] != null
           ? int.tryParse(map['period_number'].toString())
           : null,
+      markerName: map['attendance_marker_name'],
+      markerRole: map['attendance_marker_role'],
+      subjectName: subject?['name'] ?? map['subject_name'],
     );
   }
 }

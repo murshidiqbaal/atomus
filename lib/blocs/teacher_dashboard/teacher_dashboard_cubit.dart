@@ -34,20 +34,22 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
 
       final subjectIds = teacher.subjects.map((s) => s.subjectId).toList();
       final batchIds   = teacher.subjects
-          .where((s) => s.batchId != null)
-          .map((s) => s.batchId!)
+          .map((s) => s.batchId)
+          .whereType<String>()
           .toSet()
           .toList();
+      final courseIds  = teacher.courses.map((c) => c.courseId).toSet().toList();
 
       final activeSession  = await _attendanceRepo.fetchTodayActiveSession(teacher.id);
       final monthlyPct     = await _attendanceRepo.fetchMonthlyAttendancePercentage(teacher.id);
 
       List<TeacherExam> upcomingExams = [];
       int pendingMarks = 0;
-      if (subjectIds.isNotEmpty) {
+      if (subjectIds.isNotEmpty || courseIds.isNotEmpty) {
         upcomingExams = await _marksRepo.fetchAssignedExams(
           subjectIds: subjectIds,
-          batchId:    batchIds.isNotEmpty ? batchIds.first : null,
+          batchIds:   batchIds,
+          courseIds:  courseIds,
         );
         pendingMarks = upcomingExams
             .where((e) => !e.isMarksEntered)
@@ -66,6 +68,7 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
         status:        TeacherDashboardStatus.success,
         teacher:       teacher,
         activeSession: activeSession,
+        clearSession:  activeSession == null,
         stats:         stats,
         upcomingExams: upcomingExams.take(5).toList(),
       ));

@@ -87,14 +87,21 @@ class NeuBox extends StatelessWidget {
             child: Container(
               padding: padding,
               decoration: BoxDecoration(
-                color: AppColors.glassBase,
+                color: color ?? AppColors.glassBase,
                 borderRadius: BorderRadius.circular(borderRadius),
-                border: Border.all(color: AppColors.glassBorder, width: 1.5),
+                border: Border.all(
+                  color: color != null
+                      ? color!.withOpacity(0.3)
+                      : AppColors.glassBorder,
+                  width: 1.5,
+                ),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.glassHighlight.withOpacity(0.1),
+                    color != null
+                        ? color!.withOpacity(0.2)
+                        : AppColors.glassHighlight.withOpacity(0.1),
                     Colors.transparent,
                   ],
                 ),

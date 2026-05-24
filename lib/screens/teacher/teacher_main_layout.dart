@@ -1,3 +1,4 @@
+import 'package:atomus/screens/teacher/student_attendance_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,7 +11,6 @@ import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
 import 'marks_entry_screen.dart';
-import 'student_attendance_tab.dart';
 import 'teacher_analytics_screen.dart';
 import 'teacher_attendance_screen.dart';
 import 'teacher_dashboard_screen.dart';
@@ -33,7 +33,7 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
   final List<Widget> _screens = const [
     TeacherDashboardScreen(),
     TeacherAttendanceScreen(),
-    StudentAttendanceTab(),
+    StudentAttendanceScreen(subjectId: '', subjectName: '', batchId: ''),
     MarksEntryScreen(),
     TeacherAnalyticsScreen(),
     TeacherProfileScreen(),

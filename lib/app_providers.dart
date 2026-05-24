@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'app_bootstrap.dart';
 import 'services/teacher_hive_service.dart';
 import 'services/hive_profile_cache_service.dart';
+import 'services/teacher_profile_hive_service.dart';
 import 'services/auto_sync_manager.dart';
 
 // Repositories
@@ -24,6 +25,7 @@ import 'repositories/marks_entry_repository.dart';
 import 'services/parent_identity_service.dart';
 import 'services/profile_image_service.dart';
 import 'services/google_drive_profile_upload_service.dart';
+import 'services/drive_upload_service.dart';
 import 'services/geofence_service.dart';
 
 // Blocs & Cubits
@@ -40,6 +42,7 @@ import 'blocs/profile/profile_cubit.dart';
 import 'blocs/notification/notification_bloc.dart';
 
 import 'blocs/teacher_session/teacher_session_cubit.dart';
+import 'blocs/profile/teacher_profile_cubit.dart';
 import 'blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import 'blocs/teacher_attendance/teacher_attendance_cubit.dart';
 import 'blocs/student_attendance/student_attendance_cubit.dart';
@@ -67,6 +70,9 @@ class AppProviders extends StatelessWidget {
         ),
         RepositoryProvider<HiveProfileCacheService>.value(
           value: bootstrapResult.hiveProfileCacheService,
+        ),
+        RepositoryProvider<TeacherProfileHiveService>.value(
+          value: bootstrapResult.teacherProfileHiveService,
         ),
 
         // Core Repositories
@@ -112,6 +118,12 @@ class AppProviders extends StatelessWidget {
         ),
         RepositoryProvider(
           create: (_) => GeofenceService(),
+        ),
+        RepositoryProvider(
+          create: (ctx) => DriveUploadService(
+            imageService: ctx.read<ProfileImageService>(),
+            uploader: ctx.read<GoogleDriveProfileUploadService>(),
+          ),
         ),
 
         // AutoSyncManager Provider (depends on TeacherHiveService)
@@ -168,6 +180,15 @@ class AppProviders extends StatelessWidget {
             create: (ctx) => TeacherSessionCubit(
               repository: ctx.read<TeacherRepository>(),
             ),
+          ),
+          BlocProvider(
+            create: (ctx) => TeacherProfileCubit(
+              teacherRepository: ctx.read<TeacherRepository>(),
+              hiveService: ctx.read<TeacherProfileHiveService>(),
+              driveUploadService: ctx.read<DriveUploadService>(),
+              imageService: ctx.read<ProfileImageService>(),
+              sessionCubit: ctx.read<TeacherSessionCubit>(),
+            )..loadProfile(),
           ),
           BlocProvider(
             create: (ctx) => TeacherDashboardCubit(

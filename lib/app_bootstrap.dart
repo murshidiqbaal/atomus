@@ -6,14 +6,17 @@ import 'core/constants/supabase_constants.dart';
 import 'firebase_options.dart';
 import 'services/hive_profile_cache_service.dart';
 import 'services/teacher_hive_service.dart';
+import 'services/teacher_profile_hive_service.dart';
 
 class AppBootstrapResult {
   final TeacherHiveService teacherHiveService;
   final HiveProfileCacheService hiveProfileCacheService;
+  final TeacherProfileHiveService teacherProfileHiveService;
 
   const AppBootstrapResult({
     required this.teacherHiveService,
     required this.hiveProfileCacheService,
+    required this.teacherProfileHiveService,
   });
 }
 
@@ -27,15 +30,18 @@ class AppBootstrap {
 
   late final TeacherHiveService _teacherHiveService;
   late final HiveProfileCacheService _hiveProfileCacheService;
+  late final TeacherProfileHiveService _teacherProfileHiveService;
 
   TeacherHiveService get teacherHiveService => _teacherHiveService;
   HiveProfileCacheService get hiveProfileCacheService => _hiveProfileCacheService;
+  TeacherProfileHiveService get teacherProfileHiveService => _teacherProfileHiveService;
 
   Future<AppBootstrapResult> bootstrap() async {
     if (_initialized) {
       return AppBootstrapResult(
         teacherHiveService: _teacherHiveService,
         hiveProfileCacheService: _hiveProfileCacheService,
+        teacherProfileHiveService: _teacherProfileHiveService,
       );
     }
 
@@ -43,6 +49,7 @@ class AppBootstrap {
 
     // 1. Hive initialization (including Flutter adapter setups if needed, and Profile Cache)
     await HiveProfileCacheService.initializeHive();
+    await TeacherProfileHiveService.initializeHive();
     
     // 2. Supabase initialization
     await Supabase.initialize(
@@ -53,6 +60,7 @@ class AppBootstrap {
     // 3. Register adapters & Lazy/Concurrent Box Openings
     _teacherHiveService = TeacherHiveService();
     _hiveProfileCacheService = HiveProfileCacheService();
+    _teacherProfileHiveService = TeacherProfileHiveService();
     
     // Open Teacher Hive boxes asynchronously and concurrently to prevent blocking startup
     await _teacherHiveService.initBoxes();
@@ -68,6 +76,7 @@ class AppBootstrap {
     return AppBootstrapResult(
       teacherHiveService: _teacherHiveService,
       hiveProfileCacheService: _hiveProfileCacheService,
+      teacherProfileHiveService: _teacherProfileHiveService,
     );
   }
 }

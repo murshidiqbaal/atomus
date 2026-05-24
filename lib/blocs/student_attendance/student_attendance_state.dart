@@ -23,7 +23,12 @@ class StudentAttendanceState extends Equatable {
   });
 
   Map<String, int> get summary {
-    final counts = <String, int>{'Present': 0, 'Absent': 0, 'Late': 0, 'Leave': 0};
+    final counts = <String, int>{
+      'Present': 0,
+      'Absent': 0,
+      'Late': 0,
+      'Unmarked': 0,
+    };
     for (final e in entries) {
       final k = e.status.value;
       counts[k] = (counts[k] ?? 0) + 1;

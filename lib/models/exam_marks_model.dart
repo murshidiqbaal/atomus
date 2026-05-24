@@ -7,12 +7,16 @@ class TeacherExam {
   final String? courseName;
   final String? batchId;
   final String? batchName;
-  final String subjectId;
+  final String? subjectId;
   final String subjectName;
   final double totalMarks;
   final double? passingMarks;
   final bool isMarksEntered;
   final int pendingCount;
+  final String? createdBy;
+  final String? creatorRole;
+  final String? creatorId;
+  final bool isDaily;
 
   const TeacherExam({
     required this.id,
@@ -23,18 +27,31 @@ class TeacherExam {
     this.courseName,
     this.batchId,
     this.batchName,
-    required this.subjectId,
+    this.subjectId,
     required this.subjectName,
     required this.totalMarks,
     this.passingMarks,
     this.isMarksEntered = false,
     this.pendingCount = 0,
+    this.createdBy,
+    this.creatorRole,
+    this.creatorId,
+    this.isDaily = false,
   });
 
   factory TeacherExam.fromMap(Map<String, dynamic> map) {
     final subject = map['subjects'] as Map<String, dynamic>?;
     final course = map['courses'] as Map<String, dynamic>?;
     final batch = map['batches'] as Map<String, dynamic>?;
+
+    final marksList = map['marks'] as List?;
+    final targetSubjectId = map['subject_id'] as String?;
+    final marksForThisSubject = marksList?.where((m) {
+      final ms = m as Map<String, dynamic>;
+      return ms['subject_id'] == targetSubjectId;
+    }) ?? [];
+    final isEntered = marksForThisSubject.isNotEmpty;
+
     return TeacherExam(
       id: map['id'] as String,
       name: map['name'] as String? ?? map['exam_name'] as String? ?? 'Exam',
@@ -46,12 +63,16 @@ class TeacherExam {
       courseName: course?['name'] as String?,
       batchId: map['batch_id'] as String?,
       batchName: batch?['name'] as String?,
-      subjectId: map['subject_id'] as String,
-      subjectName: subject?['name'] as String? ?? map['subject_id'] as String,
+      subjectId: map['subject_id'] as String?,
+      subjectName: subject?['name'] as String? ?? 'Course-Wide',
       totalMarks: (map['total_marks'] as num?)?.toDouble() ?? 100,
       passingMarks: (map['passing_marks'] as num?)?.toDouble(),
-      isMarksEntered: map['is_marks_entered'] as bool? ?? false,
+      isMarksEntered: isEntered,
       pendingCount: map['pending_count'] as int? ?? 0,
+      createdBy: map['created_by'] as String?,
+      creatorRole: map['creator_role'] as String?,
+      creatorId: map['creator_id'] as String?,
+      isDaily: map['is_daily'] as bool? ?? false,
     );
   }
 }
@@ -64,7 +85,7 @@ class StudentMarksEntry {
   final String? admissionNumber;
   final String? profilePhotoDriveId;
   final String examId;
-  final String subjectId;
+  final String? subjectId;
   final double? marksObtained;
   final double totalMarks;
   final bool isAbsent;
@@ -78,7 +99,7 @@ class StudentMarksEntry {
     this.admissionNumber,
     this.profilePhotoDriveId,
     required this.examId,
-    required this.subjectId,
+    this.subjectId,
     this.marksObtained,
     required this.totalMarks,
     this.isAbsent = false,
@@ -88,7 +109,7 @@ class StudentMarksEntry {
   factory StudentMarksEntry.fromStudentMap(
     Map<String, dynamic> studentMap, {
     required String examId,
-    required String subjectId,
+    required String? subjectId,
     required double totalMarks,
     Map<String, dynamic>? existingMarks,
   }) {
@@ -100,10 +121,10 @@ class StudentMarksEntry {
       admissionNumber: studentMap['admission_number'] as String?,
       profilePhotoDriveId: studentMap['profile_photo_drive_id'] as String?,
       examId: examId,
-      subjectId: subjectId,
+      subjectId: subjectId ?? existingMarks?['subject_id'] as String?,
       marksObtained: (existingMarks?['marks_obtained'] as num?)?.toDouble(),
       totalMarks: totalMarks,
-      isAbsent: existingMarks?['is_absent'] as bool? ?? false,
+      isAbsent: existingMarks?['remarks'] == 'Absent',
       remarks: existingMarks?['remarks'] as String?,
     );
   }
@@ -115,11 +136,9 @@ class StudentMarksEntry {
       'exam_id': examId,
       'subject_id': subjectId,
       if (teacherId != null) 'teacher_id': teacherId,
-      'marks_obtained': isAbsent ? 0 : marksObtained,
+      'marks_obtained': isAbsent ? 0 : (marksObtained ?? 0),
       'total_marks': totalMarks,
-      'is_absent': isAbsent,
-      if (remarks != null) 'remarks': remarks,
-      'updated_at': DateTime.now().toIso8601String(),
+      'remarks': isAbsent ? 'Absent' : remarks,
     };
   }
 

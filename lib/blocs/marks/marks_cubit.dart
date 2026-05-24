@@ -14,13 +14,15 @@ class MarksCubit extends Cubit<MarksState> {
 
   Future<void> loadExams({
     required List<String> subjectIds,
-    String? batchId,
+    required List<String> batchIds,
+    required List<String> courseIds,
   }) async {
     emit(state.copyWith(status: MarksLoadStatus.loading));
     try {
       final exams = await _repo.fetchAssignedExams(
         subjectIds: subjectIds,
-        batchId:    batchId,
+        batchIds:   batchIds,
+        courseIds:  courseIds,
       );
       emit(state.copyWith(status: MarksLoadStatus.success, exams: exams));
     } catch (e) {
@@ -32,7 +34,6 @@ class MarksCubit extends Cubit<MarksState> {
   }
 
   Future<void> selectExam(TeacherExam exam) async {
-    if (exam.batchId == null) return;
     emit(state.copyWith(
       status:       MarksLoadStatus.loading,
       selectedExam: exam,
@@ -43,7 +44,8 @@ class MarksCubit extends Cubit<MarksState> {
       final entries = await _repo.loadStudentsWithMarks(
         examId:     exam.id,
         subjectId:  exam.subjectId,
-        batchId:    exam.batchId!,
+        batchId:    exam.batchId,
+        courseId:   exam.courseId,
         totalMarks: exam.totalMarks,
       );
       emit(state.copyWith(
@@ -75,15 +77,31 @@ class MarksCubit extends Cubit<MarksState> {
   }
 
   void clearSelection() {
-    emit(state.copyWith(selectedExam: null, entries: []));
+    emit(MarksState(
+      status: MarksLoadStatus.success,
+      exams: state.exams,
+      selectedExam: null,
+      entries: const [],
+      errorMessage: null,
+      saved: false,
+    ));
   }
 
-  Future<void> saveMarks() async {
+  Future<void> saveMarks({
+    required List<String> subjectIds,
+    required List<String> batchIds,
+    required List<String> courseIds,
+  }) async {
     if (state.entries.isEmpty) return;
     emit(state.copyWith(status: MarksLoadStatus.saving));
     try {
       await _repo.saveMarks(state.entries);
-      emit(state.copyWith(status: MarksLoadStatus.success, saved: true));
+      final exams = await _repo.fetchAssignedExams(
+        subjectIds: subjectIds,
+        batchIds: batchIds,
+        courseIds: courseIds,
+      );
+      emit(state.copyWith(status: MarksLoadStatus.success, exams: exams, saved: true));
     } catch (e) {
       emit(state.copyWith(
         status:       MarksLoadStatus.failure,
@@ -99,6 +117,8 @@ class MarksCubit extends Cubit<MarksState> {
     required String batchId,
     required String subjectId,
     required List<String> subjectIds,
+    required List<String> batchIds,
+    required List<String> courseIds,
     String? courseId,
   }) async {
     emit(state.copyWith(status: MarksLoadStatus.loading));
@@ -111,7 +131,11 @@ class MarksCubit extends Cubit<MarksState> {
         subjectId: subjectId,
         courseId: courseId,
       );
-      final exams = await _repo.fetchAssignedExams(subjectIds: subjectIds);
+      final exams = await _repo.fetchAssignedExams(
+        subjectIds: subjectIds,
+        batchIds: batchIds,
+        courseIds: courseIds,
+      );
       emit(state.copyWith(status: MarksLoadStatus.success, exams: exams, saved: true));
     } catch (e) {
       emit(state.copyWith(
@@ -123,13 +147,19 @@ class MarksCubit extends Cubit<MarksState> {
 
   Future<void> deleteExam({
     required String examId,
-    required String subjectId,
+    required String? subjectId,
     required List<String> subjectIds,
+    required List<String> batchIds,
+    required List<String> courseIds,
   }) async {
     emit(state.copyWith(status: MarksLoadStatus.loading));
     try {
       await _repo.deleteExam(examId, subjectId);
-      final exams = await _repo.fetchAssignedExams(subjectIds: subjectIds);
+      final exams = await _repo.fetchAssignedExams(
+        subjectIds: subjectIds,
+        batchIds: batchIds,
+        courseIds: courseIds,
+      );
       emit(state.copyWith(status: MarksLoadStatus.success, exams: exams));
     } catch (e) {
       emit(state.copyWith(

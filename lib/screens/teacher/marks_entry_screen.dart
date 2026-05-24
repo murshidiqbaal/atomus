@@ -22,6 +22,13 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   // Track validation error states in real-time
   final Map<String, String?> _validationErrors = {};
 
+  // Filter states
+  String? _selectedFilterCourseId;
+  String? _selectedFilterSubjectId;
+  String _selectedFilterExamType = 'All'; // 'All', 'Regular', 'Daily'
+  String _selectedFilterStatus = 'All'; // 'All', 'Pending', 'Completed'
+  String _selectedFilterScope = 'All'; // 'All', 'Subject-based', 'Course-wide'
+
   @override
   void initState() {
     super.initState();
@@ -32,92 +39,135 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher != null) {
       final subjectIds = teacher.subjects.map((s) => s.subjectId).toList();
-      final batchIds   = teacher.subjects
-          .where((s) => s.batchId != null)
-          .map((s) => s.batchId!)
-          .toSet()
-          .toList();
+      final batchIds   = teacher.subjects.map((s) => s.batchId).whereType<String>().toSet().toList();
+      final courseIds  = teacher.courses.map((c) => c.courseId).toSet().toList();
+      
       context.read<MarksCubit>().loadExams(
             subjectIds: subjectIds,
-            batchId:    batchIds.isNotEmpty ? batchIds.first : null,
+            batchIds:   batchIds,
+            courseIds:  courseIds,
           );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text(
-            'Academics & Exams',
-            style: TextStyle(fontWeight: FontWeight.w900),
-          ),
-          centerTitle: true,
-        ),
-        body: BlocConsumer<MarksCubit, MarksState>(
-          listener: (ctx, state) {
-            if (state.saved) {
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                const SnackBar(
-                  content: Text('Operation completed successfully!'),
-                  backgroundColor: AppColors.success,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-            if (state.status == MarksLoadStatus.failure) {
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                SnackBar(
-                  content: Text(state.errorMessage ?? 'Operation failed'),
-                  backgroundColor: AppColors.error,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          },
-          builder: (ctx, state) {
-            if (state.status == MarksLoadStatus.loading && state.selectedExam == null) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
+    return BlocBuilder<MarksCubit, MarksState>(
+      builder: (context, state) {
+        return PopScope(
+          canPop: state.selectedExam == null,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
             if (state.selectedExam != null) {
-              return _buildMarksEntryView(ctx, state);
+              setState(() => _validationErrors.clear());
+              context.read<MarksCubit>().clearSelection();
             }
-
-            return _buildExamList(ctx, state);
           },
-        ),
-        floatingActionButton: BlocBuilder<MarksCubit, MarksState>(
-          builder: (ctx, state) {
-            // Only show FAB when viewing the exam list, not the marks grid
-            if (state.selectedExam != null) return const SizedBox.shrink();
-
-            return FloatingActionButton.extended(
-              onPressed: () => _showCreateExamSheet(context),
-              backgroundColor: AppColors.primary,
-              icon: const Icon(LucideIcons.plus, color: Colors.white),
-              label: const Text(
-                'Create Exam',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+          child: AppBackground(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: const Text(
+                  'Academics & Exams',
+                  style: TextStyle(fontWeight: FontWeight.w900),
                 ),
+                centerTitle: true,
               ),
-            );
-          },
-        ),
-      ),
+              body: BlocConsumer<MarksCubit, MarksState>(
+                listener: (ctx, state) {
+                  if (state.saved) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('Operation completed successfully!'),
+                        backgroundColor: AppColors.success,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                  if (state.status == MarksLoadStatus.failure) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text(state.errorMessage ?? 'Operation failed'),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+                builder: (ctx, state) {
+                  if (state.status == MarksLoadStatus.loading && state.selectedExam == null) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (state.selectedExam != null) {
+                    return _buildMarksEntryView(ctx, state);
+                  }
+
+                  return Column(
+                    children: [
+                      _buildFilterBar(context),
+                      Expanded(child: _buildExamList(context, state)),
+                    ],
+                  );
+                },
+              ),
+              floatingActionButton: BlocBuilder<MarksCubit, MarksState>(
+                builder: (ctx, state) {
+                  // Only show FAB when viewing the exam list, not the marks grid
+                  if (state.selectedExam != null) return const SizedBox.shrink();
+
+                  return FloatingActionButton.extended(
+                    onPressed: () => _showCreateExamSheet(context),
+                    backgroundColor: AppColors.primary,
+                    icon: const Icon(LucideIcons.plus, color: Colors.white),
+                    label: const Text(
+                      'Create Exam',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
   // ── Exam List ─────────────────────────────────────────────────
   Widget _buildExamList(BuildContext context, MarksState state) {
-    if (state.exams.isEmpty) {
+    final filtered = state.exams.where((exam) {
+      if (_selectedFilterCourseId != null && _selectedFilterCourseId != 'All') {
+        if (exam.courseId != _selectedFilterCourseId) return false;
+      }
+      if (_selectedFilterSubjectId != null && _selectedFilterSubjectId != 'All') {
+        if (exam.subjectId != _selectedFilterSubjectId) return false;
+      }
+      if (_selectedFilterExamType == 'Daily') {
+        if (!exam.isDaily) return false;
+      } else if (_selectedFilterExamType == 'Regular') {
+        if (exam.isDaily) return false;
+      }
+      if (_selectedFilterStatus == 'Completed') {
+        if (!exam.isMarksEntered) return false;
+      } else if (_selectedFilterStatus == 'Pending') {
+        if (exam.isMarksEntered) return false;
+      }
+      if (_selectedFilterScope == 'Subject-based') {
+        if (exam.subjectId == null) return false;
+      } else if (_selectedFilterScope == 'Course-wide') {
+        if (exam.subjectId != null) return false;
+      }
+      return true;
+    }).toList();
+
+    if (filtered.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -125,14 +175,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             const Icon(LucideIcons.fileText, size: 48, color: AppColors.textSecondary),
             const SizedBox(height: 16),
             const Text(
-              'No active exams found',
+              'No matching exams found',
               style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap "Create Exam" to schedule a new assessment.',
-              style: TextStyle(color: AppColors.textSecondary.withOpacity(0.8), fontSize: 13),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -141,15 +185,17 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-      itemCount: state.exams.length,
+      itemCount: filtered.length,
       separatorBuilder: (context, i) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) => _buildExamCard(ctx, state.exams[i]),
+      itemBuilder: (ctx, i) => _buildExamCard(ctx, filtered[i]),
     );
   }
 
   Widget _buildExamCard(BuildContext context, TeacherExam exam) {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     final subjectIds = teacher?.subjects.map((s) => s.subjectId).toList() ?? [];
+    final batchIds   = teacher?.subjects.map((s) => s.batchId).whereType<String>().toSet().toList() ?? [];
+    final courseIds  = teacher?.courses.map((c) => c.courseId).toSet().toList() ?? [];
 
     return NeuBox(
       padding: const EdgeInsets.all(14),
@@ -220,7 +266,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                   const SizedBox(width: 8),
                   // Premium Exam Deletion Lock Icon Trigger
                   GestureDetector(
-                    onTap: () => _confirmDeleteExam(context, exam, subjectIds),
+                    onTap: () => _confirmDeleteExam(context, exam, subjectIds, batchIds, courseIds),
                     child: Icon(
                       LucideIcons.trash2,
                       size: 15,
@@ -478,8 +524,179 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          onPressed: canSave ? () => context.read<MarksCubit>().saveMarks() : null,
+          onPressed: canSave
+              ? () {
+                  final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+                  if (teacher != null) {
+                    final subjectIds = teacher.subjects.map((s) => s.subjectId).toList();
+                    final batchIds = teacher.subjects.map((s) => s.batchId).whereType<String>().toSet().toList();
+                    final courseIds = teacher.courses.map((c) => c.courseId).toSet().toList();
+                    context.read<MarksCubit>().saveMarks(
+                          subjectIds: subjectIds,
+                          batchIds: batchIds,
+                          courseIds: courseIds,
+                        );
+                  }
+                }
+              : null,
         ),
+      ),
+    );
+  }
+
+  // ── Premium Filter Bar UI ──────────────────────────────────────
+  Widget _buildFilterBar(BuildContext context) {
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    if (teacher == null) return const SizedBox.shrink();
+
+    // Get unique subjects
+    final uniqueSubjects = <String, String>{};
+    for (final s in teacher.subjects) {
+      uniqueSubjects[s.subjectId] = s.subjectName;
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          // Course Filter
+          _buildFilterDropdown(
+            hint: 'Course',
+            value: _selectedFilterCourseId,
+            items: [
+              const DropdownMenuItem(value: 'All', child: Text('All Courses')),
+              ...teacher.courses.map((c) => DropdownMenuItem(value: c.courseId, child: Text(c.courseName))),
+            ],
+            onChanged: (val) {
+              setState(() => _selectedFilterCourseId = val == 'All' ? null : val);
+            },
+          ),
+          const SizedBox(width: 8),
+
+          // Subject Filter
+          _buildFilterDropdown(
+            hint: 'Subject',
+            value: _selectedFilterSubjectId,
+            items: [
+              const DropdownMenuItem(value: 'All', child: Text('All Subjects')),
+              ...uniqueSubjects.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
+            ],
+            onChanged: (val) {
+              setState(() => _selectedFilterSubjectId = val == 'All' ? null : val);
+            },
+          ),
+          const SizedBox(width: 8),
+
+          // Exam Type Filter
+          _buildFilterChips(
+            selected: _selectedFilterExamType,
+            options: const ['All', 'Regular', 'Daily'],
+            onSelected: (val) {
+              setState(() => _selectedFilterExamType = val);
+            },
+          ),
+          const SizedBox(width: 8),
+
+          // Status Filter
+          _buildFilterChips(
+            selected: _selectedFilterStatus,
+            options: const ['All', 'Pending', 'Completed'],
+            onSelected: (val) {
+              setState(() => _selectedFilterStatus = val);
+            },
+          ),
+          const SizedBox(width: 8),
+
+          // Scope Filter
+          _buildFilterChips(
+            selected: _selectedFilterScope,
+            options: const ['All', 'Subject-based', 'Course-wide'],
+            onSelected: (val) {
+              setState(() => _selectedFilterScope = val);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterDropdown({
+    required String hint,
+    required String? value,
+    required List<DropdownMenuItem<String>> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 36,
+      decoration: BoxDecoration(
+        color: isDarkMode ? AppColors.glassBase : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDarkMode ? AppColors.glassBorder : AppColors.textSecondary.withOpacity(0.2),
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value ?? 'All',
+          items: items,
+          onChanged: onChanged,
+          icon: const Icon(LucideIcons.chevronDown, size: 14, color: AppColors.textSecondary),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : AppColors.textPrimary,
+          ),
+          dropdownColor: isDarkMode ? AppColors.neuBaseDark : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips({
+    required String selected,
+    required List<String> options,
+    required ValueChanged<String> onSelected,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: isDarkMode ? AppColors.glassBase : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDarkMode ? AppColors.glassBorder : AppColors.textSecondary.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: options.map((opt) {
+          final isSel = selected == opt;
+          return GestureDetector(
+            onTap: () => onSelected(opt),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: isSel ? AppColors.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                opt,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: isSel ? Colors.white : AppColors.textSecondary,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -636,7 +853,11 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                         ),
                         onPressed: () {
                           if (formKey.currentState!.validate()) {
-                            final subjectIds = assignments.map((s) => s.subjectId).toList();
+                            final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+                            final subjectIds = teacher?.subjects.map((s) => s.subjectId).toList() ?? [];
+                            final batchIds   = teacher?.subjects.map((s) => s.batchId).whereType<String>().toSet().toList() ?? [];
+                            final courseIds  = teacher?.courses.map((c) => c.courseId).toSet().toList() ?? [];
+                            
                             context.read<MarksCubit>().createExam(
                                   name: nameCtrl.text.trim(),
                                   date: examDate,
@@ -645,6 +866,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                                   subjectId: selSubjectId,
                                   courseId: selCourseId,
                                   subjectIds: subjectIds,
+                                  batchIds: batchIds,
+                                  courseIds: courseIds,
                                 );
                             Navigator.pop(sheetCtx);
                           }
@@ -663,7 +886,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   }
 
   // ── Confirm Delete Exam ───────────────────────────────────────
-  void _confirmDeleteExam(BuildContext context, TeacherExam exam, List<String> subjectIds) {
+  void _confirmDeleteExam(BuildContext context, TeacherExam exam, List<String> subjectIds, List<String> batchIds, List<String> courseIds) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -683,6 +906,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                     examId: exam.id,
                     subjectId: exam.subjectId,
                     subjectIds: subjectIds,
+                    batchIds: batchIds,
+                    courseIds: courseIds,
                   );
             },
             child: const Text('Delete Exam', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

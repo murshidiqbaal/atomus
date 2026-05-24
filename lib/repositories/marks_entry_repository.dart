@@ -1,8 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/exam_marks_model.dart';
-import '../services/teacher_hive_service.dart';
 import '../services/security_validation_service.dart';
+import '../services/teacher_hive_service.dart';
 
 class MarksEntryRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -10,51 +10,93 @@ class MarksEntryRepository {
 
   MarksEntryRepository({required TeacherHiveService hive}) : _hive = hive;
 
-  /// Exams assigned to this teacher (filtered by assigned subject IDs).
   Future<List<TeacherExam>> fetchAssignedExams({
     required List<String> subjectIds,
-    String? batchId,
+    required List<String> batchIds,
+    required List<String> courseIds,
   }) async {
-    if (subjectIds.isEmpty) return [];
+    if (subjectIds.isEmpty && courseIds.isEmpty) return [];
 
     try {
-      var builder = _supabase
-          .from('exams')
-          .select('*, subjects(name), courses(name), batches(name)')
-          .inFilter('subject_id', subjectIds);
-
-      if (batchId != null) {
-        builder = builder.eq('batch_id', batchId);
+      String orQuery = '';
+      List<String> conditions = [];
+      if (subjectIds.isNotEmpty) {
+        final subjStr = subjectIds.join(',');
+        conditions.add('subject_id.in.($subjStr)');
+      }
+      if (courseIds.isNotEmpty) {
+        final courseStr = courseIds.join(',');
+        conditions.add('course_id.in.($courseStr)');
+      }
+      if (batchIds.isNotEmpty) {
+        final batchStr = batchIds.join(',');
+        conditions.add('batch_id.in.($batchStr)');
       }
 
-      final rows = await builder.order('exam_date', ascending: false);
-      return (rows as List)
+      if (conditions.isEmpty) return [];
+      orQuery = conditions.join(',');
+
+      var builder = _supabase
+          .from('exams')
+          .select('*, subjects(name), courses(name), batches(name), marks(id, subject_id)')
+          .or(orQuery)
+          .order('exam_date', ascending: false);
+
+      final rows = await builder;
+      final allExams = (rows as List)
           .map((r) => TeacherExam.fromMap(r as Map<String, dynamic>))
           .toList();
+
+      final teacherUserId = _supabase.auth.currentUser?.id;
+      return allExams.where((e) {
+        // Access control: only exams created by admin or the logged-in teacher are visible
+        final isCreatedByMe = e.createdBy == teacherUserId;
+        final isCreatedByAdmin = e.creatorRole?.toLowerCase() == 'admin' || e.creatorRole == null;
+        if (!isCreatedByMe && !isCreatedByAdmin) return false;
+
+        if (e.batchId == null) {
+          // Course exam: course must match, and subject must either be null (course-wide) or match subjectIds
+          if (e.courseId == null || !courseIds.contains(e.courseId)) return false;
+          return e.subjectId == null || subjectIds.contains(e.subjectId);
+        } else {
+          // Batch exam: batch must match, and subject must either be null or match subjectIds
+          if (!batchIds.contains(e.batchId)) return false;
+          return e.subjectId == null || subjectIds.contains(e.subjectId);
+        }
+      }).toList();
     } catch (_) {
       return [];
     }
   }
 
-  /// Load students with any existing marks for an exam.
   Future<List<StudentMarksEntry>> loadStudentsWithMarks({
     required String examId,
-    required String subjectId,
-    required String batchId,
+    required String? subjectId,
+    String? batchId,
+    String? courseId,
     required double totalMarks,
   }) async {
     // Fetch students
     List<Map<String, dynamic>> students;
     try {
-      final rows = await _supabase
+      var query = _supabase
           .from('students')
           .select(
-              'id, full_name, roll_number, admission_number, profile_photo_drive_id')
-          .eq('batch_id', batchId)
-          .order('roll_number', ascending: true);
-      students = (rows as List).map((r) => Map<String, dynamic>.from(r)).toList();
+            'id, full_name, roll_number, admission_number, profile_photo_drive_id',
+          );
+
+      if (batchId != null && batchId.isNotEmpty) {
+        query = query.eq('batch_id', batchId);
+      } else if (courseId != null && courseId.isNotEmpty) {
+        query = query.eq('course_id', courseId);
+      }
+
+      final rows = await query.order('roll_number', ascending: true);
+      students = (rows as List)
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
     } catch (_) {
-      students = _hive.getCachedStudents(batchId) ?? [];
+      students = _hive.getCachedStudents(batchId ?? courseId ?? '') ?? [];
     }
 
     if (students.isEmpty) return [];
@@ -62,11 +104,16 @@ class MarksEntryRepository {
     // Fetch existing marks
     Map<String, Map<String, dynamic>> existingMap = {};
     try {
-      final existing = await _supabase
+      var query = _supabase
           .from('marks')
-          .select('id, student_id, marks_obtained, total_marks, is_absent, remarks')
-          .eq('exam_id', examId)
-          .eq('subject_id', subjectId);
+          .select('id, student_id, subject_id, marks_obtained, total_marks, remarks')
+          .eq('exam_id', examId);
+      if (subjectId != null) {
+        query = query.eq('subject_id', subjectId);
+      } else {
+        query = query.isFilter('subject_id', null);
+      }
+      final existing = await query;
       for (final r in existing as List) {
         final row = r as Map<String, dynamic>;
         existingMap[row['student_id'] as String] = row;
@@ -94,7 +141,8 @@ class MarksEntryRepository {
     final first = entries.first;
 
     // 1. Verify user profile and fetch teacher assignments via supabase
-    final resolvedTeacherId = teacherId ?? await SecurityValidationService.getTeacherId();
+    final resolvedTeacherId =
+        teacherId ?? await SecurityValidationService.getTeacherId();
 
     // 2. Validate assignments: confirm the active teacher is assigned to this exam's subject, batch, and course.
     try {
@@ -118,42 +166,15 @@ class MarksEntryRepository {
       // If offline or check fails, allow fallback save or bubble up security exceptions
     }
 
-    final payload = entries.map((e) => e.toUpsertMap(teacherId: resolvedTeacherId)).toList();
+    final payload = entries
+        .map((e) => e.toUpsertMap(teacherId: resolvedTeacherId))
+        .toList();
 
     try {
-      // 3. Replicate UPSERT: Fetch existing marks for exam_id and student_ids, separate into updates and inserts
-      final studentIds = entries.map((e) => e.studentId).toList();
-      final existingRows = await _supabase
+      // Use upsert with the unique constraint on (exam_id, student_id, subject_id)
+      await _supabase
           .from('marks')
-          .select('id, student_id')
-          .eq('exam_id', first.examId)
-          .inFilter('student_id', studentIds);
-
-      final existingStudentIds = (existingRows as List)
-          .map((r) => r['student_id'] as String)
-          .toSet();
-
-      final inserts = <Map<String, dynamic>>[];
-      final updates = <Map<String, dynamic>>[];
-
-      for (var item in payload) {
-        final sid = item['student_id'] as String;
-        if (existingStudentIds.contains(sid)) {
-          // If match found, map current database ID to perform update
-          final dbRow = existingRows.firstWhere((r) => r['student_id'] == sid);
-          item['id'] = dbRow['id'];
-          updates.add(item);
-        } else {
-          inserts.add(item);
-        }
-      }
-
-      if (inserts.isNotEmpty) {
-        await _supabase.from('marks').insert(inserts);
-      }
-      if (updates.isNotEmpty) {
-        await _supabase.from('marks').upsert(updates);
-      }
+          .upsert(payload, onConflict: 'exam_id,student_id,subject_id');
     } catch (_) {
       if (entries.isNotEmpty) {
         await _hive.savePendingMarks(entries.first.examId, payload);
@@ -169,9 +190,8 @@ class MarksEntryRepository {
     required String batchId,
     required String subjectId,
     String? courseId,
+    String? campusId,
   }) async {
-    final teacherId = await SecurityValidationService.getTeacherId();
-
     // Validate assignments
     await SecurityValidationService.validateTeacherAssignments(
       subjectId: subjectId,
@@ -179,23 +199,27 @@ class MarksEntryRepository {
       courseId: courseId ?? '',
     );
 
+    final isBatchExam = batchId.isNotEmpty;
+
     final payload = {
       'name': name,
       'exam_date': date.toIso8601String().split('T').first,
       'total_marks': totalMarks,
-      'batch_id': batchId,
+      'exam_scope': isBatchExam ? 'batch' : 'course',
+      if (isBatchExam) 'batch_id': batchId,
       'subject_id': subjectId,
-      if (courseId != null) 'course_id': courseId,
-      'created_by': teacherId,
+      if (courseId != null && courseId.isNotEmpty) 'course_id': courseId,
+      if (campusId != null && campusId.isNotEmpty) 'campus_id': campusId,
+      'created_by': Supabase.instance.client.auth.currentUser?.id,
       'creator_role': 'Teacher',
-      'creator_id': teacherId,
+      'creator_id': Supabase.instance.client.auth.currentUser?.id,
     };
 
     await _supabase.from('exams').insert(payload);
   }
 
   /// Delete an exam.
-  Future<void> deleteExam(String examId, String subjectId) async {
+  Future<void> deleteExam(String examId, String? subjectId) async {
     // Restrict exam deletion so only the teacher who created or is assigned to the exam's subject can delete it.
     await SecurityValidationService.validateExamDeletion(examId, subjectId);
     await _supabase.from('exams').delete().eq('id', examId);
@@ -210,20 +234,20 @@ class MarksEntryRepository {
     try {
       final rows = await _supabase
           .from('marks')
-          .select('subject_id, marks_obtained, total_marks, is_absent')
+          .select('subject_id, marks_obtained, total_marks, remarks')
           .inFilter('subject_id', subjectIds)
-          .eq('is_absent', false);
+          .neq('remarks', 'Absent');
 
       final totals = <String, double>{};
       final counts = <String, int>{};
       for (final r in rows as List) {
-        final row        = r as Map<String, dynamic>;
-        final sid        = row['subject_id'] as String;
-        final obtained   = (row['marks_obtained'] as num?)?.toDouble() ?? 0;
-        final total      = (row['total_marks'] as num?)?.toDouble() ?? 100;
-        final pct        = total > 0 ? (obtained / total) * 100 : 0.0;
-        totals[sid]      = (totals[sid] ?? 0) + pct;
-        counts[sid]      = (counts[sid] ?? 0) + 1;
+        final row = r as Map<String, dynamic>;
+        final sid = row['subject_id'] as String;
+        final obtained = (row['marks_obtained'] as num?)?.toDouble() ?? 0;
+        final total = (row['total_marks'] as num?)?.toDouble() ?? 100;
+        final pct = total > 0 ? (obtained / total) * 100 : 0.0;
+        totals[sid] = (totals[sid] ?? 0) + pct;
+        counts[sid] = (counts[sid] ?? 0) + 1;
       }
 
       return totals.map((k, v) => MapEntry(k, v / (counts[k] ?? 1)));
@@ -242,7 +266,9 @@ class MarksEntryRepository {
     try {
       final rows = await _supabase
           .from('student_academic_performance')
-          .select('student_id, marks_percentage, attendance_percentage, students(full_name, roll_number)')
+          .select(
+            'student_id, marks_percentage, attendance_percentage, students(full_name, roll_number)',
+          )
           .inFilter('subject_id', subjectIds)
           .lt('marks_percentage', threshold)
           .order('marks_percentage', ascending: true)

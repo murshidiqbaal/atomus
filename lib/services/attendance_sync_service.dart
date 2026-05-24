@@ -56,7 +56,9 @@ class AttendanceSyncService {
         final entries = (item['entries'] as List)
             .map((e) => e as Map<String, dynamic>)
             .toList();
-        await _supabase.from('exam_results').upsert(entries);
+        await _supabase
+            .from('marks')
+            .upsert(entries, onConflict: 'exam_id,student_id,subject_id');
         await _hive.removePendingMarks(key);
         synced++;
       } catch (_) {

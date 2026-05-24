@@ -1,4 +1,6 @@
-enum StudentAttendanceStatus { present, absent, late, leave }
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+enum StudentAttendanceStatus { present, absent, late, unmarked }
 
 extension StudentAttendanceStatusX on StudentAttendanceStatus {
   String get value {
@@ -9,8 +11,8 @@ extension StudentAttendanceStatusX on StudentAttendanceStatus {
         return 'Absent';
       case StudentAttendanceStatus.late:
         return 'Late';
-      case StudentAttendanceStatus.leave:
-        return 'Leave';
+      case StudentAttendanceStatus.unmarked:
+        return 'Unmarked';
     }
   }
 
@@ -22,8 +24,8 @@ extension StudentAttendanceStatusX on StudentAttendanceStatus {
         return StudentAttendanceStatus.absent;
       case 'late':
         return StudentAttendanceStatus.late;
-      case 'leave':
-        return StudentAttendanceStatus.leave;
+      case 'unmarked':
+        return StudentAttendanceStatus.unmarked;
       default:
         return StudentAttendanceStatus.present;
     }
@@ -42,6 +44,7 @@ class StudentAttendanceEntry {
   final String? batchId;
   final DateTime attendanceDate;
   final StudentAttendanceStatus status;
+  final StudentAttendanceStatus? originalStatus;
   final String? markedBy;
   final DateTime? markedAt;
   final String? remarks;
@@ -59,13 +62,14 @@ class StudentAttendanceEntry {
     this.courseId,
     this.batchId,
     required this.attendanceDate,
-    this.status = StudentAttendanceStatus.present,
+    this.status = StudentAttendanceStatus.unmarked,
+    StudentAttendanceStatus? originalStatus,
     this.markedBy,
     this.markedAt,
     this.remarks,
     this.periodNumber,
     this.periodLabel,
-  });
+  }) : originalStatus = originalStatus ?? status;
 
   factory StudentAttendanceEntry.fromStudentMap(
     Map<String, dynamic> studentMap, {
@@ -73,6 +77,11 @@ class StudentAttendanceEntry {
     required DateTime date,
     Map<String, dynamic>? existingRecord,
   }) {
+    final status = existingRecord != null
+        ? StudentAttendanceStatusX.fromString(
+            existingRecord['status'] as String? ?? 'Present',
+          )
+        : StudentAttendanceStatus.unmarked;
     return StudentAttendanceEntry(
       id: existingRecord?['id'] as String?,
       studentId: studentMap['id'] as String,
@@ -84,11 +93,8 @@ class StudentAttendanceEntry {
       courseId: studentMap['course_id'] as String?,
       batchId: studentMap['batch_id'] as String?,
       attendanceDate: date,
-      status: existingRecord != null
-          ? StudentAttendanceStatusX.fromString(
-              existingRecord['status'] as String? ?? 'Present',
-            )
-          : StudentAttendanceStatus.present,
+      status: status,
+      originalStatus: status,
       markedBy: existingRecord?['marked_by'] as String?,
       markedAt: existingRecord?['marked_at'] != null
           ? DateTime.parse(existingRecord!['marked_at'] as String)
@@ -104,8 +110,16 @@ class StudentAttendanceEntry {
     String? teacherName,
     String? campusId,
   }) {
+    // marked_by FK references auth.users(id), NOT teachers(id). The
+    // teacher row id and the auth user id are different identifiers, so
+    // sending the teacher id as marked_by raises a foreign-key violation
+    // and the whole upsert is rejected.
+    final authUserId = Supabase.instance.client.auth.currentUser?.id;
     return {
-      if (id != null) 'id': id,
+      // Intentionally omit `id`. A teacher writing from this screen must
+      // never UPDATE-by-id over a row created by another teacher or an
+      // admin. The unique index on (student_id, subject_id,
+      // attendance_date) plus upsert ensures existing rows are updated.
       'student_id': studentId,
       if (subjectId.isNotEmpty) 'subject_id': subjectId,
       if (courseId != null && courseId!.isNotEmpty) 'course_id': courseId,
@@ -113,13 +127,12 @@ class StudentAttendanceEntry {
       if (campusId != null) 'campus_id': campusId,
       'attendance_date': attendanceDate.toIso8601String().split('T').first,
       'status': status.value,
-      'marked_by': teacherId,
+      'marked_by': authUserId,
+      'teacher_id': teacherId,
       'marked_at': DateTime.now().toIso8601String(),
       'attendance_marker_role': 'Teacher',
       if (teacherName != null) 'attendance_marker_name': teacherName,
       if (remarks != null) 'remarks': remarks,
-      if (periodNumber != null) 'period_number': periodNumber,
-      if (periodLabel != null) 'period_label': periodLabel,
     };
   }
 
@@ -141,6 +154,7 @@ class StudentAttendanceEntry {
       batchId: batchId,
       attendanceDate: attendanceDate,
       status: status ?? this.status,
+      originalStatus: originalStatus,
       markedBy: markedBy,
       markedAt: markedAt,
       remarks: remarks ?? this.remarks,

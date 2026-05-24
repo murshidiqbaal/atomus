@@ -55,22 +55,25 @@ class SecurityValidationService {
   /// For course-level attendance, subjectId and batchId may be empty.
   /// In that case, we only validate against teacher_courses.
   static Future<void> validateTeacherAssignments({
-    required String subjectId,
-    required String batchId,
-    required String courseId,
+    required String? subjectId,
+    required String? batchId,
+    required String? courseId,
   }) async {
     final teacherId = await getTeacherId();
+    final sId = subjectId ?? '';
+    final bId = batchId ?? '';
+    final cId = courseId ?? '';
 
     // ── Course-level attendance (subjectId is empty) ──
     // Only need to validate that the teacher is assigned to the course.
-    if (subjectId.isEmpty && courseId.isNotEmpty) {
+    if (sId.isEmpty && cId.isNotEmpty) {
       bool courseAssigned = false;
       try {
         final rows = await _supabase
             .from('teacher_courses')
             .select('id')
             .eq('teacher_id', teacherId)
-            .eq('course_id', courseId);
+            .eq('course_id', cId);
         if (rows.isNotEmpty) courseAssigned = true;
       } catch (_) {}
 
@@ -84,8 +87,8 @@ class SecurityValidationService {
 
     // ── Subject-level attendance (normal flow) ──
     bool subjectAssigned = false;
-    bool batchAssigned = batchId.isEmpty; // Skip batch check if empty
-    bool courseAssigned = courseId.isEmpty; // Skip course check if empty
+    bool batchAssigned = bId.isEmpty; // Skip batch check if empty
+    bool courseAssigned = cId.isEmpty; // Skip course check if empty
 
     // 1. Validate in teacher_subjects
     try {
@@ -93,12 +96,12 @@ class SecurityValidationService {
           .from('teacher_subjects')
           .select('id, batch_id')
           .eq('teacher_id', teacherId)
-          .eq('subject_id', subjectId);
+          .eq('subject_id', sId);
 
       if (rows.isNotEmpty) {
         subjectAssigned = true;
         for (final row in rows) {
-          if (row['batch_id'] == batchId) batchAssigned = true;
+          if (row['batch_id'] == bId) batchAssigned = true;
         }
       }
     } catch (_) {
@@ -112,7 +115,7 @@ class SecurityValidationService {
             .from('teacher_batches')
             .select('id')
             .eq('teacher_id', teacherId)
-            .eq('batch_id', batchId);
+            .eq('batch_id', bId);
         if (rows.isNotEmpty) {
           batchAssigned = true;
         }
@@ -128,7 +131,7 @@ class SecurityValidationService {
             .from('teacher_courses')
             .select('id')
             .eq('teacher_id', teacherId)
-            .eq('course_id', courseId);
+            .eq('course_id', cId);
         if (rows.isNotEmpty) {
           courseAssigned = true;
         }
@@ -157,7 +160,7 @@ class SecurityValidationService {
   }
 
   /// Restricts exam deletion so only the teacher who created or is assigned to the exam's subject can delete it.
-  static Future<void> validateExamDeletion(String examId, String subjectId) async {
+  static Future<void> validateExamDeletion(String examId, String? subjectId) async {
     final teacherId = await getTeacherId();
 
     try {
@@ -175,17 +178,19 @@ class SecurityValidationService {
         }
       }
 
-      // Check if teacher is assigned to the exam's subject
-      final assigned = await _supabase
-          .from('teacher_subjects')
-          .select('id')
-          .eq('teacher_id', teacherId)
-          .eq('subject_id', subjectId)
-          .eq('is_active', true)
-          .limit(1);
+      if (subjectId != null) {
+        // Check if teacher is assigned to the exam's subject
+        final assigned = await _supabase
+            .from('teacher_subjects')
+            .select('id')
+            .eq('teacher_id', teacherId)
+            .eq('subject_id', subjectId)
+            .eq('is_active', true)
+            .limit(1);
 
-      if (assigned.isNotEmpty) {
-        return; // Authorized as assigned subject teacher!
+        if (assigned.isNotEmpty) {
+          return; // Authorized as assigned subject teacher!
+        }
       }
 
       throw UnauthorizedAssignmentException(

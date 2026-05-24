@@ -22,6 +22,8 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
         status:            TeacherAttendanceLoadStatus.success,
         activeSession:     session,
         completedSession:  completed,
+        clearSession:      session == null,
+        clearCompleted:    completed == null,
         monthlyPercentage: pct,
       ));
     } catch (e) {
@@ -87,10 +89,10 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
     }
   }
 
-  Future<void> loadHistory(String teacherId) async {
-    final now  = DateTime.now();
-    final from = DateTime(now.year, now.month, 1);
-    final to   = DateTime(now.year, now.month + 1, 0);
+  Future<void> loadHistory(String teacherId, {DateTime? month}) async {
+    final ref  = month ?? DateTime.now();
+    final from = DateTime(ref.year, ref.month, 1);
+    final to   = DateTime(ref.year, ref.month + 1, 0);
     try {
       final history = await _repo.fetchHistory(
         teacherId: teacherId, from: from, to: to,

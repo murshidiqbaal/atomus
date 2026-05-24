@@ -37,8 +37,14 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
     if (teacher != null) {
       context.read<TeacherAttendanceCubit>().loadHistory(teacher.id);
       final subjectIds = teacher.subjects.map((s) => s.subjectId).toList();
-      if (subjectIds.isNotEmpty) {
-        context.read<MarksCubit>().loadExams(subjectIds: subjectIds).then((_) {
+      final batchIds   = teacher.subjects.map((s) => s.batchId).whereType<String>().toSet().toList();
+      final courseIds  = teacher.courses.map((c) => c.courseId).toSet().toList();
+      if (subjectIds.isNotEmpty || courseIds.isNotEmpty) {
+        context.read<MarksCubit>().loadExams(
+          subjectIds: subjectIds,
+          batchIds: batchIds,
+          courseIds: courseIds,
+        ).then((_) {
           final exams = context.read<MarksCubit>().state.exams;
           if (exams.isNotEmpty) {
             setState(() => _selectedStatsExam = exams.first);
@@ -58,7 +64,8 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
           .loadStudentsWithMarks(
             examId: exam.id,
             subjectId: exam.subjectId,
-            batchId: exam.batchId ?? '',
+            batchId: exam.batchId,
+            courseId: exam.courseId,
             totalMarks: exam.totalMarks,
           );
       setState(() {

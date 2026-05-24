@@ -1,15 +1,15 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/student_attendance_entry_model.dart';
-import '../services/teacher_hive_service.dart';
 import '../services/security_validation_service.dart';
+import '../services/teacher_hive_service.dart';
 
 class StudentAttendanceTeacherRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
   final TeacherHiveService _hive;
 
   StudentAttendanceTeacherRepository({required TeacherHiveService hive})
-      : _hive = hive;
+    : _hive = hive;
 
   /// Load students for a batch with any existing attendance for today/given date.
   Future<List<StudentAttendanceEntry>> loadStudentsWithAttendance({
@@ -24,7 +24,7 @@ class StudentAttendanceTeacherRepository {
     // Special Batches Fallback Logic
     bool useCohortFallback = false;
     String? resolvedCourseId = courseId;
-    
+
     try {
       final batchData = await _supabase
           .from('batches')
@@ -46,9 +46,12 @@ class StudentAttendanceTeacherRepository {
     // Fetch students
     List<Map<String, dynamic>> students;
     try {
-      var query = _supabase.from('students').select(
-          'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id');
-      
+      var query = _supabase
+          .from('students')
+          .select(
+            'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id',
+          );
+
       if (batchId.isEmpty && resolvedCourseId != null) {
         // Course-level attendance: fetch all students in the course
         query = query.eq('course_id', resolvedCourseId);
@@ -61,12 +64,21 @@ class StudentAttendanceTeacherRepository {
       if (campusId != null && campusId.isNotEmpty) {
         query = query.eq('campus_id', campusId);
       }
-      
+
       final rows = await query.order('roll_number', ascending: true);
-      students = (rows as List).map((r) => Map<String, dynamic>.from(r)).toList();
-      await _hive.cacheStudents(batchId.isEmpty ? resolvedCourseId ?? 'course' : batchId, students);
+      students = (rows as List)
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
+      await _hive.cacheStudents(
+        batchId.isEmpty ? resolvedCourseId ?? 'course' : batchId,
+        students,
+      );
     } catch (_) {
-      students = _hive.getCachedStudents(batchId.isEmpty ? resolvedCourseId ?? 'course' : batchId) ?? [];
+      students =
+          _hive.getCachedStudents(
+            batchId.isEmpty ? resolvedCourseId ?? 'course' : batchId,
+          ) ??
+          [];
     }
 
     if (students.isEmpty) return [];
@@ -103,13 +115,13 @@ class StudentAttendanceTeacherRepository {
   }
 
   /// Save all entries (upsert). Queues offline if network unavailable.
-  Future<void> saveAttendance({
+  Future<List<Map<String, dynamic>>> saveAttendance({
     required String teacherId,
     required List<StudentAttendanceEntry> entries,
     String? teacherName,
     String? campusId,
   }) async {
-    if (entries.isEmpty) return;
+    if (entries.isEmpty) return [];
 
     final first = entries.first;
 
@@ -128,27 +140,41 @@ class StudentAttendanceTeacherRepository {
     );
 
     final payload = entries
-        .map((e) => e.toUpsertMap(
-              teacherId,
-              teacherName: teacherName,
-              campusId: campusId,
-            ))
+        .map(
+          (e) => e.toUpsertMap(
+            teacherId,
+            teacherName: teacherName,
+            campusId: campusId,
+          ),
+        )
         .toList();
 
     try {
-      // Determine the correct conflict key based on whether this is course-level or subject-level
-      final isCourseLevel = first.subjectId.isEmpty;
-      final conflictKey = isCourseLevel
-          ? 'student_id,course_id,attendance_date'
-          : 'student_id,subject_id,attendance_date';
-
-      // Pure upsert — DB unique constraint handles both inserts and updates.
-      await _supabase
+      // Upsert mode. The unique index on (student_id, subject_id,
+      // attendance_date) handles conflicts. Existing rows are updated.
+      final result = await _supabase
           .from('attendance')
-          .upsert(payload, onConflict: conflictKey);
-    } catch (_) {
-      final batchKey = entries.isNotEmpty ? entries.first.batchId ?? 'unknown' : 'unknown';
+          .upsert(
+            payload,
+            onConflict: 'student_id,subject_id,attendance_date',
+            ignoreDuplicates: false,
+          )
+          .select();
+
+      if (result.isEmpty) {
+        throw Exception(
+          'No rows were written. The attendance for these students was '
+          'already marked by another teacher or admin, or RLS blocked '
+          'the insert. Refresh and try again.',
+        );
+      }
+      return (result as List).map((r) => Map<String, dynamic>.from(r as Map)).toList();
+    } catch (e) {
+      // Queue for later retry, but surface the error so the cubit emits
+      // failure and the user sees a SnackBar instead of a silent no-op.
+      final batchKey = entries.first.batchId ?? 'unknown';
       await _hive.savePendingStudentAttendance(batchKey, payload);
+      rethrow;
     }
   }
 
@@ -160,7 +186,7 @@ class StudentAttendanceTeacherRepository {
   }) async {
     try {
       final from = DateTime(month.year, month.month, 1);
-      final to   = DateTime(month.year, month.month + 1, 0);
+      final to = DateTime(month.year, month.month + 1, 0);
       final rows = await _supabase
           .from('attendance')
           .select('student_id, status')

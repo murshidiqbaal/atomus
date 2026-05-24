@@ -66,23 +66,63 @@ class TeacherAttendanceRepository {
       totalDurationMinutes: duration,
     );
 
-    try {
-      if (active.id != null) {
-        await _supabase
+    // total_duration_minutes is a GENERATED column in Postgres -- it is
+    // computed automatically from start_time/end_time. Never write to it.
+    final updatePayload = {
+      'end_time':          now.toIso8601String(),
+      'attendance_status': TeacherAttendanceStatus.completed.value,
+    };
+
+    // Resolve the row id. If the in-memory model lost it (e.g. restored
+    // from offline cache), look it up by (teacher_id, today, Active).
+    String? rowId = active.id;
+    if (rowId == null) {
+      try {
+        final today = DateTime.now().toIso8601String().split('T').first;
+        final rows = await _supabase
             .from('teacher_attendance')
-            .update({
-              'end_time':               now.toIso8601String(),
-              'attendance_status':      TeacherAttendanceStatus.completed.value,
-              'total_duration_minutes': duration,
-            })
-            .eq('id', active.id!);
-      } else {
-        await _supabase
-            .from('teacher_attendance')
-            .upsert(updated.toInsertMap());
+            .select('id')
+            .eq('teacher_id', active.teacherId)
+            .eq('attendance_date', today)
+            .eq('attendance_status', 'Active')
+            .limit(1);
+        if (rows.isNotEmpty) {
+          rowId = rows.first['id'] as String?;
+        }
+      } catch (_) {
+        // ignore; handled below
       }
-    } catch (_) {
+    }
+
+    try {
+      List<dynamic> result;
+      if (rowId != null) {
+        result = await _supabase
+            .from('teacher_attendance')
+            .update(updatePayload)
+            .eq('id', rowId)
+            .select();
+      } else {
+        // No existing row found -- insert the whole record.
+        result = await _supabase
+            .from('teacher_attendance')
+            .insert(updated.toInsertMap())
+            .select();
+      }
+
+      if (result.isEmpty) {
+        // The UPDATE matched 0 rows -- almost always an RLS policy
+        // silently blocking the write. Surface this so the caller can
+        // show the failure to the user instead of pretending it worked.
+        throw Exception(
+          'Punch-out write returned 0 rows. '
+          'Check RLS policies on public.teacher_attendance for UPDATE.',
+        );
+      }
+    } catch (e) {
+      // Persist for retry, but rethrow so the cubit can emit failure.
       await _hive.savePendingTeacherAttendance(updated.toInsertMap());
+      rethrow;
     }
 
     await _hive.clearActiveSession();
