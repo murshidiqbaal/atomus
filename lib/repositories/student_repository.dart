@@ -75,7 +75,8 @@ class StudentRepository {
             *,
             exams (
               name,
-              exam_date
+              exam_date,
+              is_daily
             ),
             subjects (
               name
@@ -95,7 +96,13 @@ class StudentRepository {
             (examData['name'] ?? examData['title'] ?? 'Examination')
                 .toString()
                 .trim();
-        final examKey = examName.toLowerCase(); // Case-insensitive merge key
+        final isDaily = examData['is_daily'] as bool? ?? false;
+        final markDate = item['mark_date'] as String? ?? '';
+        
+        // For daily exams, scope the key to include the mark date so we don't merge different days' marks
+        final examKey = isDaily
+            ? '${examName.toLowerCase()}_$markDate'
+            : examName.toLowerCase();
 
         if (!mergedMarksByExamName.containsKey(examKey)) {
           mergedMarksByExamName[examKey] = [];

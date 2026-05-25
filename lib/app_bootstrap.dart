@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_constants.dart';
 import 'firebase_options.dart';
 import 'services/hive_profile_cache_service.dart';
+import 'services/fee_hive_service.dart';
 import 'services/teacher_hive_service.dart';
 import 'services/teacher_profile_hive_service.dart';
 
@@ -62,8 +63,11 @@ class AppBootstrap {
     _hiveProfileCacheService = HiveProfileCacheService();
     _teacherProfileHiveService = TeacherProfileHiveService();
     
-    // Open Teacher Hive boxes asynchronously and concurrently to prevent blocking startup
-    await _teacherHiveService.initBoxes();
+    // Open Hive boxes asynchronously and concurrently to prevent blocking startup
+    await Future.wait([
+      _teacherHiveService.initBoxes(),
+      FeeHiveService().initBoxes(),
+    ]);
 
     // 4. Initialize Firebase
     await Firebase.initializeApp(

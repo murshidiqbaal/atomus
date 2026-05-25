@@ -46,15 +46,28 @@ class TeacherAttendanceModel {
     required this.attendanceDate,
     this.startTime,
     this.endTime,
-    this.totalDurationMinutes,
+    int? totalDurationMinutes,
     this.latitude,
     this.longitude,
     this.status = TeacherAttendanceStatus.active,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+  })  : totalDurationMinutes = totalDurationMinutes ??
+            (startTime != null && endTime != null
+                ? endTime.difference(startTime).inMinutes
+                : null),
+        createdAt = createdAt ?? DateTime.now();
 
   factory TeacherAttendanceModel.fromMap(Map<String, dynamic> map) {
     final subject = map['subjects'] as Map<String, dynamic>?;
+    final start = map['start_time'] != null
+        ? DateTime.parse(map['start_time'] as String)
+        : null;
+    final end = map['end_time'] != null
+        ? DateTime.parse(map['end_time'] as String)
+        : null;
+    final duration = map['total_duration_minutes'] as int? ??
+        (start != null && end != null ? end.difference(start).inMinutes : null);
+
     return TeacherAttendanceModel(
       id:                   map['id'] as String?,
       teacherId:            map['teacher_id'] as String,
@@ -64,13 +77,9 @@ class TeacherAttendanceModel {
       courseId:             map['course_id'] as String?,
       batchId:              map['batch_id'] as String?,
       attendanceDate:       DateTime.parse(map['attendance_date'] as String),
-      startTime:            map['start_time'] != null
-                              ? DateTime.parse(map['start_time'] as String)
-                              : null,
-      endTime:              map['end_time'] != null
-                              ? DateTime.parse(map['end_time'] as String)
-                              : null,
-      totalDurationMinutes: map['total_duration_minutes'] as int?,
+      startTime:            start,
+      endTime:              end,
+      totalDurationMinutes: duration,
       latitude:             (map['latitude'] as num?)?.toDouble(),
       longitude:            (map['longitude'] as num?)?.toDouble(),
       status:               TeacherAttendanceStatusX.fromString(

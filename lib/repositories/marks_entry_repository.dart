@@ -14,6 +14,8 @@ class MarksEntryRepository {
     required List<String> subjectIds,
     required List<String> batchIds,
     required List<String> courseIds,
+    bool includeAllDates = false,
+    DateTime? date,
   }) async {
     if (subjectIds.isEmpty && courseIds.isEmpty) return [];
 
@@ -36,13 +38,25 @@ class MarksEntryRepository {
       if (conditions.isEmpty) return [];
       orQuery = conditions.join(',');
 
+      // Daily-exams visibility rule: a daily exam template is ALWAYS
+      // visible; a regular exam is only visible on its exam_date.
+      // When the UI is in an unfiltered "All" view we lift this rule
+      // and return every assigned exam across all dates -- the
+      // teacher explicitly asked for the full set.
+      final targetDate = date ?? DateTime.now();
+      final dateIso = targetDate.toIso8601String().split('T').first;
+      final visibilityOr = 'is_daily.eq.true,exam_date.eq.$dateIso';
+
       var builder = _supabase
           .from('exams')
-          .select('*, subjects(name), courses(name), batches(name), marks(id, subject_id)')
-          .or(orQuery)
-          .order('exam_date', ascending: false);
-
-      final rows = await builder;
+          .select(
+              '*, subjects(name), courses(name), batches(name), marks(id, subject_id, mark_date)')
+          .or(orQuery);
+      if (!includeAllDates) {
+        builder = builder.or(visibilityOr);
+      }
+      builder = builder.eq('marks.mark_date', dateIso);
+      final rows = await builder.order('exam_date', ascending: false);
       final allExams = (rows as List)
           .map((r) => TeacherExam.fromMap(r as Map<String, dynamic>))
           .toList();
@@ -75,7 +89,11 @@ class MarksEntryRepository {
     String? batchId,
     String? courseId,
     required double totalMarks,
+    DateTime? markDate,
   }) async {
+    final effectiveMarkDate = markDate ?? DateTime.now();
+    final markDateIso =
+        effectiveMarkDate.toIso8601String().split('T').first;
     // Fetch students
     List<Map<String, dynamic>> students;
     try {
@@ -101,13 +119,18 @@ class MarksEntryRepository {
 
     if (students.isEmpty) return [];
 
-    // Fetch existing marks
+    // Fetch existing marks scoped to the requested mark_date. This is
+    // the key change for the daily-exams system: a single exam row
+    // can have one marks row per (student, mark_date), so we must
+    // pick the row matching the day we are entering marks for.
     Map<String, Map<String, dynamic>> existingMap = {};
     try {
       var query = _supabase
           .from('marks')
-          .select('id, student_id, subject_id, marks_obtained, total_marks, remarks')
-          .eq('exam_id', examId);
+          .select(
+              'id, student_id, subject_id, marks_obtained, total_marks, remarks, mark_date')
+          .eq('exam_id', examId)
+          .eq('mark_date', markDateIso);
       if (subjectId != null) {
         query = query.eq('subject_id', subjectId);
       } else {
@@ -126,6 +149,7 @@ class MarksEntryRepository {
         examId: examId,
         subjectId: subjectId,
         totalMarks: totalMarks,
+        markDate: effectiveMarkDate,
         existingMarks: existingMap[s['id'] as String],
       );
     }).toList();
@@ -174,7 +198,8 @@ class MarksEntryRepository {
       // Use upsert with the unique constraint on (exam_id, student_id, subject_id)
       await _supabase
           .from('marks')
-          .upsert(payload, onConflict: 'exam_id,student_id,subject_id');
+          .upsert(payload,
+              onConflict: 'exam_id,student_id,subject_id,mark_date');
     } catch (_) {
       if (entries.isNotEmpty) {
         await _hive.savePendingMarks(entries.first.examId, payload);
@@ -216,6 +241,42 @@ class MarksEntryRepository {
     };
 
     await _supabase.from('exams').insert(payload);
+  }
+
+  /// Update an exam.
+  Future<void> updateExam({
+    required String examId,
+    required String name,
+    required DateTime date,
+    required double totalMarks,
+    required String batchId,
+    required String subjectId,
+    String? courseId,
+    String? currentSubjectId,
+  }) async {
+    // Validate permission on the existing exam
+    await SecurityValidationService.validateExamDeletion(examId, currentSubjectId);
+
+    // Validate assignments for new configuration
+    await SecurityValidationService.validateTeacherAssignments(
+      subjectId: subjectId,
+      batchId: batchId,
+      courseId: courseId ?? '',
+    );
+
+    final isBatchExam = batchId.isNotEmpty;
+
+    final payload = {
+      'name': name,
+      'exam_date': date.toIso8601String().split('T').first,
+      'total_marks': totalMarks,
+      'exam_scope': isBatchExam ? 'batch' : 'course',
+      'batch_id': isBatchExam ? batchId : null,
+      'subject_id': subjectId,
+      'course_id': (courseId != null && courseId.isNotEmpty) ? courseId : null,
+    };
+
+    await _supabase.from('exams').update(payload).eq('id', examId);
   }
 
   /// Delete an exam.

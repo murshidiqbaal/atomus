@@ -24,6 +24,9 @@ import 'home/dashboard_screen.dart';
 import 'marks/marks_screen.dart';
 import 'profile/profile_screen.dart';
 import '../repositories/auth_repository.dart';
+import '../blocs/auth/auth_bloc.dart';
+import '../blocs/auth/auth_state.dart';
+import 'login_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -73,27 +76,37 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return AppBackground(
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: Colors.transparent,
-        drawer: _buildDrawer(context),
-        body: IndexedStack(index: _currentIndex, children: _screens),
-        bottomNavigationBar: Container(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          decoration: const BoxDecoration(color: Colors.transparent),
-          child: NeuBox(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            borderRadius: 24,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(LucideIcons.home, 'Home', 0),
-                _buildNavItem(LucideIcons.bookOpen, 'Marks', 1),
-                _buildNavItem(LucideIcons.calendar, 'Attendance', 2),
-                _buildNavItem(LucideIcons.creditCard, 'Fees', 3),
-                _buildNavItem(LucideIcons.user, 'Profile', 4),
-              ],
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state.status == AuthStatus.unauthenticated) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      },
+      child: AppBackground(
+        child: Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: Colors.transparent,
+          drawer: _buildDrawer(context),
+          body: IndexedStack(index: _currentIndex, children: _screens),
+          bottomNavigationBar: Container(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            decoration: const BoxDecoration(color: Colors.transparent),
+            child: NeuBox(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              borderRadius: 24,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(LucideIcons.home, 'Home', 0),
+                  _buildNavItem(LucideIcons.bookOpen, 'Marks', 1),
+                  _buildNavItem(LucideIcons.calendar, 'Attendance', 2),
+                  _buildNavItem(LucideIcons.creditCard, 'Fees', 3),
+                  _buildNavItem(LucideIcons.user, 'Profile', 4),
+                ],
+              ),
             ),
           ),
         ),

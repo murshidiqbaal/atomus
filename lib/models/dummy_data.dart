@@ -98,19 +98,38 @@ class ExamMark {
   });
 
   factory ExamMark.fromMap(Map<String, dynamic> map) {
+    final marksObtained = (map['marks_obtained'] ?? 0).toInt();
+    final totalMarks = (map['total_marks'] ?? 100).toInt();
+    
+    String calculatedGrade;
+    if (totalMarks <= 0) {
+      calculatedGrade = 'N/A';
+    } else {
+      final percentage = (marksObtained / totalMarks) * 100;
+      if (percentage >= 90) {
+        calculatedGrade = 'A+';
+      } else if (percentage >= 80) {
+        calculatedGrade = 'A';
+      } else if (percentage >= 70) {
+        calculatedGrade = 'B+';
+      } else if (percentage >= 60) {
+        calculatedGrade = 'B';
+      } else if (percentage >= 50) {
+        calculatedGrade = 'C';
+      } else {
+        calculatedGrade = 'F';
+      }
+    }
+
     return ExamMark(
       subject:
           map['subjects']?['name'] ??
           map['subjects']?['subject_name'] ??
           map['subject_name'] ??
           'General',
-      marksObtained: (map['marks_obtained'] ?? 0).toInt(),
-      totalMarks: (map['total_marks'] ?? 100).toInt(),
-      grade:
-          map['grade'] ??
-          (map['remarks']?.toString().isNotEmpty == true
-              ? map['remarks']
-              : 'N/A'),
+      marksObtained: marksObtained,
+      totalMarks: totalMarks,
+      grade: calculatedGrade,
       subjectId: map['subject_id']?.toString(),
     );
   }
@@ -120,11 +139,13 @@ class ExamSession {
   final String title;
   final String date;
   final List<ExamMark> subjects;
+  final bool isDaily;
 
   ExamSession({
     required this.title,
     required this.date,
     required this.subjects,
+    this.isDaily = false,
   });
 
   factory ExamSession.fromMap(
@@ -132,10 +153,15 @@ class ExamSession {
     List<ExamMark> subjects,
   ) {
     final examData = map['exams'] ?? map;
+    final isDaily = examData['is_daily'] as bool? ?? false;
+    final dateVal = isDaily
+        ? (map['mark_date']?.toString() ?? examData['exam_date']?.toString() ?? 'N/A')
+        : (examData['exam_date']?.toString() ?? 'N/A');
     return ExamSession(
       title: examData['name'] ?? examData['title'] ?? 'Examination',
-      date: examData['exam_date'] ?? 'N/A',
+      date: dateVal,
       subjects: subjects,
+      isDaily: isDaily,
     );
   }
 }

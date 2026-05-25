@@ -850,8 +850,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _logout() {
     context.read<AuthBloc>().add(LogoutRequested());
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 }

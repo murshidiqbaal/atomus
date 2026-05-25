@@ -11,6 +11,11 @@ class MarksState extends Equatable {
   final String? errorMessage;
   final bool saved;
 
+  // The mark_date being viewed/edited. Defaults to today. For regular
+  // exams this stays at the exam's date; for daily exams the teacher
+  // can flip it day-by-day from the UI without affecting the exam row.
+  final DateTime? selectedMarkDate;
+
   const MarksState({
     this.status = MarksLoadStatus.initial,
     this.exams = const [],
@@ -18,6 +23,7 @@ class MarksState extends Equatable {
     this.entries = const [],
     this.errorMessage,
     this.saved = false,
+    this.selectedMarkDate,
   });
 
   double get classAverage {
@@ -37,18 +43,23 @@ class MarksState extends Equatable {
     List<StudentMarksEntry>? entries,
     String? errorMessage,
     bool? saved,
+    DateTime? selectedMarkDate,
+    bool clearSelectedMarkDate = false,
   }) {
     return MarksState(
-      status:       status       ?? this.status,
-      exams:        exams        ?? this.exams,
-      selectedExam: selectedExam ?? this.selectedExam,
-      entries:      entries      ?? this.entries,
-      errorMessage: errorMessage ?? this.errorMessage,
-      saved:        saved        ?? this.saved,
+      status:           status       ?? this.status,
+      exams:            exams        ?? this.exams,
+      selectedExam:     selectedExam ?? this.selectedExam,
+      entries:          entries      ?? this.entries,
+      errorMessage:     errorMessage ?? this.errorMessage,
+      saved:            saved        ?? this.saved,
+      selectedMarkDate: clearSelectedMarkDate
+          ? null
+          : (selectedMarkDate ?? this.selectedMarkDate),
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, exams, selectedExam, entries, saved];
+      [status, exams, selectedExam, entries, saved, selectedMarkDate];
 }

@@ -9,55 +9,105 @@ class MarksCubit extends Cubit<MarksState> {
   MarksEntryRepository get repo => _repo;
 
   MarksCubit({required MarksEntryRepository repository})
-      : _repo = repository,
-        super(const MarksState());
+    : _repo = repository,
+      super(const MarksState());
 
   Future<void> loadExams({
     required List<String> subjectIds,
     required List<String> batchIds,
     required List<String> courseIds,
+    bool includeAllDates = false,
+    DateTime? date,
   }) async {
     emit(state.copyWith(status: MarksLoadStatus.loading));
     try {
       final exams = await _repo.fetchAssignedExams(
         subjectIds: subjectIds,
-        batchIds:   batchIds,
-        courseIds:  courseIds,
+        batchIds: batchIds,
+        courseIds: courseIds,
+        includeAllDates: includeAllDates,
+        date: date,
       );
       emit(state.copyWith(status: MarksLoadStatus.success, exams: exams));
     } catch (e) {
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<void> selectExam(TeacherExam exam, {DateTime? markDate}) async {
+    // For daily exams default to today; for regular exams default to
+    // the exam's own date (or today as a fallback).
+    final resolvedDate = markDate ??
+        (exam.isDaily
+            ? _today()
+            : (exam.examDate ?? _today()));
+    emit(
+      state.copyWith(
+        status: MarksLoadStatus.loading,
+        selectedExam: exam,
+        selectedMarkDate: resolvedDate,
+        entries: [],
+        saved: false,
+      ),
+    );
+    try {
+      final entries = await _repo.loadStudentsWithMarks(
+        examId: exam.id,
+        subjectId: exam.subjectId,
+        batchId: exam.batchId,
+        courseId: exam.courseId,
+        totalMarks: exam.totalMarks,
+        markDate: resolvedDate,
+      );
+      emit(state.copyWith(status: MarksLoadStatus.success, entries: entries));
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
+    }
+  }
+
+  /// Re-load the entries for the currently selected exam against a
+  /// different mark_date. Used by the daily-exam date selector in the
+  /// marks entry screen.
+  Future<void> changeMarkDate(DateTime newDate) async {
+    final exam = state.selectedExam;
+    if (exam == null) return;
+    emit(state.copyWith(
+      status: MarksLoadStatus.loading,
+      selectedMarkDate: newDate,
+      entries: const [],
+      saved: false,
+    ));
+    try {
+      final entries = await _repo.loadStudentsWithMarks(
+        examId: exam.id,
+        subjectId: exam.subjectId,
+        batchId: exam.batchId,
+        courseId: exam.courseId,
+        totalMarks: exam.totalMarks,
+        markDate: newDate,
+      );
+      emit(state.copyWith(status: MarksLoadStatus.success, entries: entries));
+    } catch (e) {
       emit(state.copyWith(
-        status:       MarksLoadStatus.failure,
+        status: MarksLoadStatus.failure,
         errorMessage: e.toString(),
       ));
     }
   }
 
-  Future<void> selectExam(TeacherExam exam) async {
-    emit(state.copyWith(
-      status:       MarksLoadStatus.loading,
-      selectedExam: exam,
-      entries:      [],
-      saved:        false,
-    ));
-    try {
-      final entries = await _repo.loadStudentsWithMarks(
-        examId:     exam.id,
-        subjectId:  exam.subjectId,
-        batchId:    exam.batchId,
-        courseId:   exam.courseId,
-        totalMarks: exam.totalMarks,
-      );
-      emit(state.copyWith(
-        status:  MarksLoadStatus.success,
-        entries: entries,
-      ));
-    } catch (e) {
-      emit(state.copyWith(
-        status:       MarksLoadStatus.failure,
-        errorMessage: e.toString(),
-      ));
-    }
+  DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
   void updateMarks(String studentId, double? marks) {
@@ -77,14 +127,17 @@ class MarksCubit extends Cubit<MarksState> {
   }
 
   void clearSelection() {
-    emit(MarksState(
-      status: MarksLoadStatus.success,
-      exams: state.exams,
-      selectedExam: null,
-      entries: const [],
-      errorMessage: null,
-      saved: false,
-    ));
+    emit(
+      MarksState(
+        status: MarksLoadStatus.success,
+        exams: state.exams,
+        selectedExam: null,
+        selectedMarkDate: null,
+        entries: const [],
+        errorMessage: null,
+        saved: false,
+      ),
+    );
   }
 
   Future<void> saveMarks({
@@ -100,13 +153,22 @@ class MarksCubit extends Cubit<MarksState> {
         subjectIds: subjectIds,
         batchIds: batchIds,
         courseIds: courseIds,
+        date: state.selectedMarkDate,
       );
-      emit(state.copyWith(status: MarksLoadStatus.success, exams: exams, saved: true));
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.success,
+          exams: exams,
+          saved: true,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status:       MarksLoadStatus.failure,
-        errorMessage: e.toString().replaceFirst('Exception: ', ''),
-      ));
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.failure,
+          errorMessage: e.toString().replaceFirst('Exception: ', ''),
+        ),
+      );
     }
   }
 
@@ -120,6 +182,7 @@ class MarksCubit extends Cubit<MarksState> {
     required List<String> batchIds,
     required List<String> courseIds,
     String? courseId,
+    DateTime? listDate,
   }) async {
     emit(state.copyWith(status: MarksLoadStatus.loading));
     try {
@@ -135,13 +198,71 @@ class MarksCubit extends Cubit<MarksState> {
         subjectIds: subjectIds,
         batchIds: batchIds,
         courseIds: courseIds,
+        date: listDate,
       );
-      emit(state.copyWith(status: MarksLoadStatus.success, exams: exams, saved: true));
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.success,
+          exams: exams,
+          saved: true,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status:       MarksLoadStatus.failure,
-        errorMessage: e.toString().replaceFirst('Exception: ', ''),
-      ));
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.failure,
+          errorMessage: e.toString().replaceFirst('Exception: ', ''),
+        ),
+      );
+    }
+  }
+
+  Future<void> updateExam({
+    required String examId,
+    required String name,
+    required DateTime date,
+    required double totalMarks,
+    required String batchId,
+    required String subjectId,
+    String? courseId,
+    String? currentSubjectId,
+    required List<String> subjectIds,
+    required List<String> batchIds,
+    required List<String> courseIds,
+    DateTime? listDate,
+  }) async {
+    emit(state.copyWith(status: MarksLoadStatus.loading));
+    try {
+      await _repo.updateExam(
+        examId: examId,
+        name: name,
+        date: date,
+        totalMarks: totalMarks,
+        batchId: batchId,
+        subjectId: subjectId,
+        courseId: courseId,
+        currentSubjectId: currentSubjectId,
+      );
+      final exams = await _repo.fetchAssignedExams(
+        subjectIds: subjectIds,
+        batchIds: batchIds,
+        courseIds: courseIds,
+        date: listDate,
+      );
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.success,
+          exams: exams,
+          saved: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.failure,
+          errorMessage: e.toString().replaceFirst('Exception: ', ''),
+        ),
+      );
     }
   }
 
@@ -151,6 +272,7 @@ class MarksCubit extends Cubit<MarksState> {
     required List<String> subjectIds,
     required List<String> batchIds,
     required List<String> courseIds,
+    DateTime? listDate,
   }) async {
     emit(state.copyWith(status: MarksLoadStatus.loading));
     try {
@@ -159,13 +281,16 @@ class MarksCubit extends Cubit<MarksState> {
         subjectIds: subjectIds,
         batchIds: batchIds,
         courseIds: courseIds,
+        date: listDate,
       );
       emit(state.copyWith(status: MarksLoadStatus.success, exams: exams));
     } catch (e) {
-      emit(state.copyWith(
-        status:       MarksLoadStatus.failure,
-        errorMessage: e.toString().replaceFirst('Exception: ', ''),
-      ));
+      emit(
+        state.copyWith(
+          status: MarksLoadStatus.failure,
+          errorMessage: e.toString().replaceFirst('Exception: ', ''),
+        ),
+      );
     }
   }
 }

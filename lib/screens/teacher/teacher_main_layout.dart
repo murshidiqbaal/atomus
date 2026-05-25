@@ -15,6 +15,9 @@ import 'teacher_analytics_screen.dart';
 import 'teacher_attendance_screen.dart';
 import 'teacher_dashboard_screen.dart';
 import 'teacher_profile_screen.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../login_screen.dart';
 
 class TeacherMainLayout extends StatefulWidget {
   const TeacherMainLayout({super.key});
@@ -100,29 +103,39 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
   Widget build(BuildContext context) {
     // All providers (TeacherHiveService, repositories, cubits) are available
     // from the global AppProviders tree. No local provider wrappers needed here.
-    return AppBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          child: KeyedSubtree(
-            key: ValueKey(_currentIndex),
-            child: IndexedStack(index: _currentIndex, children: _screens),
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state.status == AuthStatus.unauthenticated) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      },
+      child: AppBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: KeyedSubtree(
+              key: ValueKey(_currentIndex),
+              child: IndexedStack(index: _currentIndex, children: _screens),
+            ),
           ),
-        ),
-        bottomNavigationBar: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 1),
-            end: Offset.zero,
-          ).animate(_navBarSlide),
-          child: _BottomNavBar(
-            currentIndex: _currentIndex,
-            onTabChanged: _onTabChanged,
+          bottomNavigationBar: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(_navBarSlide),
+            child: _BottomNavBar(
+              currentIndex: _currentIndex,
+              onTabChanged: _onTabChanged,
+            ),
           ),
         ),
       ),

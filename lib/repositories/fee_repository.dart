@@ -6,6 +6,18 @@ class FeeRepository {
   final _supabase = Supabase.instance.client;
   final _parentIdentityService = ParentIdentityService();
 
+  double _parseDouble(dynamic val) {
+    if (val == null) return 0.0;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val.toString()) ?? 0.0;
+  }
+
+  int _parseInt(dynamic val) {
+    if (val == null) return 0;
+    if (val is num) return val.toInt();
+    return int.tryParse(val.toString()) ?? 0;
+  }
+
   Future<List<FeeRecord>> getFeeRecords() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -45,130 +57,351 @@ class FeeRepository {
         'Found linked student: $studentId, course: $courseId, batch: $batchId',
       );
 
-      // 2. Fetch actual student payments/due records from the 'fees' table
-      final feesResponse = await _supabase
-          .from('fees')
-          .select()
-          .eq('student_id', studentId)
-          .order('due_date', ascending: false);
-
-      final List<dynamic> feesList = feesResponse as List<dynamic>;
-      print('Fetched ${feesList.length} fee records from DB');
-
-      // 3. Fetch course fee structures from 'fee_structures'
-      Map<String, dynamic>? feeStructure;
+      // 2. Fetch active fee structures for the course
+      List<dynamic> activeStructures = [];
       if (courseId != null) {
-        final structureResponse = await _supabase
-            .from('fee_structures')
-            .select()
-            .eq('course_id', courseId)
-            .maybeSingle();
-        feeStructure = structureResponse;
-        if (feeStructure != null) {
-          print(
-            'Found course fee structure: Total Amount = ${feeStructure['total_amount']}, Monthly Fee = ${feeStructure['monthly_fee']}',
-          );
+        try {
+          activeStructures = await _supabase
+              .from('fee_structures')
+              .select()
+              .eq('course_id', courseId)
+              .eq('is_active', true);
+          print('Found ${activeStructures.length} active fee structures for course: $courseId');
+        } catch (e) {
+          print('ERROR [getFeeRecords] fetching active fee structures: $e');
         }
       }
 
-      // If both are completely empty in the DB, fallback to DummyData
-      if (feesList.isEmpty && feeStructure == null) {
-        print(
-          'NOTICE [getFeeRecords]: No fee records or structures in DB. Using dummy data fallback.',
-        );
-        return DummyData.fees;
+      // 3. Fetch from student_fees with nested fee_structures
+      Map<String, dynamic>? studentFeeResponse;
+      try {
+        studentFeeResponse = await _supabase
+            .from('student_fees')
+            .select('*, fee_structures(*)')
+            .eq('student_id', studentId)
+            .maybeSingle();
+      } catch (e) {
+        print('ERROR [getFeeRecords] fetching student_fees: $e');
+      }
+
+      // Collect all relevant fee structures
+      final Map<String, Map<String, dynamic>> structuresMap = {};
+
+      if (studentFeeResponse != null && studentFeeResponse['fee_structures'] != null) {
+        final struct = studentFeeResponse['fee_structures'] as Map<String, dynamic>;
+        structuresMap[struct['id'].toString()] = struct;
+      }
+
+      for (var struct in activeStructures) {
+        if (struct is Map<String, dynamic>) {
+          structuresMap[struct['id'].toString()] = struct;
+        }
       }
 
       final List<FeeRecord> records = [];
+      final lastPaymentDateStr = studentFeeResponse?['last_payment_date']?.toString();
+      final lastPaymentDate = lastPaymentDateStr != null ? DateTime.tryParse(lastPaymentDateStr) : null;
+      final termStatusList = studentFeeResponse?['term_status'];
 
-      // 4. Map the database records to FeeRecord objects
-      if (feesList.isEmpty && feeStructure != null) {
-        // If we only have the course fee structure, generate pending installments dynamically!
-        final totalAmount =
-            (feeStructure['total_amount'] as num?)?.toDouble() ?? 0.0;
-        final monthlyFee =
-            (feeStructure['monthly_fee'] as num?)?.toDouble() ?? 0.0;
-        final installmentCount =
-            (feeStructure['installment_count'] as num?)?.toInt() ?? 1;
-        final dueDateDay =
-            (feeStructure['due_date_day'] as num?)?.toInt() ?? 10;
+      if (structuresMap.isNotEmpty) {
+        // Iterate over all relevant structures and build records
+        for (var structure in structuresMap.values) {
+          final termDetailsList = structure['term_details'];
+          final structureId = structure['id'];
+          final structureName = structure['name'] ?? 'Course Fee';
 
-        print(
-          'Generating $installmentCount installments dynamically based on course fee structure.',
-        );
-        final now = DateTime.now();
-        for (int i = 0; i < installmentCount; i++) {
-          final title = i == 0
-              ? 'Admission & First Term Tuition'
-              : 'Tuition Fee Installment ${i + 1}';
-          final amount = i == 0
-              ? (totalAmount - (monthlyFee * (installmentCount - 1)))
-              : monthlyFee;
-          final dueDate = DateTime(now.year, now.month + i, dueDateDay);
+          if (termDetailsList is List && termDetailsList.isNotEmpty) {
+            for (var i = 0; i < termDetailsList.length; i++) {
+              final term = termDetailsList[i] as Map<String, dynamic>;
+              final String termName = term['term_name']?.toString() ?? term['name']?.toString() ?? 'Term ${i + 1}';
+              
+              // Find matching status in student_fees term_status
+              Map<String, dynamic>? matchedTermStatus;
+              if (termStatusList is List) {
+                // Try matching by term_name (case-insensitive)
+                for (var ts in termStatusList) {
+                  if (ts is Map<String, dynamic>) {
+                    final tsName = (ts['term_name'] ?? ts['name'])?.toString().toLowerCase().trim();
+                    final structTermName = termName.toLowerCase().trim();
+                    if (tsName != null && tsName == structTermName) {
+                      matchedTermStatus = ts;
+                      break;
+                    }
+                  }
+                }
+                // If not found by name, and this structure is the primary one, try matching by index
+                if (matchedTermStatus == null && 
+                    studentFeeResponse != null && 
+                    studentFeeResponse['fee_structure_id'] == structureId &&
+                    i < termStatusList.length) {
+                  final ts = termStatusList[i];
+                  if (ts is Map<String, dynamic>) {
+                    matchedTermStatus = ts;
+                  }
+                }
+              }
 
-          records.add(
-            FeeRecord(
-              title: title,
-              amount: amount,
-              dueDate: dueDate,
-              isPaid: false,
-              receiptId: '',
-              status: 'Pending',
-              amountPaid: 0.0,
-            ),
-          );
+              // Determine values
+              double termAmount = _parseDouble(term['amount'] ?? term['total_amount']);
+              double termPaidAmount = 0.0;
+              String termStatus = 'Pending';
+              DateTime dueDate = DateTime.now();
+              DateTime? paymentDate;
+
+              if (matchedTermStatus != null) {
+                termAmount = _parseDouble(matchedTermStatus['amount_due'] ?? matchedTermStatus['amount'] ?? termAmount);
+                termPaidAmount = _parseDouble(matchedTermStatus['amount_paid'] ?? matchedTermStatus['paid_amount'] ?? 0.0);
+                termStatus = matchedTermStatus['status']?.toString() ?? matchedTermStatus['payment_status']?.toString() ?? 'Pending';
+                
+                final dueDateStr = matchedTermStatus['due_date']?.toString();
+                if (dueDateStr != null) {
+                  dueDate = DateTime.tryParse(dueDateStr) ?? dueDate;
+                } else {
+                  final dueDay = _parseInt(term['due_day'] ?? structure['due_date_day'] ?? 10);
+                  dueDate = DateTime(DateTime.now().year, DateTime.now().month + i, dueDay);
+                }
+
+                final paymentDateStr = matchedTermStatus['payment_date']?.toString() ?? matchedTermStatus['last_payment_date']?.toString();
+                paymentDate = paymentDateStr != null ? DateTime.tryParse(paymentDateStr) : null;
+              } else {
+                // No matched term status, use defaults from structure term details
+                final dueDay = _parseInt(term['due_day'] ?? structure['due_date_day'] ?? 10);
+                dueDate = DateTime(DateTime.now().year, DateTime.now().month + i, dueDay);
+              }
+
+              final isPaid = termStatus == 'Paid';
+              final String recId = isPaid 
+                  ? 'TXN-${(studentFeeResponse?['id'] ?? structureId).toString().substring(0, 8).toUpperCase()}-$i' 
+                  : '';
+
+              records.add(
+                FeeRecord(
+                  id: '${structureId}_term_$i',
+                  title: '$structureName - $termName',
+                  amount: termAmount,
+                  dueDate: dueDate,
+                  isPaid: isPaid,
+                  receiptId: recId,
+                  status: termStatus,
+                  amountPaid: termPaidAmount,
+                  paymentDate: paymentDate,
+                ),
+              );
+            }
+          } else {
+            // Generate dynamic installments from structure config
+            final totalAmount = _parseDouble(structure['total_amount']);
+            final monthlyFee = _parseDouble(structure['monthly_fee']);
+            final installmentCount = _parseInt(structure['installment_count'] ?? 1);
+            final dueDateDay = _parseInt(structure['due_date_day'] ?? 10);
+
+            final now = DateTime.now();
+            for (int i = 0; i < installmentCount; i++) {
+              final title = i == 0 ? 'Admission & First Term Tuition' : 'Tuition Fee Installment ${i + 1}';
+              final amount = i == 0 ? (totalAmount - (monthlyFee * (installmentCount - 1))) : monthlyFee;
+              final dueDate = DateTime(now.year, now.month + i, dueDateDay);
+
+              // Check if we can find corresponding term status in student_fees
+              Map<String, dynamic>? matchedTermStatus;
+              if (termStatusList is List && 
+                  studentFeeResponse != null && 
+                  studentFeeResponse['fee_structure_id'] == structureId &&
+                  i < termStatusList.length) {
+                final ts = termStatusList[i];
+                if (ts is Map<String, dynamic>) {
+                  matchedTermStatus = ts;
+                }
+              }
+
+              double termAmount = amount;
+              double termPaidAmount = 0.0;
+              String termStatus = 'Pending';
+              DateTime? paymentDate;
+
+              if (matchedTermStatus != null) {
+                termAmount = _parseDouble(matchedTermStatus['amount_due'] ?? matchedTermStatus['amount'] ?? amount);
+                termPaidAmount = _parseDouble(matchedTermStatus['amount_paid'] ?? matchedTermStatus['paid_amount'] ?? 0.0);
+                termStatus = matchedTermStatus['status']?.toString() ?? matchedTermStatus['payment_status']?.toString() ?? 'Pending';
+                final paymentDateStr = matchedTermStatus['payment_date']?.toString() ?? matchedTermStatus['last_payment_date']?.toString();
+                paymentDate = paymentDateStr != null ? DateTime.tryParse(paymentDateStr) : null;
+              }
+
+              final isPaid = termStatus == 'Paid';
+
+              records.add(
+                FeeRecord(
+                  id: '${structureId}_inst_$i',
+                  title: '$structureName - $title',
+                  amount: termAmount,
+                  dueDate: dueDate,
+                  isPaid: isPaid,
+                  receiptId: isPaid ? 'TXN-${(studentFeeResponse?['id'] ?? structureId).toString().substring(0, 8).toUpperCase()}-$i' : '',
+                  status: termStatus,
+                  amountPaid: termPaidAmount,
+                  paymentDate: paymentDate,
+                ),
+              );
+            }
+          }
         }
-      } else {
-        // Map actual 'fees' table rows!
-        for (var item in feesList) {
-          final id = item['id']?.toString() ?? '';
-          final double amountDue =
-              (item['amount_due'] as num?)?.toDouble() ?? 0.0;
-          final double amountPaid =
-              (item['amount_paid'] as num?)?.toDouble() ?? 0.0;
-          final String status = item['payment_status'] ?? 'Pending';
-          final bool isPaid = status == 'Paid';
-          final String receiptId = isPaid
-              ? (item['id']?.toString().substring(0, 8).toUpperCase() ??
-                    'TXN-REF')
-              : '';
+      } else if (studentFeeResponse != null && termStatusList is List && termStatusList.isNotEmpty) {
+        // Fallback: If no structures found, but student_fees term_status is present, use it directly
+        for (var i = 0; i < termStatusList.length; i++) {
+          final term = termStatusList[i] as Map<String, dynamic>;
+          final String termName = term['term_name']?.toString() ?? term['name']?.toString() ?? 'Term ${i + 1}';
+          final double termAmount = _parseDouble(term['amount_due'] ?? term['amount'] ?? term['total_amount'] ?? term['fee_amount']);
+          final double termPaidAmount = _parseDouble(term['amount_paid'] ?? term['paid_amount'] ?? 0.0);
+          final String termStatus = term['status']?.toString() ?? term['payment_status']?.toString() ?? 'Pending';
+          
+          final dueDateStr = term['due_date']?.toString();
+          final dueDate = dueDateStr != null ? DateTime.tryParse(dueDateStr) ?? DateTime.now() : DateTime.now();
 
-          final dueDateStr = item['due_date']?.toString();
-          final createdAtStr = item['created_at']?.toString();
+          final paymentDateStr = term['payment_date']?.toString() ?? term['last_payment_date']?.toString();
+          final paymentDate = paymentDateStr != null ? DateTime.tryParse(paymentDateStr) : null;
 
-          final dueDate = dueDateStr != null
-              ? DateTime.tryParse(dueDateStr) ?? DateTime.now()
-              : DateTime.now();
-          final paymentDate = createdAtStr != null
-              ? DateTime.tryParse(createdAtStr)
-              : null;
+          final isPaid = termStatus == 'Paid';
+          final receiptId = isPaid ? 'TXN-${studentFeeResponse['id'].toString().substring(0, 8).toUpperCase()}-$i' : '';
 
           records.add(
             FeeRecord(
-              id: id,
-              title: item['fee_type']?.toString() ?? 'Tuition Fee Installment',
-              amount: amountDue,
+              id: '${studentFeeResponse['id']}_term_$i',
+              title: termName,
+              amount: termAmount,
               dueDate: dueDate,
               isPaid: isPaid,
               receiptId: receiptId,
-              status: status,
-              amountPaid: amountPaid,
+              status: termStatus,
+              amountPaid: termPaidAmount,
               paymentDate: paymentDate,
             ),
           );
         }
       }
 
+      // If nothing was parsed from the database tables, fallback to dummy data
+      if (records.isEmpty) {
+        print('NOTICE [getFeeRecords]: DB query yielded 0 records. Using dummy data fallback.');
+        return DummyData.fees;
+      }
+
+      // Sort by due date (chronological so Term 1 is shown before Term 2, etc.)
+      records.sort((a, b) => a.dueDate.compareTo(b.dueDate));
       return records;
+
     } catch (e) {
-      print(
-        'CRITICAL ERROR [getFeeRecords]: $e. Returning dummy data fallback.',
-      );
+      print('CRITICAL ERROR [getFeeRecords]: $e. Returning dummy data fallback.');
       return DummyData.fees;
     }
   }
 
   Future<void> payFee(String feeTitle) async {
     await Future.delayed(const Duration(seconds: 1));
+  }
+
+  /// Fetches payment transaction history for the student
+  Future<List<Map<String, dynamic>>> getPaymentHistory() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return [];
+
+      final parent = await _parentIdentityService.resolveCurrentParent();
+      final parentId = parent['id']?.toString();
+      if (parentId == null) return [];
+
+      final studentData = await _supabase
+          .from('students')
+          .select('id')
+          .eq('parent_id', parentId)
+          .maybeSingle();
+
+      if (studentData == null) return [];
+
+      final studentId = studentData['id'];
+
+      final response = await _supabase
+          .from('payment_transactions')
+          .select()
+          .eq('student_id', studentId)
+          .order('payment_date', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('ERROR [getPaymentHistory]: $e');
+      return [];
+    }
+  }
+
+  /// Fetches the fee structure metadata for the student's course
+  Future<Map<String, dynamic>?> getFeeStructureInfo() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return null;
+
+      final parent = await _parentIdentityService.resolveCurrentParent();
+      final parentId = parent['id']?.toString();
+      if (parentId == null) return null;
+
+      final studentData = await _supabase
+          .from('students')
+          .select('id, course_id, full_name, courses(name)')
+          .eq('parent_id', parentId)
+          .maybeSingle();
+
+      if (studentData == null) return null;
+
+      final courseId = studentData['course_id'];
+      if (courseId == null) return null;
+
+      final studentFee = await _supabase
+          .from('student_fees')
+          .select('*, fee_structures(*)')
+          .eq('student_id', studentData['id'])
+          .maybeSingle();
+
+      final courseName = studentData['courses']?['name'] ?? 'Course';
+
+      double totalFee = 0.0;
+      double paidAmount = 0.0;
+      double discountAmount = 0.0;
+      double balanceAmount = 0.0;
+      String paymentStatus = 'Pending';
+      String feeStructureName = courseName;
+
+      if (studentFee != null) {
+        totalFee = _parseDouble(studentFee['total_fee']);
+        paidAmount = _parseDouble(studentFee['paid_amount']);
+        discountAmount = _parseDouble(studentFee['discount_amount']);
+        balanceAmount = _parseDouble(studentFee['balance_amount']);
+        paymentStatus = studentFee['payment_status']?.toString() ?? 'Pending';
+        feeStructureName = studentFee['fee_structures']?['name'] ?? courseName;
+      } else {
+        // Fallback to active structures for course
+        final List<dynamic> structures = await _supabase
+            .from('fee_structures')
+            .select()
+            .eq('course_id', courseId)
+            .eq('is_active', true);
+        if (structures.isNotEmpty) {
+          totalFee = structures.fold<double>(0.0, (sum, fs) => sum + _parseDouble(fs['total_amount']));
+          balanceAmount = totalFee;
+          feeStructureName = structures.map((fs) => fs['name'] ?? '').join(', ');
+        }
+      }
+
+      return {
+        'student_name': studentData['full_name'],
+        'course_name': courseName,
+        'student_fee': studentFee,
+        'total_fee': totalFee,
+        'paid_amount': paidAmount,
+        'discount_amount': discountAmount,
+        'balance_amount': balanceAmount,
+        'payment_status': paymentStatus,
+        'fee_structure_name': feeStructureName,
+      };
+    } catch (e) {
+      print('ERROR [getFeeStructureInfo]: $e');
+      return null;
+    }
   }
 }

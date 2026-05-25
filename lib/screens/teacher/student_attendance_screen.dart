@@ -106,8 +106,8 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
     _loadData();
   }
 
-  void _loadData() {
-    context.read<StudentAttendanceCubit>().loadStudents(
+  Future<void> _loadData() async {
+    await context.read<StudentAttendanceCubit>().loadStudents(
       subjectId: _selectedSubjectId,
       batchId: _selectedBatchId,
       courseId: _selectedCourseId,
@@ -174,6 +174,32 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
 
                 final filtered = _filterEntries(state.entries);
 
+                final listWidget = filtered.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.4,
+                            child: _buildEmptyState(),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                        itemCount: filtered.length,
+                        itemBuilder: (_, i) {
+                          final entry = filtered[i];
+                          return StudentAttendanceTile(
+                            key: ValueKey(
+                              '${entry.studentId}_${entry.status.name}_${entry.remarks ?? ""}',
+                            ),
+                            entry: entry,
+                            cubit: ctx.read<StudentAttendanceCubit>(),
+                          );
+                        },
+                      );
+
                 return Column(
                   children: [
                     _buildInlineFilters(context),
@@ -181,22 +207,10 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
                     _buildSearchBar(),
                     _buildBulkActionsBar(context),
                     Expanded(
-                      child: filtered.isEmpty
-                          ? _buildEmptyState()
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                              itemCount: filtered.length,
-                              itemBuilder: (_, i) {
-                                final entry = filtered[i];
-                                return StudentAttendanceTile(
-                                  key: ValueKey(
-                                    '${entry.studentId}_${entry.status.name}_${entry.remarks ?? ""}',
-                                  ),
-                                  entry: entry,
-                                  cubit: ctx.read<StudentAttendanceCubit>(),
-                                );
-                              },
-                            ),
+                      child: RefreshIndicator(
+                        onRefresh: _loadData,
+                        child: listWidget,
+                      ),
                     ),
                   ],
                 );

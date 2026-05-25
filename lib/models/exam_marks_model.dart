@@ -17,6 +17,7 @@ class TeacherExam {
   final String? creatorRole;
   final String? creatorId;
   final bool isDaily;
+  final DateTime? createdAt;
 
   const TeacherExam({
     required this.id,
@@ -37,6 +38,7 @@ class TeacherExam {
     this.creatorRole,
     this.creatorId,
     this.isDaily = false,
+    this.createdAt,
   });
 
   factory TeacherExam.fromMap(Map<String, dynamic> map) {
@@ -73,6 +75,9 @@ class TeacherExam {
       creatorRole: map['creator_role'] as String?,
       creatorId: map['creator_id'] as String?,
       isDaily: map['is_daily'] as bool? ?? false,
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'] as String)
+          : null,
     );
   }
 }
@@ -90,6 +95,10 @@ class StudentMarksEntry {
   final double totalMarks;
   final bool isAbsent;
   final String? remarks;
+  // The calendar day this entry's marks apply to. For regular exams
+  // this equals the exam date; for daily exams it is the day the
+  // marks were entered. Persisted as `marks.mark_date`.
+  final DateTime markDate;
 
   StudentMarksEntry({
     this.id,
@@ -104,6 +113,7 @@ class StudentMarksEntry {
     required this.totalMarks,
     this.isAbsent = false,
     this.remarks,
+    required this.markDate,
   });
 
   factory StudentMarksEntry.fromStudentMap(
@@ -111,8 +121,12 @@ class StudentMarksEntry {
     required String examId,
     required String? subjectId,
     required double totalMarks,
+    required DateTime markDate,
     Map<String, dynamic>? existingMarks,
   }) {
+    final existingMarkDate = existingMarks?['mark_date'] != null
+        ? DateTime.tryParse(existingMarks!['mark_date'] as String)
+        : null;
     return StudentMarksEntry(
       id: existingMarks?['id'] as String?,
       studentId: studentMap['id'] as String,
@@ -126,6 +140,7 @@ class StudentMarksEntry {
       totalMarks: totalMarks,
       isAbsent: existingMarks?['remarks'] == 'Absent',
       remarks: existingMarks?['remarks'] as String?,
+      markDate: existingMarkDate ?? markDate,
     );
   }
 
@@ -139,6 +154,7 @@ class StudentMarksEntry {
       'marks_obtained': isAbsent ? 0 : (marksObtained ?? 0),
       'total_marks': totalMarks,
       'remarks': isAbsent ? 'Absent' : remarks,
+      'mark_date': markDate.toIso8601String().split('T').first,
     };
   }
 
@@ -151,6 +167,7 @@ class StudentMarksEntry {
     double? marksObtained,
     bool? isAbsent,
     String? remarks,
+    DateTime? markDate,
   }) {
     return StudentMarksEntry(
       id: id,
@@ -165,6 +182,7 @@ class StudentMarksEntry {
       totalMarks: totalMarks,
       isAbsent: isAbsent ?? this.isAbsent,
       remarks: remarks ?? this.remarks,
+      markDate: markDate ?? this.markDate,
     );
   }
 }
