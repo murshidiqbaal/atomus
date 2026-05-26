@@ -1,41 +1,128 @@
-# Set global platform for the project
-platform :ios, '13.0'
+# Atomus ERP -- iOS Podfile
+# ----------------------------------------------------------------
+# Canonical modern Flutter Podfile. Requires the Flutter podhelper
+# (which defines flutter_install_all_ios_pods and
+# flutter_additional_ios_build_settings) by resolving FLUTTER_ROOT
+# from Flutter/Generated.xcconfig at pod-install time.
+#
+# Compatible with:
+#   * Flutter stable (3.x and 4.x)
+#   * CocoaPods 1.13+
+#   * Ruby 3.x
+#   * Xcode 15+
+# ----------------------------------------------------------------
 
-# CocoaPods analytics sends network stats so disable it
+# 1. iOS deployment target. 14.0 is the lowest version that
+#    satisfies firebase_messaging, geolocator, image_picker, and
+#    flutter_local_notifications on modern Flutter.
+platform :ios, '14.0'
+
+# 2. Disable CocoaPods analytics (faster pod install, no network).
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-project 'Runner.xcodeproj'
+project 'Runner.xcodeproj', {
+  'Debug'   => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+# 3. Resolve FLUTTER_ROOT from Flutter/Generated.xcconfig. This is the
+#    file `flutter pub get` regenerates; it always points at the
+#    active Flutter SDK and is the only reliable way to locate
+#    podhelper.rb across CI machines and developer laptops.
+def flutter_root
+  generated_xcode_build_settings_path =
+    File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. " \
+          "If you're running pod install manually, make sure " \
+          "`flutter pub get` is executed first."
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. " \
+        "Try deleting Generated.xcconfig, then re-run `flutter pub get`."
+end
+
+# 4. Pull in the Flutter podhelper -- this is what defines
+#    flutter_install_all_ios_pods AND flutter_additional_ios_build_settings.
+require File.expand_path(
+  File.join('packages', 'flutter_tools', 'bin', 'podhelper'),
+  flutter_root,
+)
+
+flutter_ios_podfile_setup
 
 target 'Runner' do
+  # 5. Use frameworks + modular headers. Required for Firebase
+  #    (modular_headers) and for Swift plugins. Plugins that ship
+  #    static-library-only get a per-pod override automatically
+  #    by the podhelper.
   use_frameworks!
   use_modular_headers!
 
-  flutter_install_all_ios_pods File.dirname(File.expand_path(__FILE__))
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
 end
 
+# 6. post_install hook. Applies Flutter's required xcconfig overlay
+#    to every pod target, then injects the permission_handler macro
+#    set and re-asserts the iOS 14 deployment target so an old pod
+#    can't drag the project back to iOS 11/12.
 post_install do |installer|
   installer.pods_project.targets.each do |target|
+    # Critical: lets Flutter inject xcconfig (search paths,
+    # arch excludes for simulator, bitcode disable, etc.).
     flutter_additional_ios_build_settings(target)
 
-    # Clean compile configurations and inject permission macros to avoid App Store rejection
     target.build_configurations.each do |config|
+      # Force a single deployment target across all pods. Pods
+      # that ship with a lower minimum (e.g. 11.0) will otherwise
+      # produce Xcode warnings on every build.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+
+      # Don't try to build the iOS pods against the arm64 sim
+      # slice -- needed for Apple Silicon dev machines.
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+
+      # Swift 5 across the board; some older pods default to 4.x.
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+
+      # ----------------------------------------------------------
+      # permission_handler macros. Keep enabled only what the app
+      # actually uses; explicit 0 strips the unused API refs so
+      # App Store review doesn't flag missing usage descriptions.
+      # ----------------------------------------------------------
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-      
-      # Enabled permissions
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_CAMERA=1'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_PHOTOS=1'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_LOCATION=1'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_MICROPHONE=1'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_NOTIFICATIONS=1'
-      
-      # Disabled permissions (stripped to avoid App Store rejection for unused API references)
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_CONTACTS=0'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_CALENDAR=0'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_REMINDERS=0'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_SPEECH_RECOGNITION=0'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_SENSORS=0'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_BLUETOOTH=0'
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_APP_TRACKING_TRANSPARENCY=0'
+      defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
+
+      # Enabled
+      defs << 'PERMISSION_CAMERA=1'
+      defs << 'PERMISSION_PHOTOS=1'
+      defs << 'PERMISSION_LOCATION=1'
+      defs << 'PERMISSION_MICROPHONE=1'
+      defs << 'PERMISSION_NOTIFICATIONS=1'
+
+      # Disabled (strip APIs to avoid App Store rejection)
+      defs << 'PERMISSION_EVENTS=0'
+      defs << 'PERMISSION_EVENTS_FULL_ACCESS=0'
+      defs << 'PERMISSION_REMINDERS=0'
+      defs << 'PERMISSION_CONTACTS=0'
+      defs << 'PERMISSION_SPEECH_RECOGNIZER=0'
+      defs << 'PERMISSION_SENSORS=0'
+      defs << 'PERMISSION_BLUETOOTH=0'
+      defs << 'PERMISSION_APP_TRACKING_TRANSPARENCY=0'
+      defs << 'PERMISSION_CRITICAL_ALERTS=0'
+      defs << 'PERMISSION_MEDIA_LIBRARY=0'
+      defs << 'PERMISSION_ASSISTANT=0'
     end
   end
 end
