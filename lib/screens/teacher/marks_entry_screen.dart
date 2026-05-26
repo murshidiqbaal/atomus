@@ -2,7 +2,7 @@ import 'package:atomus/models/teacher_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../blocs/marks/marks_cubit.dart';
 import '../../blocs/marks/marks_state.dart';

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
@@ -41,11 +41,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
     );
     _headerSlide =
         Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _headerController,
-        curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic),
-      ),
-    );
+          CurvedAnimation(
+            parent: _headerController,
+            curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic),
+          ),
+        );
     _headerController.forward();
   }
 
@@ -90,10 +90,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
               const SizedBox(height: 20),
               Text(
                 'Update Profile Photo',
-                style: Theme.of(ctx)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 20),
               Row(
@@ -149,7 +148,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
           builder: (ctx, state) {
             final teacher = state.teacher;
 
-            if (state.status == TeacherProfileStatus.loading && teacher == null) {
+            if (state.status == TeacherProfileStatus.loading &&
+                teacher == null) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -158,15 +158,23 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(LucideIcons.userX, size: 48, color: AppColors.textSecondary),
+                    const Icon(
+                      LucideIcons.userX,
+                      size: 48,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Failed to load profile details.',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton(
-                      onPressed: () => context.read<TeacherProfileCubit>().loadProfile(),
+                      onPressed: () =>
+                          context.read<TeacherProfileCubit>().loadProfile(),
                       child: const Text('Retry'),
                     ),
                   ],
@@ -221,19 +229,24 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
   }
 
   // ──────────────── Sync Pending Banner ────────────────
-  Widget _buildSyncPendingBanner(BuildContext context, TeacherProfileState state) {
+  Widget _buildSyncPendingBanner(
+    BuildContext context,
+    TeacherProfileState state,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.warning.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.warning.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(LucideIcons.cloudLightning, color: AppColors.warning, size: 20),
+          const Icon(
+            LucideIcons.cloudLightning,
+            color: AppColors.warning,
+            size: 20,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -247,15 +260,22 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                   state.isOffline
                       ? 'Changes saved locally. Will sync when back online.'
                       : 'Changes saved locally. Syncing in progress...',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
           if (!state.isOffline)
             TextButton(
-              onPressed: () => context.read<TeacherProfileCubit>().syncPendingData(),
-              child: const Text('Sync Now', style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () =>
+                  context.read<TeacherProfileCubit>().syncPendingData(),
+              child: const Text(
+                'Sync Now',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
         ],
       ),
@@ -263,7 +283,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
   }
 
   // ──────────────── Profile Header ────────────────
-  Widget _buildProfileHeader(BuildContext context, TeacherModel teacher, TeacherProfileState state) {
+  Widget _buildProfileHeader(
+    BuildContext context,
+    TeacherModel teacher,
+    TeacherProfileState state,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final totalSubjects = teacher.subjects.length;
     final totalCourses = teacher.courses.length;
@@ -282,15 +306,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                   pageBuilder: (_, _, _) => const TeacherSettingsScreen(),
                   transitionsBuilder: (_, animation, _, child) {
                     return SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(1, 0),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      ),
+                      position:
+                          Tween<Offset>(
+                            begin: const Offset(1, 0),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            ),
+                          ),
                       child: child,
                     );
                   },
@@ -308,7 +333,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                 child: Icon(
                   LucideIcons.settings,
                   size: 18,
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.primary,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.primary,
                 ),
               ),
             ),
@@ -324,9 +351,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
           Text(
             teacher.fullName,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
@@ -345,7 +372,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(LucideIcons.badgeCheck, size: 13, color: AppColors.primary),
+                  const Icon(
+                    LucideIcons.badgeCheck,
+                    size: 13,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 5),
                   Text(
                     'ID: ${teacher.employeeId}',
@@ -365,7 +396,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (teacher.campusName != null) ...[
-                const Icon(LucideIcons.mapPin, size: 12, color: AppColors.textSecondary),
+                const Icon(
+                  LucideIcons.mapPin,
+                  size: 12,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   teacher.campusName!,
@@ -378,10 +413,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
               ],
               if (totalCourses > 0 || totalSubjects > 0) ...[
                 const SizedBox(width: 8),
-                const Text('•', style: TextStyle(color: AppColors.textSecondary)),
+                const Text(
+                  '•',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
@@ -403,7 +444,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
     );
   }
 
-  Widget _buildAvatarWithRing(TeacherModel teacher, TeacherProfileState state, bool isDark) {
+  Widget _buildAvatarWithRing(
+    TeacherModel teacher,
+    TeacherProfileState state,
+    bool isDark,
+  ) {
     final isUploading = state.status == TeacherProfileStatus.uploadingImage;
 
     return Stack(
@@ -490,7 +535,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
 
   Widget _buildAvatarContent(TeacherModel teacher, TeacherProfileState state) {
     // 1. If there's a local photo pending/syncing, show it immediately (Local-first UI)
-    if (state.localPhotoPath != null && File(state.localPhotoPath!).existsSync()) {
+    if (state.localPhotoPath != null &&
+        File(state.localPhotoPath!).existsSync()) {
       return Image.file(
         File(state.localPhotoPath!),
         fit: BoxFit.cover,
@@ -519,8 +565,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
     final initials = parts.length >= 2
         ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
         : name.isNotEmpty
-            ? name[0].toUpperCase()
-            : 'T';
+        ? name[0].toUpperCase()
+        : 'T';
 
     return Container(
       width: 96,
@@ -562,19 +608,25 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
           _DetailTile(
             icon: LucideIcons.graduationCap,
             label: 'Highest Qualification',
-            value: teacher.qualification?.isNotEmpty == true ? teacher.qualification! : 'Not specified',
+            value: teacher.qualification?.isNotEmpty == true
+                ? teacher.qualification!
+                : 'Not specified',
           ),
           _divider(),
           _DetailTile(
             icon: LucideIcons.history,
             label: 'Teaching Experience',
-            value: expYears > 0 ? '$expYears Year${expYears != 1 ? 's' : ''}' : 'Not specified',
+            value: expYears > 0
+                ? '$expYears Year${expYears != 1 ? 's' : ''}'
+                : 'Not specified',
           ),
           _divider(),
           _DetailTile(
             icon: LucideIcons.user,
             label: 'Gender',
-            value: teacher.gender?.isNotEmpty == true ? teacher.gender! : 'Not specified',
+            value: teacher.gender?.isNotEmpty == true
+                ? teacher.gender!
+                : 'Not specified',
           ),
         ],
       ),
@@ -601,13 +653,17 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
           _DetailTile(
             icon: LucideIcons.phone,
             label: 'Phone Number',
-            value: teacher.phoneNumber?.isNotEmpty == true ? teacher.phoneNumber! : 'Not specified',
+            value: teacher.phoneNumber?.isNotEmpty == true
+                ? teacher.phoneNumber!
+                : 'Not specified',
           ),
           _divider(),
           _DetailTile(
             icon: LucideIcons.home,
             label: 'Home Address',
-            value: teacher.address?.isNotEmpty == true ? teacher.address! : 'Not specified',
+            value: teacher.address?.isNotEmpty == true
+                ? teacher.address!
+                : 'Not specified',
           ),
         ],
       ),
@@ -635,7 +691,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
           _sectionHeader(context, LucideIcons.award, 'CAMPUS & ASSIGNMENTS'),
           const SizedBox(height: 14),
           ...grouped.entries.map(
-            (entry) => _CourseGroup(courseName: entry.key, assignments: entry.value),
+            (entry) =>
+                _CourseGroup(courseName: entry.key, assignments: entry.value),
           ),
         ],
       ),
@@ -681,10 +738,18 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
   void _showEditProfileBottomSheet(BuildContext context, TeacherModel teacher) {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: teacher.fullName);
-    final phoneController = TextEditingController(text: teacher.phoneNumber ?? '');
-    final addressController = TextEditingController(text: teacher.address ?? '');
-    final qualController = TextEditingController(text: teacher.qualification ?? '');
-    final expController = TextEditingController(text: teacher.experienceYears?.toString() ?? '');
+    final phoneController = TextEditingController(
+      text: teacher.phoneNumber ?? '',
+    );
+    final addressController = TextEditingController(
+      text: teacher.address ?? '',
+    );
+    final qualController = TextEditingController(
+      text: teacher.qualification ?? '',
+    );
+    final expController = TextEditingController(
+      text: teacher.experienceYears?.toString() ?? '',
+    );
 
     showModalBottomSheet(
       context: context,
@@ -693,12 +758,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
             ),
             child: Form(
               key: formKey,
@@ -732,9 +801,13 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                       decoration: InputDecoration(
                         labelText: 'Full Name',
                         prefixIcon: const Icon(LucideIcons.user, size: 18),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Name is required'
+                          : null,
                     ),
                     const SizedBox(height: 14),
                     TextFormField(
@@ -743,7 +816,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
                         prefixIcon: const Icon(LucideIcons.phone, size: 18),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -753,7 +828,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                       decoration: InputDecoration(
                         labelText: 'Home Address',
                         prefixIcon: const Icon(LucideIcons.home, size: 18),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -761,8 +838,13 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                       controller: qualController,
                       decoration: InputDecoration(
                         labelText: 'Qualification (e.g. MSc, B.Ed)',
-                        prefixIcon: const Icon(LucideIcons.graduationCap, size: 18),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        prefixIcon: const Icon(
+                          LucideIcons.graduationCap,
+                          size: 18,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -772,7 +854,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                       decoration: InputDecoration(
                         labelText: 'Experience (Years)',
                         prefixIcon: const Icon(LucideIcons.history, size: 18),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       validator: (v) {
                         if (v != null && v.isNotEmpty) {
@@ -793,7 +877,10 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -803,12 +890,18 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             onPressed: () {
                               if (formKey.currentState!.validate()) {
-                                final exp = int.tryParse(expController.text.trim()) ?? 0;
-                                context.read<TeacherProfileCubit>().updateProfile(
+                                final exp =
+                                    int.tryParse(expController.text.trim()) ??
+                                    0;
+                                context
+                                    .read<TeacherProfileCubit>()
+                                    .updateProfile(
                                       fullName: nameController.text.trim(),
                                       phoneNumber: phoneController.text.trim(),
                                       address: addressController.text.trim(),
@@ -818,7 +911,10 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
                                 Navigator.pop(ctx);
                               }
                             },
-                            child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: const Text(
+                              'Save Changes',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                       ],

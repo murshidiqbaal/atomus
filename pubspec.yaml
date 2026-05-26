@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^8.1.0
   fl_chart: ^0.70.0
-  lucide_icons: ^0.257.0
+  
   intl: ^0.20.2
   flutter_bloc: ^9.1.1
   equatable: ^2.0.8
@@ -68,6 +68,7 @@ dependencies:
   package_info_plus: ^10.1.0
   geolocator: ^13.0.2
   permission_handler: ^12.0.1
+  lucide_flutter: ^1.16.0
 
 dev_dependencies:
   flutter_test:

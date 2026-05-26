@@ -2,7 +2,7 @@ import 'package:atomus/models/dummy_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_event.dart';

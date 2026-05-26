@@ -2,7 +2,7 @@ import 'package:atomus/blocs/course/course_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../blocs/course/course_bloc.dart';
 import '../../blocs/course/course_state.dart';
@@ -691,11 +691,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           record.status == 'Present'
                               ? LucideIcons.checkCircle
                               : record.status == 'Absent'
-                                  ? LucideIcons.xCircle
-                                  : record.status == 'Late'
-                                      ? LucideIcons.clock
-                                      : LucideIcons.helpCircle,
-                          color: record.status != 'Unmarked' ? bgColor : AppColors.textSecondary,
+                              ? LucideIcons.xCircle
+                              : record.status == 'Late'
+                              ? LucideIcons.clock
+                              : LucideIcons.helpCircle,
+                          color: record.status != 'Unmarked'
+                              ? bgColor
+                              : AppColors.textSecondary,
                           size: 32,
                         ),
                       ),
@@ -709,13 +711,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     fontWeight: FontWeight.w900,
                     fontSize: 20,
                     letterSpacing: 1.5,
-                    color: record.status != 'Unmarked' ? bgColor : AppColors.textSecondary,
+                    color: record.status != 'Unmarked'
+                        ? bgColor
+                        : AppColors.textSecondary,
                   ),
                 ),
                 if (record.status != 'Unmarked') ...[
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).brightness == Brightness.dark
                           ? Colors.white.withOpacity(0.04)
@@ -736,7 +743,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(LucideIcons.user, size: 12, color: AppColors.textSecondary),
+                            const Icon(
+                              LucideIcons.user,
+                              size: 12,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               teacherName,
@@ -770,4 +781,3 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 }
-

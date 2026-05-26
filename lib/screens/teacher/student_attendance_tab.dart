@@ -1,6 +1,6 @@
 // import 'package:flutter/material.dart';
 // import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:lucide_icons/lucide_icons.dart';
+// import 'package:lucide_flutter/lucide_flutter.dart';
 
 // import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 // import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
