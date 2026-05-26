@@ -1,253 +1,119 @@
-# ============================================================
-
-# Atomus ERP - Codemagic Configuration
-
-# FREE iOS Simulator Build Setup
-
-# ============================================================
-
-# This setup:
-
-# ✅ Builds Android APK + AAB
-
-# ✅ Builds iOS Simulator app (.app)
-
-# ✅ Does NOT require Apple Developer account
-
-# ✅ Does NOT require App Store upload
-
-# ✅ Does NOT require provisioning profiles
-
-# ✅ Works on Codemagic free plan
-
-# ❌ Does NOT generate installable IPA
-
-# ❌ Does NOT install on real iPhone
-
-# ============================================================
-
 workflows:
 
-# ==========================================================
+  atomus-parent:
+    name: Atomus Parent Simulator Build
 
-# PARENT APP
+    instance_type: mac_mini_m2
 
-# ==========================================================
+    max_build_duration: 60
 
-atomus-parent:
-name: Atomus Parent Simulator Build
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      java: 17
 
+      groups:
+        - firebase_parent
 
-instance_type: mac_mini_m2
+    scripts:
+      - name: Flutter Clean
+        script: |
+          flutter clean
 
-max_build_duration: 60
+      - name: Install Flutter Packages
+        script: |
+          flutter pub get
 
-environment:
-  flutter: stable
-  xcode: latest
-  cocoapods: default
-  java: 17
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install --repo-update
+          cd ..
 
-  groups:
-    - firebase_parent
+      - name: Build iOS Simulator App
+        script: |
+          flutter build ios --simulator
 
-  android_signing:
-    - atomus_keystore
-
-  vars:
-    BUNDLE_ID: com.atomus.parentapp
-    PACKAGE_NAME: com.atomus.parentapp
-
-scripts:
-  - name: Flutter Clean
-    script: |
-      flutter clean
-
-  - name: Install Flutter Packages
-    script: |
-      flutter pub get
-
-  - name: Decode Firebase Android Config
-    script: |
-      echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
-
-  - name: Decode Firebase iOS Config
-    script: |
-      echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
-
-  - name: Install CocoaPods
-    script: |
-      cd ios
-      pod install --repo-update
-      cd ..
-
-  - name: Build Android APK
-    script: |
-      flutter build apk --release \
-        --build-name=1.0.$BUILD_NUMBER \
-        --build-number=$BUILD_NUMBER
-
-  - name: Build Android App Bundle
-    script: |
-      flutter build appbundle --release \
-        --build-name=1.0.$BUILD_NUMBER \
-        --build-number=$BUILD_NUMBER
-
-  - name: Build iOS Simulator App
-    script: |
-      flutter build ios --simulator
-
-artifacts:
-  - build/app/outputs/flutter-apk/*.apk
-  - build/app/outputs/bundle/release/*.aab
-  - build/ios/iphonesimulator/*.app
+    artifacts:
+      - build/ios/iphonesimulator/*.app
 
 
-# ==========================================================
 
-# TEACHER APP
+  atomus-teacher:
+    name: Atomus Teacher Simulator Build
 
-# ==========================================================
+    instance_type: mac_mini_m2
 
-atomus-teacher:
-name: Atomus Teacher Simulator Build
+    max_build_duration: 60
 
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      java: 17
 
-instance_type: mac_mini_m2
+      groups:
+        - firebase_teacher
 
-max_build_duration: 60
+    scripts:
+      - name: Flutter Clean
+        script: |
+          flutter clean
 
-environment:
-  flutter: stable
-  xcode: latest
-  cocoapods: default
-  java: 17
+      - name: Install Flutter Packages
+        script: |
+          flutter pub get
 
-  groups:
-    - firebase_teacher
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install --repo-update
+          cd ..
 
-  android_signing:
-    - atomus_keystore
+      - name: Build iOS Simulator App
+        script: |
+          flutter build ios --simulator
 
-  vars:
-    BUNDLE_ID: com.atomus.teacherapp
-    PACKAGE_NAME: com.atomus.teacherapp
-
-scripts:
-  - name: Flutter Clean
-    script: |
-      flutter clean
-
-  - name: Install Flutter Packages
-    script: |
-      flutter pub get
-
-  - name: Decode Firebase Android Config
-    script: |
-      echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
-
-  - name: Decode Firebase iOS Config
-    script: |
-      echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
-
-  - name: Install CocoaPods
-    script: |
-      cd ios
-      pod install --repo-update
-      cd ..
-
-  - name: Build Android APK
-    script: |
-      flutter build apk --release \
-        --build-name=1.0.$BUILD_NUMBER \
-        --build-number=$BUILD_NUMBER
-
-  - name: Build Android App Bundle
-    script: |
-      flutter build appbundle --release \
-        --build-name=1.0.$BUILD_NUMBER \
-        --build-number=$BUILD_NUMBER
-
-  - name: Build iOS Simulator App
-    script: |
-      flutter build ios --simulator
-
-artifacts:
-  - build/app/outputs/flutter-apk/*.apk
-  - build/app/outputs/bundle/release/*.aab
-  - build/ios/iphonesimulator/*.app
+    artifacts:
+      - build/ios/iphonesimulator/*.app
 
 
-# ==========================================================
 
-# ADMIN APP
+  atomus-admin:
+    name: Atomus Admin Simulator Build
 
-# ==========================================================
+    instance_type: mac_mini_m2
 
-atomus-admin:
-name: Atomus Admin Simulator Build
+    max_build_duration: 60
 
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      java: 17
 
-instance_type: mac_mini_m2
+      groups:
+        - firebase_admin
 
-max_build_duration: 60
+    scripts:
+      - name: Flutter Clean
+        script: |
+          flutter clean
 
-environment:
-  flutter: stable
-  xcode: latest
-  cocoapods: default
-  java: 17
+      - name: Install Flutter Packages
+        script: |
+          flutter pub get
 
-  groups:
-    - firebase_admin
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install --repo-update
+          cd ..
 
-  android_signing:
-    - atomus_keystore
+      - name: Build iOS Simulator App
+        script: |
+          flutter build ios --simulator
 
-  vars:
-    BUNDLE_ID: com.atomus.adminapp
-    PACKAGE_NAME: com.atomus.adminapp
-
-scripts:
-  - name: Flutter Clean
-    script: |
-      flutter clean
-
-  - name: Install Flutter Packages
-    script: |
-      flutter pub get
-
-  - name: Decode Firebase Android Config
-    script: |
-      echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
-
-  - name: Decode Firebase iOS Config
-    script: |
-      echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
-
-  - name: Install CocoaPods
-    script: |
-      cd ios
-      pod install --repo-update
-      cd ..
-
-  - name: Build Android APK
-    script: |
-      flutter build apk --release \
-        --build-name=1.0.$BUILD_NUMBER \
-        --build-number=$BUILD_NUMBER
-
-  - name: Build Android App Bundle
-    script: |
-      flutter build appbundle --release \
-        --build-name=1.0.$BUILD_NUMBER \
-        --build-number=$BUILD_NUMBER
-
-  - name: Build iOS Simulator App
-    script: |
-      flutter build ios --simulator
-
-artifacts:
-  - build/app/outputs/flutter-apk/*.apk
-  - build/app/outputs/bundle/release/*.aab
-  - build/ios/iphonesimulator/*.app
+    artifacts:
+      - build/ios/iphonesimulator/*.app
