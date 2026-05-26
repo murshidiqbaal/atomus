@@ -1,238 +1,233 @@
 # ============================================================
-# Atomus ERP -- Codemagic CI/CD
+
+# Atomus ERP -- Codemagic CI/CD (Simulator-only iOS builds)
+
 # ============================================================
-# Three iOS + Android workflows, one per role:
-#   * atomus-parent   -> com.atomus.parentapp
-#   * atomus-teacher  -> com.atomus.teacherapp
-#   * atomus-admin    -> com.atomus.adminapp
-#
-# Each workflow:
-#   * Pulls the role-specific GoogleService-Info.plist /
-#     google-services.json from the Codemagic encrypted store.
-#   * Signs the iOS build with the role-specific Apple bundle id
-#     via the App Store Connect API integration.
-#   * Publishes to TestFlight + App Store (iOS) and Google Play
-#     internal track (Android).
-#
-# One-time setup (Codemagic UI):
-#   Teams > Integrations > Apple Developer Portal
-#     - upload an App Store Connect API key (.p8) -- name it
-#       "appstore_credentials"
-#   Teams > Environment variables > add group "firebase_parent"
-#     - GOOGLE_SERVICE_INFO_PLIST: base64 of the parent
-#       GoogleService-Info.plist
-#     - GOOGLE_SERVICES_JSON: base64 of the parent
-#       google-services.json
-#   ...repeat groups "firebase_teacher" and "firebase_admin".
+
+# This configuration:
+
+# - Builds Android APK + AAB normally
+
+# - Builds ONLY iOS simulator apps (.app)
+
+# - Does NOT require Apple signing
+
+# - Does NOT require App Store publishing
+
+# - Does NOT require provisioning profiles
+
+# - Works without Mac/iPhone ownership
+
 # ============================================================
 
 definitions:
-  # ---------------------------------------------------------
-  # Shared script blocks (DRY).
-  # ---------------------------------------------------------
-  scripts:
-    - &decode_firebase_ios
-      name: Decode GoogleService-Info.plist
-      script: |
-        echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode \
-          > ios/Runner/GoogleService-Info.plist
-    - &decode_firebase_android
-      name: Decode google-services.json
-      script: |
-        echo "$GOOGLE_SERVICES_JSON" | base64 --decode \
-          > android/app/google-services.json
-    - &flutter_pub_get
-      name: Flutter packages
-      script: |
-        flutter --version
-        flutter packages pub get
-    - &pod_install
-      name: CocoaPods install
-      script: |
-        find . -name "Podfile" -execdir pod install --repo-update \;
-    - &flutter_analyze
-      name: Flutter analyze
-      script: |
-        flutter analyze --no-pub --no-fatal-infos
-    - &build_ios_ipa
-      name: Build iOS IPA
-      script: |
-        flutter build ipa --release \
-          --build-name=1.0.$BUILD_NUMBER \
-          --build-number=$BUILD_NUMBER \
-          --export-options-plist=/Users/builder/export_options.plist
-    - &build_android_aab
-      name: Build Android AAB
-      script: |
-        flutter build appbundle --release \
-          --build-name=1.0.$BUILD_NUMBER \
-          --build-number=$BUILD_NUMBER
+scripts:
+- &decode_firebase_ios
+name: Decode GoogleService-Info.plist
+script: |
+echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode 
+> ios/Runner/GoogleService-Info.plist
 
-  # ---------------------------------------------------------
-  # Common environment defaults inherited per workflow.
-  # ---------------------------------------------------------
-  flutter_env: &flutter_env
-    flutter: stable
-    xcode: latest
-    cocoapods: default
-    java: 17
+```
+- &decode_firebase_android
+  name: Decode google-services.json
+  script: |
+    echo "$GOOGLE_SERVICES_JSON" | base64 --decode \
+      > android/app/google-services.json
 
-  artifacts: &artifacts
-    - build/ios/ipa/*.ipa
-    - build/app/outputs/bundle/release/*.aab
-    - flutter_drive.log
+- &flutter_pub_get
+  name: Flutter packages
+  script: |
+    flutter --version
+    flutter packages pub get
 
-# ============================================================
-# WORKFLOW: Parent App
-# ============================================================
+- &pod_install
+  name: CocoaPods install
+  script: |
+    find . -name "Podfile" -execdir pod install --repo-update \;
+
+- &build_ios_simulator
+  name: Build iOS Simulator App
+  script: |
+    flutter build ios --simulator
+
+- &build_android
+  name: Build Android AAB + APK
+  script: |
+    flutter build appbundle --release \
+      --build-name=1.0.$BUILD_NUMBER \
+      --build-number=$BUILD_NUMBER
+
+    flutter build apk --release \
+      --build-name=1.0.$BUILD_NUMBER \
+      --build-number=$BUILD_NUMBER
+```
+
+flutter_env: &flutter_env
+flutter: stable
+xcode: latest
+cocoapods: default
+java: 17
+
 workflows:
-  atomus-parent:
-    name: Atomus Parent (iOS + Android)
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    environment:
-      <<: *flutter_env
-      groups:
-        - firebase_parent          # GOOGLE_SERVICE_INFO_PLIST etc.
-        - appstore_credentials     # App Store Connect API key (added in UI)
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.atomus.parentapp
-      vars:
-        BUNDLE_ID: com.atomus.parentapp
-        PACKAGE_NAME: com.atomus.parentapp
-        APP_STORE_APPLE_ID: "1234567890"   # replace with App ID from App Store Connect
-    triggering:
-      events:    [push, tag]
-      branch_patterns:
-        - pattern: main
-          include: true
-    scripts:
-      - *decode_firebase_ios
-      - *decode_firebase_android
-      - *flutter_pub_get
-      - *pod_install
-      - *flutter_analyze
-      - *build_ios_ipa
-      - *build_android_aab
-    artifacts: *artifacts
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        submit_to_app_store: false
-      google_play:
-        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
-        track: internal
-        package_name: com.atomus.parentapp
 
-# ============================================================
-# WORKFLOW: Teacher App
-# ============================================================
-  atomus-teacher:
-    name: Atomus Teacher (iOS + Android)
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    environment:
-      <<: *flutter_env
-      groups:
-        - firebase_teacher
-        - appstore_credentials
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.atomus.teacherapp
-      vars:
-        BUNDLE_ID: com.atomus.teacherapp
-        PACKAGE_NAME: com.atomus.teacherapp
-    triggering:
-      events:    [push, tag]
-      branch_patterns:
-        - pattern: release/teacher
-          include: true
-    scripts:
-      - *decode_firebase_ios
-      - *decode_firebase_android
-      # Override the bundle id baked into Xcode + Gradle for this
-      # workflow so the same source tree builds the teacher app.
-      - name: Rebrand bundle id (teacher)
-        script: |
-          sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
-            ios/Runner.xcodeproj/project.pbxproj \
-            ios/Runner/GoogleService-Info.plist \
-            android/app/build.gradle.kts \
-            android/app/google-services.json
-          # Move Kotlin source to the new package path.
-          mkdir -p android/app/src/main/kotlin/com/atomus/teacherapp
-          mv android/app/src/main/kotlin/com/atomus/parentapp/MainActivity.kt \
-             android/app/src/main/kotlin/com/atomus/teacherapp/MainActivity.kt
-          sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
-            android/app/src/main/kotlin/com/atomus/teacherapp/MainActivity.kt
-          rm -rf android/app/src/main/kotlin/com/atomus/parentapp
-      - *flutter_pub_get
-      - *pod_install
-      - *flutter_analyze
-      - *build_ios_ipa
-      - *build_android_aab
-    artifacts: *artifacts
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-      google_play:
-        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
-        track: internal
-        package_name: com.atomus.teacherapp
+# ==========================================================
 
-# ============================================================
-# WORKFLOW: Admin App
-# ============================================================
-  atomus-admin:
-    name: Atomus Admin (iOS + Android)
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    environment:
-      <<: *flutter_env
-      groups:
-        - firebase_admin
-        - appstore_credentials
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.atomus.adminapp
-      vars:
-        BUNDLE_ID: com.atomus.adminapp
-        PACKAGE_NAME: com.atomus.adminapp
-    triggering:
-      events:    [push, tag]
-      branch_patterns:
-        - pattern: release/admin
-          include: true
-    scripts:
-      - *decode_firebase_ios
-      - *decode_firebase_android
-      - name: Rebrand bundle id (admin)
-        script: |
-          sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
-            ios/Runner.xcodeproj/project.pbxproj \
-            ios/Runner/GoogleService-Info.plist \
-            android/app/build.gradle.kts \
-            android/app/google-services.json
-          mkdir -p android/app/src/main/kotlin/com/atomus/adminapp
-          mv android/app/src/main/kotlin/com/atomus/parentapp/MainActivity.kt \
-             android/app/src/main/kotlin/com/atomus/adminapp/MainActivity.kt
-          sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
-            android/app/src/main/kotlin/com/atomus/adminapp/MainActivity.kt
-          rm -rf android/app/src/main/kotlin/com/atomus/parentapp
-      - *flutter_pub_get
-      - *pod_install
-      - *flutter_analyze
-      - *build_ios_ipa
-      - *build_android_aab
-    artifacts: *artifacts
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-      google_play:
-        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
-        track: internal
-        package_name: com.atomus.adminapp
+# Parent App
+
+# ==========================================================
+
+atomus-parent:
+name: Atomus Parent (Simulator Build)
+
+```
+instance_type: mac_mini_m2
+
+max_build_duration: 60
+
+environment:
+  <<: *flutter_env
+
+  groups:
+    - firebase_parent
+
+  android_signing:
+    - atomus_keystore
+
+  vars:
+    BUNDLE_ID: com.atomus.parentapp
+    PACKAGE_NAME: com.atomus.parentapp
+
+scripts:
+  - *decode_firebase_ios
+  - *decode_firebase_android
+  - *flutter_pub_get
+  - *pod_install
+  - *build_ios_simulator
+  - *build_android
+
+artifacts:
+  - build/ios/iphonesimulator/*.app
+  - build/app/outputs/bundle/release/*.aab
+  - build/app/outputs/flutter-apk/*.apk
+```
+
+# ==========================================================
+
+# Teacher App
+
+# ==========================================================
+
+atomus-teacher:
+name: Atomus Teacher (Simulator Build)
+
+```
+instance_type: mac_mini_m2
+
+max_build_duration: 60
+
+environment:
+  <<: *flutter_env
+
+  groups:
+    - firebase_teacher
+
+  android_signing:
+    - atomus_keystore
+
+  vars:
+    BUNDLE_ID: com.atomus.teacherapp
+    PACKAGE_NAME: com.atomus.teacherapp
+
+scripts:
+  - *decode_firebase_ios
+  - *decode_firebase_android
+
+  - name: Rebrand bundle id (teacher)
+    script: |
+      sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
+        ios/Runner.xcodeproj/project.pbxproj \
+        ios/Runner/GoogleService-Info.plist \
+        android/app/build.gradle.kts \
+        android/app/google-services.json
+
+      mkdir -p android/app/src/main/kotlin/com/atomus/teacherapp
+
+      mv android/app/src/main/kotlin/com/atomus/parentapp/MainActivity.kt \
+         android/app/src/main/kotlin/com/atomus/teacherapp/MainActivity.kt
+
+      sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
+        android/app/src/main/kotlin/com/atomus/teacherapp/MainActivity.kt
+
+      rm -rf android/app/src/main/kotlin/com/atomus/parentapp
+
+  - *flutter_pub_get
+  - *pod_install
+  - *build_ios_simulator
+  - *build_android
+
+artifacts:
+  - build/ios/iphonesimulator/*.app
+  - build/app/outputs/bundle/release/*.aab
+  - build/app/outputs/flutter-apk/*.apk
+```
+
+# ==========================================================
+
+# Admin App
+
+# ==========================================================
+
+atomus-admin:
+name: Atomus Admin (Simulator Build)
+
+```
+instance_type: mac_mini_m2
+
+max_build_duration: 60
+
+environment:
+  <<: *flutter_env
+
+  groups:
+    - firebase_admin
+
+  android_signing:
+    - atomus_keystore
+
+  vars:
+    BUNDLE_ID: com.atomus.adminapp
+    PACKAGE_NAME: com.atomus.adminapp
+
+scripts:
+  - *decode_firebase_ios
+  - *decode_firebase_android
+
+  - name: Rebrand bundle id (admin)
+    script: |
+      sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
+        ios/Runner.xcodeproj/project.pbxproj \
+        ios/Runner/GoogleService-Info.plist \
+        android/app/build.gradle.kts \
+        android/app/google-services.json
+
+      mkdir -p android/app/src/main/kotlin/com/atomus/adminapp
+
+      mv android/app/src/main/kotlin/com/atomus/parentapp/MainActivity.kt \
+         android/app/src/main/kotlin/com/atomus/adminapp/MainActivity.kt
+
+      sed -i '' "s/com.atomus.parentapp/$BUNDLE_ID/g" \
+        android/app/src/main/kotlin/com/atomus/adminapp/MainActivity.kt
+
+      rm -rf android/app/src/main/kotlin/com/atomus/parentapp
+
+  - *flutter_pub_get
+  - *pod_install
+  - *build_ios_simulator
+  - *build_android
+
+artifacts:
+  - build/ios/iphonesimulator/*.app
+  - build/app/outputs/bundle/release/*.aab
+  - build/app/outputs/flutter-apk/*.apk
+```
