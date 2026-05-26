@@ -1,4 +1,4 @@
-package com.example.atomus
+package com.atomus.parentapps
 
 import io.flutter.embedding.android.FlutterActivity
 
