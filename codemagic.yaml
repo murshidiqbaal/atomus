@@ -184,71 +184,71 @@ artifacts:
 
 # ==========================================================
 
-# atomus-admin:
-# name: Atomus Admin Simulator Build
+atomus-admin:
+name: Atomus Admin Simulator Build
 
-# ```
-# instance_type: mac_mini_m2
+```
+instance_type: mac_mini_m2
 
-# max_build_duration: 60
+max_build_duration: 60
 
-# environment:
-#   flutter: stable
-#   xcode: latest
-#   cocoapods: default
-#   java: 17
+environment:
+  flutter: stable
+  xcode: latest
+  cocoapods: default
+  java: 17
 
-#   groups:
-#     - firebase_admin
+  groups:
+    - firebase_admin
 
-#   android_signing:
-#     - atomus_keystore
+  android_signing:
+    - atomus_keystore
 
-#   vars:
-#     BUNDLE_ID: com.atomus.adminapp
-#     PACKAGE_NAME: com.atomus.adminapp
+  vars:
+    BUNDLE_ID: com.atomus.adminapp
+    PACKAGE_NAME: com.atomus.adminapp
 
-# scripts:
-#   - name: Flutter Clean
-#     script: |
-#       flutter clean
+scripts:
+  - name: Flutter Clean
+    script: |
+      flutter clean
 
-#   - name: Install Flutter Packages
-#     script: |
-#       flutter pub get
+  - name: Install Flutter Packages
+    script: |
+      flutter pub get
 
-#   - name: Decode Firebase Android Config
-#     script: |
-#       echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
+  - name: Decode Firebase Android Config
+    script: |
+      echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
 
-#   - name: Decode Firebase iOS Config
-#     script: |
-#       echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+  - name: Decode Firebase iOS Config
+    script: |
+      echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
 
-#   - name: Install CocoaPods
-#     script: |
-#       cd ios
-#       pod install --repo-update
-#       cd ..
+  - name: Install CocoaPods
+    script: |
+      cd ios
+      pod install --repo-update
+      cd ..
 
-#   - name: Build Android APK
-#     script: |
-#       flutter build apk --release \
-#         --build-name=1.0.$BUILD_NUMBER \
-#         --build-number=$BUILD_NUMBER
+  - name: Build Android APK
+    script: |
+      flutter build apk --release \
+        --build-name=1.0.$BUILD_NUMBER \
+        --build-number=$BUILD_NUMBER
 
-#   - name: Build Android App Bundle
-#     script: |
-#       flutter build appbundle --release \
-#         --build-name=1.0.$BUILD_NUMBER \
-#         --build-number=$BUILD_NUMBER
+  - name: Build Android App Bundle
+    script: |
+      flutter build appbundle --release \
+        --build-name=1.0.$BUILD_NUMBER \
+        --build-number=$BUILD_NUMBER
 
-#   - name: Build iOS Simulator App
-#     script: |
-#       flutter build ios --simulator
+  - name: Build iOS Simulator App
+    script: |
+      flutter build ios --simulator
 
-# artifacts:
-#   - build/app/outputs/flutter-apk/*.apk
-#   - build/app/outputs/bundle/release/*.aab
-#   - build/ios/iphonesimulator/*.app
-# ```
+artifacts:
+  - build/app/outputs/flutter-apk/*.apk
+  - build/app/outputs/bundle/release/*.aab
+  - build/ios/iphonesimulator/*.app
+```
