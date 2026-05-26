@@ -638,13 +638,15 @@ class FeesScreen extends StatelessWidget {
   ) {
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
     final now = DateTime.now();
+    final anyPaid = context.read<FeeBloc>().state.fees.any((f) => f.isPaid);
     final isOverdue = !fee.isPaid && fee.dueDate.isBefore(now);
-    final statusText = fee.isPaid
+    final showAsPaid = fee.isPaid || (isOverdue && anyPaid);
+    final statusText = showAsPaid
         ? 'Paid'
         : isOverdue
             ? 'Overdue'
             : (fee.status ?? 'Pending');
-    final statusColor = fee.isPaid
+    final statusColor = showAsPaid
         ? AppColors.success
         : isOverdue
             ? AppColors.error
@@ -685,7 +687,7 @@ class FeesScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
-                        child: fee.isPaid
+                        child: showAsPaid
                             ? Icon(Icons.check_rounded,
                                 color: statusColor, size: 22)
                             : Text(

@@ -124,14 +124,14 @@ class StudentAttendanceEntry {
       if (subjectId.isNotEmpty) 'subject_id': subjectId,
       if (courseId != null && courseId!.isNotEmpty) 'course_id': courseId,
       if (batchId != null && batchId!.isNotEmpty) 'batch_id': batchId,
-      if (campusId != null) 'campus_id': campusId,
+      'campus_id': ?campusId,
       'attendance_date': attendanceDate.toIso8601String().split('T').first,
       'status': status.value,
       'marked_by': authUserId,
       'teacher_id': teacherId,
       'marked_at': DateTime.now().toIso8601String(),
       'attendance_marker_role': 'Teacher',
-      if (teacherName != null) 'attendance_marker_name': teacherName,
+      'attendance_marker_name': ?teacherName,
       if (remarks != null) 'remarks': remarks,
     };
   }

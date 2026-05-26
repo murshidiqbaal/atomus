@@ -37,20 +37,27 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
     if (teacher != null) {
       context.read<TeacherAttendanceCubit>().loadHistory(teacher.id);
       final subjectIds = teacher.subjects.map((s) => s.subjectId).toList();
-      final batchIds   = teacher.subjects.map((s) => s.batchId).whereType<String>().toSet().toList();
-      final courseIds  = teacher.courses.map((c) => c.courseId).toSet().toList();
+      final batchIds = teacher.subjects
+          .map((s) => s.batchId)
+          .whereType<String>()
+          .toSet()
+          .toList();
+      final courseIds = teacher.courses.map((c) => c.courseId).toSet().toList();
       if (subjectIds.isNotEmpty || courseIds.isNotEmpty) {
-        context.read<MarksCubit>().loadExams(
-          subjectIds: subjectIds,
-          batchIds: batchIds,
-          courseIds: courseIds,
-        ).then((_) {
-          final exams = context.read<MarksCubit>().state.exams;
-          if (exams.isNotEmpty) {
-            setState(() => _selectedStatsExam = exams.first);
-            _loadExamMarks(exams.first);
-          }
-        });
+        context
+            .read<MarksCubit>()
+            .loadExams(
+              subjectIds: subjectIds,
+              batchIds: batchIds,
+              courseIds: courseIds,
+            )
+            .then((_) {
+              final exams = context.read<MarksCubit>().state.exams;
+              if (exams.isNotEmpty) {
+                setState(() => _selectedStatsExam = exams.first);
+                _loadExamMarks(exams.first);
+              }
+            });
       }
     }
   }
@@ -58,16 +65,13 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
   Future<void> _loadExamMarks(TeacherExam exam) async {
     setState(() => _loadingMarks = true);
     try {
-      final marks = await context
-          .read<MarksCubit>()
-          .repo
-          .loadStudentsWithMarks(
-            examId: exam.id,
-            subjectId: exam.subjectId,
-            batchId: exam.batchId,
-            courseId: exam.courseId,
-            totalMarks: exam.totalMarks,
-          );
+      final marks = await context.read<MarksCubit>().repo.loadStudentsWithMarks(
+        examId: exam.id,
+        subjectId: exam.subjectId,
+        batchId: exam.batchId,
+        courseId: exam.courseId,
+        totalMarks: exam.totalMarks,
+      );
       setState(() {
         _loadedMarks = marks;
         _loadingMarks = false;
@@ -365,7 +369,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
               const SizedBox(height: 16),
               // Dropdown to select active exam
               DropdownButtonFormField<TeacherExam>(
-                value: _selectedStatsExam,
+                initialValue: _selectedStatsExam,
                 decoration: InputDecoration(
                   labelText: 'Select Exam Assessment',
                   border: OutlineInputBorder(

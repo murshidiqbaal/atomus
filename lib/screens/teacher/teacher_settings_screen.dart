@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
+import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
 import '../../blocs/theme/theme_bloc.dart';
 import '../../blocs/theme/theme_event.dart';
 import '../../blocs/theme/theme_state.dart';
-import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
-import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
@@ -54,9 +54,7 @@ class TeacherSettingsScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'Settings',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w900),
                         ),
                       ),
@@ -104,9 +102,9 @@ class TeacherSettingsScreen extends StatelessWidget {
                     label: 'Light Mode',
                     subtitle: 'Neumorphic design',
                     isActive: themeState.themeMode == ThemeMode.light,
-                    onTap: () => context
-                        .read<ThemeBloc>()
-                        .add(const SetThemeMode(ThemeMode.light)),
+                    onTap: () => context.read<ThemeBloc>().add(
+                      const SetThemeMode(ThemeMode.light),
+                    ),
                     activeColor: AppColors.accent,
                   ),
                   const SizedBox(height: 8),
@@ -115,9 +113,9 @@ class TeacherSettingsScreen extends StatelessWidget {
                     label: 'Dark Mode',
                     subtitle: 'Glassmorphic design',
                     isActive: themeState.themeMode == ThemeMode.dark,
-                    onTap: () => context
-                        .read<ThemeBloc>()
-                        .add(const SetThemeMode(ThemeMode.dark)),
+                    onTap: () => context.read<ThemeBloc>().add(
+                      const SetThemeMode(ThemeMode.dark),
+                    ),
                     activeColor: AppColors.primary,
                   ),
                   const SizedBox(height: 8),
@@ -126,9 +124,9 @@ class TeacherSettingsScreen extends StatelessWidget {
                     label: 'System Default',
                     subtitle: 'Follow device theme',
                     isActive: themeState.themeMode == ThemeMode.system,
-                    onTap: () => context
-                        .read<ThemeBloc>()
-                        .add(const SetThemeMode(ThemeMode.system)),
+                    onTap: () => context.read<ThemeBloc>().add(
+                      const SetThemeMode(ThemeMode.system),
+                    ),
                     activeColor: AppColors.info,
                   ),
                 ],
@@ -221,8 +219,7 @@ class TeacherSettingsScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Center(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -355,17 +352,21 @@ class _ThemeOptionTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: isActive ? activeColor : null,
-                      )),
-                  Text(subtitle,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      )),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: isActive ? activeColor : null,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -419,18 +420,22 @@ class _InfoRow extends StatelessWidget {
             children: [
               Icon(icon, size: 15, color: AppColors.textSecondary),
               const SizedBox(width: 10),
-              Text('$label',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  )),
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const Spacer(),
-              Text(value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  )),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
         ),

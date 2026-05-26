@@ -9,13 +9,13 @@ import '../../blocs/teacher_attendance/teacher_attendance_cubit.dart';
 import '../../blocs/teacher_attendance/teacher_attendance_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
-import '../../theme/app_colors.dart';
 import '../../models/teacher_model.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
-import 'teacher_attendance_screen.dart';
-import 'student_attendance_screen.dart';
 import 'marks_entry_screen.dart';
+import 'student_attendance_screen.dart';
+import 'teacher_attendance_screen.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -49,8 +49,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(LucideIcons.alertCircle,
-                          size: 48, color: AppColors.error),
+                      const Icon(
+                        LucideIcons.alertCircle,
+                        size: 48,
+                        color: AppColors.error,
+                      ),
                       const SizedBox(height: 16),
                       Text(state.errorMessage ?? 'Failed to load dashboard'),
                       const SizedBox(height: 16),
@@ -64,7 +67,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 );
               }
               return RefreshIndicator(
-                onRefresh: () => context.read<TeacherDashboardCubit>().refresh(),
+                onRefresh: () =>
+                    context.read<TeacherDashboardCubit>().refresh(),
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   children: [
@@ -85,7 +89,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     if (state.upcomingExams.isNotEmpty) ...[
                       _buildSectionTitle('Upcoming Exams'),
                       const SizedBox(height: 10),
-                      ...state.upcomingExams.map((e) => _buildExamTile(context, e)),
+                      ...state.upcomingExams.map(
+                        (e) => _buildExamTile(context, e),
+                      ),
                     ],
                     const SizedBox(height: 20),
                     _buildAttendanceSummaryCard(context, state),
@@ -103,7 +109,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   Widget _buildHeader(BuildContext context, TeacherDashboardState state) {
     final name = state.teacher?.fullName ?? 'Teacher';
-    final now  = DateTime.now();
+    final now = DateTime.now();
     return Row(
       children: [
         Expanded(
@@ -140,8 +146,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           height: 44,
           borderRadius: 14,
           padding: EdgeInsets.zero,
-          child: const Icon(LucideIcons.bellRing,
-              size: 20, color: AppColors.primary),
+          child: const Icon(
+            LucideIcons.bellRing,
+            size: 20,
+            color: AppColors.primary,
+          ),
         ),
       ],
     );
@@ -150,11 +159,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   // ── Geofence / GPS status bar ───────────────────────────────────────────────
 
   Widget _buildGeofenceStatusBar(
-      BuildContext context, TeacherDashboardState dashState) {
+    BuildContext context,
+    TeacherDashboardState dashState,
+  ) {
     return BlocBuilder<GeofenceCubit, GeofenceState>(
       builder: (ctx, geo) {
-        final bool hasCampus =
-            dashState.teacher?.hasCampusCoordinates ?? false;
+        final bool hasCampus = dashState.teacher?.hasCampusCoordinates ?? false;
         final bool hasActiveSession = dashState.activeSession != null;
 
         Color barColor;
@@ -163,37 +173,37 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
         if (!hasCampus) {
           barColor = AppColors.textSecondary;
-          barIcon  = LucideIcons.mapPin;
+          barIcon = LucideIcons.mapPin;
           barLabel = 'No campus location configured';
         } else {
           switch (geo.status) {
             case GeofenceStatus.inside:
               barColor = AppColors.success;
-              barIcon  = LucideIcons.mapPin;
+              barIcon = LucideIcons.mapPin;
               barLabel = 'Inside campus · attendance unlocked';
             case GeofenceStatus.outside:
               barColor = AppColors.error;
-              barIcon  = LucideIcons.mapPinOff;
+              barIcon = LucideIcons.mapPinOff;
               barLabel = 'Outside campus · ${geo.distanceMeters.toInt()}m away';
             case GeofenceStatus.checking:
               barColor = AppColors.info;
-              barIcon  = LucideIcons.loader;
+              barIcon = LucideIcons.loader;
               barLabel = 'Verifying location...';
             case GeofenceStatus.permissionDenied:
               barColor = AppColors.warning;
-              barIcon  = LucideIcons.shieldOff;
+              barIcon = LucideIcons.shieldOff;
               barLabel = 'Location permission denied';
             case GeofenceStatus.serviceDisabled:
               barColor = AppColors.warning;
-              barIcon  = LucideIcons.wifiOff;
+              barIcon = LucideIcons.wifiOff;
               barLabel = 'GPS disabled — enable location services';
             case GeofenceStatus.error:
               barColor = AppColors.warning;
-              barIcon  = LucideIcons.alertTriangle;
+              barIcon = LucideIcons.alertTriangle;
               barLabel = 'Location error — tap to retry';
             case GeofenceStatus.unknown:
               barColor = AppColors.textSecondary;
-              barIcon  = LucideIcons.mapPin;
+              barIcon = LucideIcons.mapPin;
               barLabel = hasCampus
                   ? 'Tap to verify campus location'
                   : 'Campus location not set';
@@ -201,22 +211,22 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         }
 
         return GestureDetector(
-          onTap: hasCampus &&
-                  geo.status != GeofenceStatus.checking
+          onTap: hasCampus && geo.status != GeofenceStatus.checking
               ? () => ctx.read<GeofenceCubit>().checkGeofence(
-                    campusLatitude:  dashState.teacher!.campusLatitude!,
-                    campusLongitude: dashState.teacher!.campusLongitude!,
-                    radiusMeters:    dashState.teacher!.geofenceRadiusMeters,
-                  )
+                  campusLatitude: dashState.teacher!.campusLatitude!,
+                  campusLongitude: dashState.teacher!.campusLongitude!,
+                  radiusMeters: dashState.teacher!.geofenceRadiusMeters,
+                )
               : null,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: barColor.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: barColor.withValues(alpha: 0.2), width: 1),
+                color: barColor.withValues(alpha: 0.2),
+                width: 1,
+              ),
             ),
             child: Row(
               children: [
@@ -244,9 +254,13 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 // Attendance lock badge
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: (hasActiveSession || geo.status == GeofenceStatus.inside)
+                    color:
+                        (hasActiveSession ||
+                            geo.status == GeofenceStatus.inside)
                         ? AppColors.success.withValues(alpha: 0.12)
                         : AppColors.error.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(8),
@@ -260,7 +274,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             ? LucideIcons.unlock
                             : LucideIcons.lock,
                         size: 10,
-                        color: (hasActiveSession ||
+                        color:
+                            (hasActiveSession ||
                                 geo.status == GeofenceStatus.inside)
                             ? AppColors.success
                             : AppColors.error,
@@ -274,7 +289,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: (hasActiveSession ||
+                          color:
+                              (hasActiveSession ||
                                   geo.status == GeofenceStatus.inside)
                               ? AppColors.success
                               : AppColors.error,
@@ -294,7 +310,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   // ── Active session banner ──────────────────────────────────────────────────
 
   Widget _buildActiveSessionBanner(
-      BuildContext context, TeacherDashboardState state) {
+    BuildContext context,
+    TeacherDashboardState state,
+  ) {
     final session = state.activeSession!;
     return BlocBuilder<TeacherAttendanceCubit, TeacherAttendanceState>(
       builder: (ctx, attState) {
@@ -315,8 +333,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           ),
           child: Row(
             children: [
-              const Icon(LucideIcons.playCircle,
-                  color: Colors.white, size: 28),
+              const Icon(LucideIcons.playCircle, color: Colors.white, size: 28),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -354,17 +371,21 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                 ),
                 onPressed:
                     attState.status == TeacherAttendanceLoadStatus.loading
-                        ? null
-                        : () => ctx.read<TeacherAttendanceCubit>().endSession(),
-                child: const Text('End',
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w800)),
+                    ? null
+                    : () => ctx.read<TeacherAttendanceCubit>().endSession(),
+                child: const Text(
+                  'End',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
               ),
             ],
           ),
@@ -376,7 +397,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   // ── Stats row ──────────────────────────────────────────────────────────────
 
   Widget _buildStatsRow(BuildContext context, TeacherDashboardState state) {
-    final subjects      = state.teacher?.subjects ?? [];
+    final subjects = state.teacher?.subjects ?? [];
     final uniqueBatches = subjects
         .map((s) => s.batchId)
         .toSet()
@@ -386,23 +407,29 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
     return Row(
       children: [
-        _buildStatCard(context,
-            icon: LucideIcons.users,
-            label: 'Batches',
-            value: '$uniqueBatches',
-            color: AppColors.primary),
+        _buildStatCard(
+          context,
+          icon: LucideIcons.users,
+          label: 'Batches',
+          value: '$uniqueBatches',
+          color: AppColors.primary,
+        ),
         const SizedBox(width: 10),
-        _buildStatCard(context,
-            icon: LucideIcons.bookOpen,
-            label: 'Subjects',
-            value: '${subjects.length}',
-            color: AppColors.accent),
+        _buildStatCard(
+          context,
+          icon: LucideIcons.bookOpen,
+          label: 'Subjects',
+          value: '${subjects.length}',
+          color: AppColors.accent,
+        ),
         const SizedBox(width: 10),
-        _buildStatCard(context,
-            icon: LucideIcons.clock,
-            label: 'Pending',
-            value: '$pendingAtt',
-            color: pendingAtt > 0 ? AppColors.error : AppColors.success),
+        _buildStatCard(
+          context,
+          icon: LucideIcons.clock,
+          label: 'Pending',
+          value: '$pendingAtt',
+          color: pendingAtt > 0 ? AppColors.error : AppColors.success,
+        ),
       ],
     );
   }
@@ -459,11 +486,13 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   // ── Assigned classes carousel ──────────────────────────────────────────────
 
   Widget _buildAssignedClassesCarousel(
-      BuildContext context, TeacherDashboardState state) {
+    BuildContext context,
+    TeacherDashboardState state,
+  ) {
     final subjects = state.teacher?.subjects ?? [];
     final courses = state.teacher?.courses ?? [];
     final items = [...courses, ...subjects];
-    
+
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -480,11 +509,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             itemBuilder: (ctx, index) {
               final item = items[index];
               final isCourse = item is TeacherCourseAssignment;
-              
+
               String title;
               String subtitle;
               String badge;
-              
+
               if (isCourse) {
                 title = item.courseName;
                 subtitle = 'Course Level Access';
@@ -502,29 +531,33 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 child: GestureDetector(
                   onTap: () {
                     if (isCourse) {
-                      final c = item as TeacherCourseAssignment;
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => StudentAttendanceScreen(
-                          subjectId:   '',
-                          subjectName: c.courseName,
-                          batchId:     '',
-                          batchName:   'All Students in Course',
-                          courseId:    c.courseId,
-                          campusId:    state.teacher?.campusId,
+                      final c = item;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => StudentAttendanceScreen(
+                            subjectId: '',
+                            subjectName: c.courseName,
+                            batchId: '',
+                            batchName: 'All Students in Course',
+                            courseId: c.courseId,
+                            campusId: state.teacher?.campusId,
+                          ),
                         ),
-                      ));
+                      );
                     } else {
                       final s = item as TeacherSubjectAssignment;
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => StudentAttendanceScreen(
-                          subjectId:   s.subjectId,
-                          subjectName: s.subjectName,
-                          batchId:     s.batchId ?? '',
-                          batchName:   s.batchName,
-                          courseId:    s.courseId,
-                          campusId:    state.teacher?.campusId,
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => StudentAttendanceScreen(
+                            subjectId: s.subjectId,
+                            subjectName: s.subjectName,
+                            batchId: s.batchId ?? '',
+                            batchName: s.batchName,
+                            courseId: s.courseId,
+                            campusId: state.teacher?.campusId,
+                          ),
                         ),
-                      ));
+                      );
                     }
                   },
                   child: Container(
@@ -532,13 +565,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: index % 2 == 0
-                            ? [
-                                const Color(0xFF4F46E5),
-                                const Color(0xFF6366F1)
-                              ]
+                            ? [const Color(0xFF4F46E5), const Color(0xFF6366F1)]
                             : [
                                 const Color(0xFF0F172A),
-                                const Color(0xFF1E293B)
+                                const Color(0xFF1E293B),
                               ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -554,7 +584,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
@@ -568,8 +600,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                 ),
                               ),
                             ),
-                            const Icon(LucideIcons.arrowUpRight,
-                                color: Colors.white, size: 16),
+                            const Icon(
+                              LucideIcons.arrowUpRight,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ],
                         ),
                         Column(
@@ -610,8 +645,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // ── Quick actions ──────────────────────────────────────────────────────────
 
-  Widget _buildQuickActions(
-      BuildContext context, TeacherDashboardState state) {
+  Widget _buildQuickActions(BuildContext context, TeacherDashboardState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -624,9 +658,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               icon: LucideIcons.mapPin,
               label: 'Check In',
               color: AppColors.primary,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const TeacherAttendanceScreen(),
-              )),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const TeacherAttendanceScreen(),
+                ),
+              ),
             ),
             const SizedBox(width: 10),
             _buildActionButton(
@@ -708,8 +744,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 color: AppColors.accent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(LucideIcons.fileCheck,
-                  color: AppColors.accent, size: 18),
+              child: const Icon(
+                LucideIcons.fileCheck,
+                color: AppColors.accent,
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -719,23 +758,25 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   Text(
                     exam.name,
                     style: const TextStyle(
-                        fontWeight: FontWeight.w900, fontSize: 14),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${exam.subjectName}${exam.batchName != null ? " · ${exam.batchName}" : ""}',
                     style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600),
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ),
             if (exam.examDate != null)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
@@ -758,10 +799,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   // ── Attendance summary card ────────────────────────────────────────────────
 
   Widget _buildAttendanceSummaryCard(
-      BuildContext context, TeacherDashboardState state) {
-    final pct        = state.stats.attendancePercentage;
+    BuildContext context,
+    TeacherDashboardState state,
+  ) {
+    final pct = state.stats.attendancePercentage;
     final presentPct = pct.clamp(0.0, 100.0);
-    final absentPct  = (100.0 - presentPct).clamp(0.0, 100.0);
+    final absentPct = (100.0 - presentPct).clamp(0.0, 100.0);
 
     return NeuBox(
       padding: const EdgeInsets.all(18),
@@ -777,7 +820,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _dotRow('Present: ${presentPct.toInt()}%', AppColors.success),
+                    _dotRow(
+                      'Present: ${presentPct.toInt()}%',
+                      AppColors.success,
+                    ),
                     const SizedBox(height: 10),
                     _dotRow('Absent: ${absentPct.toInt()}%', AppColors.error),
                     const SizedBox(height: 12),
@@ -800,13 +846,19 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   children: [
                     CircularProgressIndicator(
                       value: presentPct / 100,
-                      backgroundColor:
-                          AppColors.success.withValues(alpha: 0.08),
-                      valueColor: const AlwaysStoppedAnimation(AppColors.success),
+                      backgroundColor: AppColors.success.withValues(
+                        alpha: 0.08,
+                      ),
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppColors.success,
+                      ),
                       strokeWidth: 7,
                     ),
-                    const Icon(LucideIcons.smile,
-                        color: AppColors.success, size: 28),
+                    const Icon(
+                      LucideIcons.smile,
+                      color: AppColors.success,
+                      size: 28,
+                    ),
                   ],
                 ),
               ),
@@ -853,51 +905,57 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 
   void _openStudentAttendance(
-      BuildContext context, TeacherDashboardState state) {
+    BuildContext context,
+    TeacherDashboardState state,
+  ) {
     final subjects = state.teacher?.subjects ?? [];
     if (subjects.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No subjects assigned.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No subjects assigned.')));
       return;
     }
     if (subjects.length == 1) {
       final s = subjects.first;
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => StudentAttendanceScreen(
-          subjectId:   s.subjectId,
-          subjectName: s.subjectName,
-          batchId:     s.batchId ?? '',
-          batchName:   s.batchName,
-          courseId:    s.courseId,
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => StudentAttendanceScreen(
+            subjectId: s.subjectId,
+            subjectName: s.subjectName,
+            batchId: s.batchId ?? '',
+            batchName: s.batchName,
+            courseId: s.courseId,
+          ),
         ),
-      ));
+      );
       return;
     }
     _showSubjectPicker(context, subjects, (s) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => StudentAttendanceScreen(
-          subjectId:   s.subjectId,
-          subjectName: s.subjectName,
-          batchId:     s.batchId ?? '',
-          batchName:   s.batchName,
-          courseId:    s.courseId,
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => StudentAttendanceScreen(
+            subjectId: s.subjectId,
+            subjectName: s.subjectName,
+            batchId: s.batchId ?? '',
+            batchName: s.batchName,
+            courseId: s.courseId,
+          ),
         ),
-      ));
+      );
     });
   }
 
   void _openMarksEntry(BuildContext context, TeacherDashboardState state) {
     final subjects = state.teacher?.subjects ?? [];
     if (subjects.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No subjects assigned.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No subjects assigned.')));
       return;
     }
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MarksEntryScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MarksEntryScreen()));
   }
 
   void _showSubjectPicker(
@@ -914,23 +972,28 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         shrinkWrap: true,
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('Select Subject',
-              style:
-                  TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          const Text(
+            'Select Subject',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 12),
-          ...subjects.map((s) => ListTile(
-                leading: const Icon(LucideIcons.bookOpen,
-                    color: AppColors.primary),
-                title: Text(s.subjectName,
-                    style:
-                        const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle:
-                    s.batchName != null ? Text(s.batchName!) : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  onSelect(s);
-                },
-              )),
+          ...subjects.map(
+            (s) => ListTile(
+              leading: const Icon(
+                LucideIcons.bookOpen,
+                color: AppColors.primary,
+              ),
+              title: Text(
+                s.subjectName,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: s.batchName != null ? Text(s.batchName!) : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                onSelect(s);
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -946,7 +1009,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   String _timeAgo(DateTime? time) {
     if (time == null) return '';
     final diff = DateTime.now().difference(time);
-    if (diff.inMinutes < 1)  return 'just now';
+    if (diff.inMinutes < 1) return 'just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     return '${diff.inHours}h ${diff.inMinutes % 60}m ago';
   }

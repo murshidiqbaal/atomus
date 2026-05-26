@@ -133,8 +133,9 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
               floatingActionButton: BlocBuilder<MarksCubit, MarksState>(
                 builder: (ctx, state) {
                   // Only show FAB when viewing the exam list, not the marks grid
-                  if (state.selectedExam != null)
+                  if (state.selectedExam != null) {
                     return const SizedBox.shrink();
+                  }
 
                   return FloatingActionButton.extended(
                     onPressed: () => _showCreateExamSheet(context),
@@ -200,8 +201,16 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       }
       // If the selected list filter date is before the exam's creation date, do not show it.
       if (_examListDate != null && exam.createdAt != null) {
-        final filterDateOnly = DateTime(_examListDate!.year, _examListDate!.month, _examListDate!.day);
-        final createdDateOnly = DateTime(exam.createdAt!.year, exam.createdAt!.month, exam.createdAt!.day);
+        final filterDateOnly = DateTime(
+          _examListDate!.year,
+          _examListDate!.month,
+          _examListDate!.day,
+        );
+        final createdDateOnly = DateTime(
+          exam.createdAt!.year,
+          exam.createdAt!.month,
+          exam.createdAt!.day,
+        );
         if (filterDateOnly.isBefore(createdDateOnly)) {
           return false;
         }
@@ -252,10 +261,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       children: [
         _buildExamListDateStrip(context),
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: _loadExams,
-            child: listWidget,
-          ),
+          child: RefreshIndicator(onRefresh: _loadExams, child: listWidget),
         ),
       ],
     );
@@ -577,12 +583,25 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final selectedDateOnly = state.selectedMarkDate != null
-        ? DateTime(state.selectedMarkDate!.year, state.selectedMarkDate!.month, state.selectedMarkDate!.day)
+        ? DateTime(
+            state.selectedMarkDate!.year,
+            state.selectedMarkDate!.month,
+            state.selectedMarkDate!.day,
+          )
         : null;
 
-    final isBeforeCreation = selectedDateOnly != null && exam.createdAt != null &&
-        selectedDateOnly.isBefore(DateTime(exam.createdAt!.year, exam.createdAt!.month, exam.createdAt!.day));
-    final isFutureDate = selectedDateOnly != null && selectedDateOnly.isAfter(today);
+    final isBeforeCreation =
+        selectedDateOnly != null &&
+        exam.createdAt != null &&
+        selectedDateOnly.isBefore(
+          DateTime(
+            exam.createdAt!.year,
+            exam.createdAt!.month,
+            exam.createdAt!.day,
+          ),
+        );
+    final isFutureDate =
+        selectedDateOnly != null && selectedDateOnly.isAfter(today);
     final cantAssign = isBeforeCreation || isFutureDate;
 
     return Column(
@@ -601,7 +620,11 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             ),
             child: Row(
               children: [
-                const Icon(LucideIcons.alertTriangle, color: AppColors.error, size: 16),
+                const Icon(
+                  LucideIcons.alertTriangle,
+                  color: AppColors.error,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -791,7 +814,11 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     );
   }
 
-  Widget _buildStudentMarksGrid(BuildContext context, MarksState state, {required bool cantAssign}) {
+  Widget _buildStudentMarksGrid(
+    BuildContext context,
+    MarksState state, {
+    required bool cantAssign,
+  }) {
     final listWidget = state.entries.isEmpty
         ? ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -827,7 +854,12 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             itemCount: state.entries.length,
             itemBuilder: (ctx, i) {
               final entry = state.entries[i];
-              return _buildMarksTile(ctx, entry, state.selectedExam!, cantAssign: cantAssign);
+              return _buildMarksTile(
+                ctx,
+                entry,
+                state.selectedExam!,
+                cantAssign: cantAssign,
+              );
             },
           );
 
@@ -906,14 +938,16 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                   children: [
                     // Absent Toggle
                     GestureDetector(
-                      onTap: cantAssign ? null : () {
-                        setState(
-                          () => _validationErrors[entry.studentId] = null,
-                        );
-                        context.read<MarksCubit>().toggleAbsent(
-                          entry.studentId,
-                        );
-                      },
+                      onTap: cantAssign
+                          ? null
+                          : () {
+                              setState(
+                                () => _validationErrors[entry.studentId] = null,
+                              );
+                              context.read<MarksCubit>().toggleAbsent(
+                                entry.studentId,
+                              );
+                            },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         padding: const EdgeInsets.symmetric(
@@ -1040,7 +1074,11 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     );
   }
 
-  Widget _buildSaveBar(BuildContext context, MarksState state, {required bool cantAssign}) {
+  Widget _buildSaveBar(
+    BuildContext context,
+    MarksState state, {
+    required bool cantAssign,
+  }) {
     final isSaving = state.status == MarksLoadStatus.saving;
     final hasErrors = _validationErrors.values.any((e) => e != null);
     final canSave = !isSaving && !hasErrors && !cantAssign;
@@ -1410,7 +1448,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                     // Course selection dropdown
                     if (courseMap.isNotEmpty) ...[
                       DropdownButtonFormField<String>(
-                        value: selCourseId,
+                        initialValue: selCourseId,
                         decoration: InputDecoration(
                           labelText: 'Course',
                           border: OutlineInputBorder(
@@ -1448,7 +1486,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                     ],
                     // Subject pre-filtered selector
                     DropdownButtonFormField<String>(
-                      value: selAssignmentId.isNotEmpty
+                      initialValue: selAssignmentId.isNotEmpty
                           ? selAssignmentId
                           : null,
                       decoration: InputDecoration(
@@ -1505,8 +1543,9 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                               ),
                             ),
                             validator: (v) {
-                              if (v == null || v.isEmpty)
+                              if (v == null || v.isEmpty) {
                                 return 'Marks required';
+                              }
                               final double? val = double.tryParse(v);
                               if (val == null || val <= 0) return 'Must be > 0';
                               return null;

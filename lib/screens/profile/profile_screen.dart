@@ -11,7 +11,6 @@ import '../../theme/app_colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/drive_profile_image.dart';
 import '../../widgets/neu_box.dart';
-import '../login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

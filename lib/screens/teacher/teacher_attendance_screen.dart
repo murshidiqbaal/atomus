@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -85,9 +86,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   void _reloadHistory() {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null) return;
-    context
-        .read<TeacherAttendanceCubit>()
-        .loadHistory(teacher.id, month: _selectedMonth);
+    context.read<TeacherAttendanceCubit>().loadHistory(
+      teacher.id,
+      month: _selectedMonth,
+    );
   }
 
   // ----------------------------------------------------------------
@@ -138,14 +140,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     if (teacher == null) return;
                     final cubit = ctx.read<TeacherAttendanceCubit>();
                     await cubit.loadTodaySession(teacher.id);
-                    await cubit.loadHistory(teacher.id,
-                        month: _selectedMonth);
+                    await cubit.loadHistory(teacher.id, month: _selectedMonth);
                     _verifyLocation(silent: true);
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Column(
                       children: [
                         _buildGeofenceBanner(teacher),
@@ -177,13 +180,16 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       ctx.read<TeacherDashboardCubit>().load();
     }
     if (state.status == TeacherAttendanceLoadStatus.failure) {
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-        content: Text(state.errorMessage ?? 'An error occurred'),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(state.errorMessage ?? 'An error occurred'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     }
   }
 
@@ -287,7 +293,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 ? Padding(
                     padding: const EdgeInsets.all(10),
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: color),
+                      strokeWidth: 2,
+                      color: color,
+                    ),
                   )
                 : Icon(icon, color: color, size: 20),
           ),
@@ -296,15 +304,22 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                        color: color)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    color: color,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -353,13 +368,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       a.year == b.year && a.month == b.month && a.day == b.day;
 
   Widget _buildIdlePunchCard(
-      BuildContext ctx, dynamic teacher, bool isLoading) {
+    BuildContext ctx,
+    dynamic teacher,
+    bool isLoading,
+  ) {
     return BlocBuilder<GeofenceCubit, GeofenceState>(
       builder: (geoCtx, geo) {
         final noCampus = teacher == null || !teacher.hasCampusCoordinates;
         final insideCampus = noCampus || geo.status == GeofenceStatus.inside;
-        final hasFilters =
-            _filterCourseId != null && _filterSubjectId != null;
+        final hasFilters = _filterCourseId != null && _filterSubjectId != null;
         final canPunch = insideCampus && hasFilters;
 
         String? disabledHint;
@@ -393,8 +410,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               const Text(
                 "Pick today's class and tap PUNCH IN.",
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 16),
               _buildFilters(teacher),
@@ -417,8 +433,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   }
 
   Widget _buildFilters(dynamic teacher) {
-    final List assignments =
-        (teacher?.subjects as List?) ?? const <dynamic>[];
+    final List assignments = (teacher?.subjects as List?) ?? const <dynamic>[];
     if (assignments.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(12),
@@ -428,14 +443,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         ),
         child: const Row(
           children: [
-            Icon(LucideIcons.inbox,
-                size: 16, color: AppColors.textSecondary),
+            Icon(LucideIcons.inbox, size: 16, color: AppColors.textSecondary),
             SizedBox(width: 8),
             Expanded(
               child: Text(
                 'No courses or subjects assigned to your account.',
-                style:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             ),
           ],
@@ -471,13 +484,19 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             value: _filterCourseId,
             hint: 'Select course',
             items: courses.entries
-                .map((e) => DropdownMenuItem<String>(
-                      value: e.key,
-                      child: Text(e.value,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w700)),
-                    ))
+                .map(
+                  (e) => DropdownMenuItem<String>(
+                    value: e.key,
+                    child: Text(
+                      e.value,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                )
                 .toList(),
             onChanged: (val) {
               setState(() {
@@ -503,7 +522,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                       '${a.subjectName}${a.batchName != null ? " | ${a.batchName}" : ""}',
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 )
@@ -546,7 +567,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             color: AppColors.primary.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.15)),
+              color: AppColors.primary.withValues(alpha: 0.15),
+            ),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
@@ -554,9 +576,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               hint: Text(
                 hint,
                 style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600),
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
               items: items,
@@ -604,9 +627,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               _buildBigPunchButton(
                 label: canPunchOut ? 'PUNCH OUT' : 'OUTSIDE CAMPUS',
                 icon: canPunchOut ? LucideIcons.square : LucideIcons.lock,
-                color: canPunchOut
-                    ? AppColors.error
-                    : AppColors.textSecondary,
+                color: canPunchOut ? AppColors.error : AppColors.textSecondary,
                 isLoading: isLoading,
                 disabledHint: canPunchOut
                     ? null
@@ -741,9 +762,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           Text(
             value,
             style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                color: AppColors.primary),
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary,
+            ),
           ),
         ],
       ),
@@ -769,7 +791,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.5, color: Colors.white),
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
                   )
                 : Icon(icon, size: 22, color: Colors.white),
             label: Text(
@@ -786,7 +810,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               disabledBackgroundColor: color.withValues(alpha: 0.55),
               elevation: 4,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             onPressed: onPressed,
           ),
@@ -796,16 +821,20 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(LucideIcons.alertTriangle,
-                  size: 12, color: AppColors.error),
+              const Icon(
+                LucideIcons.alertTriangle,
+                size: 12,
+                color: AppColors.error,
+              ),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   disabledHint,
                   style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.error,
-                      fontWeight: FontWeight.w600),
+                    fontSize: 11,
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -819,8 +848,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
   Widget _buildMonthSelector() {
     final now = DateTime.now();
-    final canGoNext = !(_selectedMonth.year == now.year &&
-        _selectedMonth.month == now.month);
+    final canGoNext =
+        !(_selectedMonth.year == now.year && _selectedMonth.month == now.month);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -844,18 +873,20 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             children: [
               IconButton(
                 padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints(minWidth: 32, minHeight: 32),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 onPressed: _previousMonth,
-                icon: const Icon(Icons.chevron_left,
-                    color: AppColors.primary, size: 20),
+                icon: const Icon(
+                  Icons.chevron_left,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
               Expanded(
                 child: Center(
                   child: Text(
-                    DateFormat('MMMM yyyy')
-                        .format(_selectedMonth)
-                        .toUpperCase(),
+                    DateFormat(
+                      'MMMM yyyy',
+                    ).format(_selectedMonth).toUpperCase(),
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 13,
@@ -867,8 +898,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               ),
               IconButton(
                 padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints(minWidth: 32, minHeight: 32),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 onPressed: canGoNext ? _nextMonth : null,
                 icon: Icon(
                   Icons.chevron_right,
@@ -1022,13 +1052,18 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               if (index < startOffset) return const SizedBox();
               final day = index - startOffset + 1;
               final record = recordMap[day];
-              final date =
-                  DateTime(_selectedMonth.year, _selectedMonth.month, day);
-              final isToday = date.year == today.year &&
+              final date = DateTime(
+                _selectedMonth.year,
+                _selectedMonth.month,
+                day,
+              );
+              final isToday =
+                  date.year == today.year &&
                   date.month == today.month &&
                   date.day == today.day;
-              final isFuture = date
-                  .isAfter(DateTime(today.year, today.month, today.day));
+              final isFuture = date.isAfter(
+                DateTime(today.year, today.month, today.day),
+              );
 
               Color? bgColor;
               if (!isFuture && record != null) {
@@ -1041,7 +1076,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 }
               }
 
-              final isSelected = _selectedDate.year == date.year &&
+              final isSelected =
+                  _selectedDate.year == date.year &&
                   _selectedDate.month == date.month &&
                   _selectedDate.day == date.day;
 
@@ -1055,10 +1091,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     color: bgColor != null
                         ? bgColor.withValues(alpha: isSelected ? 0.8 : 1.0)
                         : isSelected
-                            ? AppColors.primary.withValues(alpha: 0.2)
-                            : (isToday
-                                ? AppColors.primary.withValues(alpha: 0.08)
-                                : Colors.transparent),
+                        ? AppColors.primary.withValues(alpha: 0.2)
+                        : (isToday
+                              ? AppColors.primary.withValues(alpha: 0.08)
+                              : Colors.transparent),
                     shape: BoxShape.circle,
                     border: isSelected
                         ? Border.all(
@@ -1066,27 +1102,24 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                             width: 2.0,
                           )
                         : isToday && bgColor == null
-                            ? Border.all(
-                                color: AppColors.primary, width: 1.5)
-                            : null,
+                        ? Border.all(color: AppColors.primary, width: 1.5)
+                        : null,
                   ),
                   child: Center(
                     child: Text(
                       '$day',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: (isToday ||
-                                bgColor != null ||
-                                isSelected)
+                        fontWeight: (isToday || bgColor != null || isSelected)
                             ? FontWeight.w900
                             : FontWeight.w500,
                         color: isFuture
                             ? AppColors.textSecondary.withValues(alpha: 0.3)
                             : (bgColor != null
-                                ? Colors.white
-                                : (isSelected
-                                    ? AppColors.primary
-                                    : AppColors.textPrimary)),
+                                  ? Colors.white
+                                  : (isSelected
+                                        ? AppColors.primary
+                                        : AppColors.textPrimary)),
                       ),
                     ),
                   ),
@@ -1187,8 +1220,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
             decoration: BoxDecoration(
               color: Theme.of(context).brightness == Brightness.dark
                   ? Colors.white.withValues(alpha: 0.03)
@@ -1230,8 +1262,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                           icon: LucideIcons.logIn,
                           label: 'Punch-In',
                           value: record.startTime != null
-                              ? DateFormat('hh:mm a')
-                                  .format(record.startTime!)
+                              ? DateFormat('hh:mm a').format(record.startTime!)
                               : '--',
                         ),
                       ),
@@ -1241,8 +1272,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                           icon: LucideIcons.logOut,
                           label: 'Punch-Out',
                           value: record.endTime != null
-                              ? DateFormat('hh:mm a')
-                                  .format(record.endTime!)
+                              ? DateFormat('hh:mm a').format(record.endTime!)
                               : '--',
                         ),
                       ),
@@ -1275,7 +1305,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   }
 
   TeacherAttendanceModel? _matchesDate(
-      TeacherAttendanceModel? r, DateTime date) {
+    TeacherAttendanceModel? r,
+    DateTime date,
+  ) {
     if (r == null) return null;
     if (r.attendanceDate.year == date.year &&
         r.attendanceDate.month == date.month &&
@@ -1291,27 +1323,34 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null || !teacher.hasCampusCoordinates) return;
     await context.read<GeofenceCubit>().checkGeofence(
-          campusLatitude: teacher.campusLatitude as double,
-          campusLongitude: teacher.campusLongitude as double,
-          radiusMeters: teacher.geofenceRadiusMeters as int,
-        );
+      campusLatitude: teacher.campusLatitude as double,
+      campusLongitude: teacher.campusLongitude as double,
+      radiusMeters: teacher.geofenceRadiusMeters,
+    );
     if (!silent && mounted) {
       final geo = context.read<GeofenceCubit>().state;
       if (geo.status == GeofenceStatus.inside) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Inside campus (${geo.distanceMeters.toInt()}m away)'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Inside campus (${geo.distanceMeters.toInt()}m away)',
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
       }
     }
   }
 
   Future<void> _startSession(
-      BuildContext ctx, dynamic teacher, GeofenceState geo) async {
+    BuildContext ctx,
+    dynamic teacher,
+    GeofenceState geo,
+  ) async {
     if (teacher == null) return;
     if (_filterCourseId == null || _filterSubjectId == null) return;
 
@@ -1319,30 +1358,28 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     String? batchId;
     final assignments = (teacher.subjects as List?) ?? const <dynamic>[];
     for (final a in assignments) {
-      if (a.subjectId == _filterSubjectId &&
-          a.courseId == _filterCourseId) {
+      if (a.subjectId == _filterSubjectId && a.courseId == _filterCourseId) {
         batchId = a.batchId as String?;
         break;
       }
     }
 
     await ctx.read<TeacherAttendanceCubit>().startSession(
-          teacherId: teacher.id as String,
-          campusId: teacher.campusId as String?,
-          subjectId: _filterSubjectId,
-          courseId: _filterCourseId,
-          batchId: batchId,
-          latitude: geo.position?.latitude,
-          longitude: geo.position?.longitude,
-        );
+      teacherId: teacher.id as String,
+      campusId: teacher.campusId as String?,
+      subjectId: _filterSubjectId,
+      courseId: _filterCourseId,
+      batchId: batchId,
+      latitude: geo.position?.latitude,
+      longitude: geo.position?.longitude,
+    );
   }
 
   void _confirmEndSession(BuildContext ctx) {
     showDialog(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Punch out for today?',
           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),

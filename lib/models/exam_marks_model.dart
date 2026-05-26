@@ -48,10 +48,12 @@ class TeacherExam {
 
     final marksList = map['marks'] as List?;
     final targetSubjectId = map['subject_id'] as String?;
-    final marksForThisSubject = marksList?.where((m) {
-      final ms = m as Map<String, dynamic>;
-      return ms['subject_id'] == targetSubjectId;
-    }) ?? [];
+    final marksForThisSubject =
+        marksList?.where((m) {
+          final ms = m as Map<String, dynamic>;
+          return ms['subject_id'] == targetSubjectId;
+        }) ??
+        [];
     final isEntered = marksForThisSubject.isNotEmpty;
 
     return TeacherExam(
@@ -150,7 +152,7 @@ class StudentMarksEntry {
       'student_id': studentId,
       'exam_id': examId,
       'subject_id': subjectId,
-      if (teacherId != null) 'teacher_id': teacherId,
+      'teacher_id': ?teacherId,
       'marks_obtained': isAbsent ? 0 : (marksObtained ?? 0),
       'total_marks': totalMarks,
       'remarks': isAbsent ? 'Absent' : remarks,

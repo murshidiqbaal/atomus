@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../models/teacher_model.dart';
 import '../../repositories/teacher_repository.dart';
 import '../../services/drive_upload_service.dart';
 import '../../services/profile_image_service.dart';
@@ -31,19 +31,23 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
     required ProfileImageService imageService,
     required TeacherSessionCubit sessionCubit,
     Connectivity? connectivity,
-  })  : _teacherRepository = teacherRepository,
-        _hiveService = hiveService,
-        _driveUploadService = driveUploadService,
-        _imageService = imageService,
-        _sessionCubit = sessionCubit,
-        _connectivity = connectivity ?? Connectivity(),
-        super(const TeacherProfileState()) {
+  }) : _teacherRepository = teacherRepository,
+       _hiveService = hiveService,
+       _driveUploadService = driveUploadService,
+       _imageService = imageService,
+       _sessionCubit = sessionCubit,
+       _connectivity = connectivity ?? Connectivity(),
+       super(const TeacherProfileState()) {
     _initConnectivityListener();
   }
 
   void _initConnectivityListener() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((results) {
-      final isOnline = results.any((result) => result != ConnectivityResult.none);
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
+      final isOnline = results.any(
+        (result) => result != ConnectivityResult.none,
+      );
       emit(state.copyWith(isOffline: !isOnline));
       if (isOnline) {
         syncPendingData();
@@ -52,7 +56,12 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
   }
 
   Future<void> loadProfile() async {
-    emit(state.copyWith(status: TeacherProfileStatus.loading, clearErrorMessage: true));
+    emit(
+      state.copyWith(
+        status: TeacherProfileStatus.loading,
+        clearErrorMessage: true,
+      ),
+    );
 
     // 1. Try to load cached profile from Hive
     final cached = _hiveService.getProfile();
@@ -63,24 +72,34 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
     final localImagePath = _hiveService.getLocalImagePath();
 
     if (cached != null) {
-      emit(state.copyWith(
-        status: TeacherProfileStatus.loaded,
-        teacher: cached,
-        localPhotoPath: localImagePath,
-        isSyncPending: hasPendingSync,
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherProfileStatus.loaded,
+          teacher: cached,
+          localPhotoPath: localImagePath,
+          isSyncPending: hasPendingSync,
+        ),
+      );
     }
 
     // 2. Check current connectivity
     final connectivityResult = await _connectivity.checkConnectivity();
-    final isOnline = connectivityResult.any((result) => result != ConnectivityResult.none);
+    final isOnline = connectivityResult.any(
+      (result) => result != ConnectivityResult.none,
+    );
 
     if (!isOnline) {
-      emit(state.copyWith(
-        status: cached == null ? TeacherProfileStatus.error : TeacherProfileStatus.loaded,
-        isOffline: true,
-        errorMessage: cached == null ? 'No internet connection and no cached profile available.' : null,
-      ));
+      emit(
+        state.copyWith(
+          status: cached == null
+              ? TeacherProfileStatus.error
+              : TeacherProfileStatus.loaded,
+          isOffline: true,
+          errorMessage: cached == null
+              ? 'No internet connection and no cached profile available.'
+              : null,
+        ),
+      );
       return;
     }
 
@@ -89,13 +108,15 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
       final remote = await _teacherRepository.fetchTeacherProfile();
       if (remote != null) {
         await _hiveService.saveProfile(remote);
-        emit(state.copyWith(
-          status: TeacherProfileStatus.loaded,
-          teacher: remote,
-          isOffline: false,
-          isSyncPending: hasPendingSync,
-        ));
-        
+        emit(
+          state.copyWith(
+            status: TeacherProfileStatus.loaded,
+            teacher: remote,
+            isOffline: false,
+            isSyncPending: hasPendingSync,
+          ),
+        );
+
         // Auto-sync if online
         syncPendingData();
       } else {
@@ -103,16 +124,20 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
       }
     } catch (e) {
       if (cached != null) {
-        emit(state.copyWith(
-          status: TeacherProfileStatus.loaded,
-          teacher: cached,
-          errorMessage: e.toString(),
-        ));
+        emit(
+          state.copyWith(
+            status: TeacherProfileStatus.loaded,
+            teacher: cached,
+            errorMessage: e.toString(),
+          ),
+        );
       } else {
-        emit(state.copyWith(
-          status: TeacherProfileStatus.error,
-          errorMessage: e.toString(),
-        ));
+        emit(
+          state.copyWith(
+            status: TeacherProfileStatus.error,
+            errorMessage: e.toString(),
+          ),
+        );
       }
     }
   }
@@ -138,16 +163,20 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
 
     // Save optimistically to Hive cache and emit Loaded state immediately
     await _hiveService.saveProfile(optimisticTeacher);
-    emit(state.copyWith(
-      status: TeacherProfileStatus.loaded,
-      teacher: optimisticTeacher,
-      isSyncPending: true,
-      clearErrorMessage: true,
-    ));
+    emit(
+      state.copyWith(
+        status: TeacherProfileStatus.loaded,
+        teacher: optimisticTeacher,
+        isSyncPending: true,
+        clearErrorMessage: true,
+      ),
+    );
 
     // Check connectivity
     final connectivityResult = await _connectivity.checkConnectivity();
-    final isOnline = connectivityResult.any((result) => result != ConnectivityResult.none);
+    final isOnline = connectivityResult.any(
+      (result) => result != ConnectivityResult.none,
+    );
 
     final updatePayload = {
       'full_name': fullName.trim(),
@@ -160,11 +189,13 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
     if (!isOnline) {
       // Queue offline update in Hive
       await _hiveService.savePendingUpdate(updatePayload);
-      emit(state.copyWith(
-        status: TeacherProfileStatus.syncPending,
-        isSyncPending: true,
-        isOffline: true,
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherProfileStatus.syncPending,
+          isSyncPending: true,
+          isOffline: true,
+        ),
+      );
       return;
     }
 
@@ -177,24 +208,28 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
           .eq('id', current.id);
 
       await _hiveService.clearPendingUpdate();
-      
+
       // Update global session cubit
       _sessionCubit.refresh();
 
-      emit(state.copyWith(
-        status: TeacherProfileStatus.loaded,
-        teacher: optimisticTeacher,
-        isSyncPending: _hiveService.getPendingImageUpload() != null,
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherProfileStatus.loaded,
+          teacher: optimisticTeacher,
+          isSyncPending: _hiveService.getPendingImageUpload() != null,
+        ),
+      );
     } catch (e) {
       // Save update payload to Hive for offline retry
       await _hiveService.savePendingUpdate(updatePayload);
-      emit(state.copyWith(
-        status: TeacherProfileStatus.loaded,
-        teacher: optimisticTeacher,
-        isSyncPending: true,
-        errorMessage: 'Failed to sync with server. Changes saved locally.',
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherProfileStatus.loaded,
+          teacher: optimisticTeacher,
+          isSyncPending: true,
+          errorMessage: 'Failed to sync with server. Changes saved locally.',
+        ),
+      );
     }
   }
 
@@ -212,24 +247,30 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
 
       // 2. Save local path in Hive and immediately show it in the UI
       await _hiveService.saveLocalImagePath(localPath);
-      emit(state.copyWith(
-        localPhotoPath: localPath,
-        status: TeacherProfileStatus.uploadingImage,
-        clearErrorMessage: true,
-      ));
+      emit(
+        state.copyWith(
+          localPhotoPath: localPath,
+          status: TeacherProfileStatus.uploadingImage,
+          clearErrorMessage: true,
+        ),
+      );
 
       // 3. Check connectivity
       final connectivityResult = await _connectivity.checkConnectivity();
-      final isOnline = connectivityResult.any((result) => result != ConnectivityResult.none);
+      final isOnline = connectivityResult.any(
+        (result) => result != ConnectivityResult.none,
+      );
 
       if (!isOnline) {
         // Queue offline upload in Hive
         await _hiveService.savePendingImageUpload(localPath);
-        emit(state.copyWith(
-          status: TeacherProfileStatus.syncPending,
-          isSyncPending: true,
-          isOffline: true,
-        ));
+        emit(
+          state.copyWith(
+            status: TeacherProfileStatus.syncPending,
+            isSyncPending: true,
+            isOffline: true,
+          ),
+        );
         return;
       }
 
@@ -254,28 +295,35 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
       await _hiveService.clearPendingImageUpload();
 
       // Update cached and current state model
-      final updatedTeacher = current.copyWith(profilePhotoDriveId: result.driveFileId);
+      final updatedTeacher = current.copyWith(
+        profilePhotoDriveId: result.driveFileId,
+      );
       await _hiveService.saveProfile(updatedTeacher);
 
       // Refresh global session
       _sessionCubit.refresh();
 
-      emit(state.copyWith(
-        status: TeacherProfileStatus.loaded,
-        teacher: updatedTeacher,
-        clearLocalPhotoPath: true,
-        isSyncPending: _hiveService.getPendingUpdate() != null,
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherProfileStatus.loaded,
+          teacher: updatedTeacher,
+          clearLocalPhotoPath: true,
+          isSyncPending: _hiveService.getPendingUpdate() != null,
+        ),
+      );
     } catch (e) {
       final pendingUploadPath = _hiveService.getLocalImagePath();
       if (pendingUploadPath != null) {
         await _hiveService.savePendingImageUpload(pendingUploadPath);
       }
-      emit(state.copyWith(
-        status: TeacherProfileStatus.loaded,
-        isSyncPending: true,
-        errorMessage: 'Image upload failed. Saved locally and will sync later.',
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherProfileStatus.loaded,
+          isSyncPending: true,
+          errorMessage:
+              'Image upload failed. Saved locally and will sync later.',
+        ),
+      );
     }
   }
 
@@ -285,7 +333,9 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
     if (current == null) return;
 
     final connectivityResult = await _connectivity.checkConnectivity();
-    final isOnline = connectivityResult.any((result) => result != ConnectivityResult.none);
+    final isOnline = connectivityResult.any(
+      (result) => result != ConnectivityResult.none,
+    );
     if (!isOnline) return;
 
     _isSyncing = true;
@@ -330,17 +380,19 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
       if (latest != null) {
         await _hiveService.saveProfile(latest);
         _sessionCubit.refresh();
-        emit(state.copyWith(
-          status: TeacherProfileStatus.loaded,
-          teacher: latest,
-          isSyncPending: false,
-          clearLocalPhotoPath: true,
-        ));
+        emit(
+          state.copyWith(
+            status: TeacherProfileStatus.loaded,
+            teacher: latest,
+            isSyncPending: false,
+            clearLocalPhotoPath: true,
+          ),
+        );
       }
     } catch (e) {
-      emit(state.copyWith(
-        errorMessage: 'Background sync error: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(errorMessage: 'Background sync error: ${e.toString()}'),
+      );
     } finally {
       _isSyncing = false;
     }
