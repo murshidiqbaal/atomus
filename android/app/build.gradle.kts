@@ -6,12 +6,12 @@ plugins {
 }
 
 android {
-    namespace = "com.atomus.parentapps"
+    namespace = "com.atomus.parentapp"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     defaultConfig {
-        applicationId = "com.atomus.parentapps"
+        applicationId = "com.atomus.parentapp"
         minSdk = flutter.minSdkVersion
         targetSdk = 34
         versionCode = flutter.versionCode
