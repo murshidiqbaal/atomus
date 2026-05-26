@@ -37,7 +37,7 @@ workflows:
 atomus-parent:
 name: Atomus Parent Simulator Build
 
-```
+
 instance_type: mac_mini_m2
 
 max_build_duration: 60
@@ -101,7 +101,7 @@ artifacts:
   - build/app/outputs/flutter-apk/*.apk
   - build/app/outputs/bundle/release/*.aab
   - build/ios/iphonesimulator/*.app
-```
+
 
 # ==========================================================
 
@@ -112,7 +112,7 @@ artifacts:
 atomus-teacher:
 name: Atomus Teacher Simulator Build
 
-```
+
 instance_type: mac_mini_m2
 
 max_build_duration: 60
@@ -176,7 +176,7 @@ artifacts:
   - build/app/outputs/flutter-apk/*.apk
   - build/app/outputs/bundle/release/*.aab
   - build/ios/iphonesimulator/*.app
-```
+
 
 # ==========================================================
 
@@ -187,7 +187,7 @@ artifacts:
 atomus-admin:
 name: Atomus Admin Simulator Build
 
-```
+
 instance_type: mac_mini_m2
 
 max_build_duration: 60
@@ -251,4 +251,3 @@ artifacts:
   - build/app/outputs/flutter-apk/*.apk
   - build/app/outputs/bundle/release/*.aab
   - build/ios/iphonesimulator/*.app
-```
