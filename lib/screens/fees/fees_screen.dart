@@ -7,6 +7,7 @@ import '../../blocs/fee/fee_state.dart';
 import '../../blocs/fee/fee_event.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/glass_background.dart';
 import '../../models/dummy_data.dart';
 
 class FeesScreen extends StatelessWidget {
@@ -28,158 +29,200 @@ class FeesScreen extends StatelessWidget {
         studentState.studentInfo?.grade ?? 'Academic Program';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Fee Management'),
-        centerTitle: true,
-      ),
-      body: BlocBuilder<FeeBloc, FeeState>(
-        builder: (context, state) {
-          if (state.status == FeeStatus.loading && state.fees.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      color: AppColors.primary,
-                    ),
+    return GlassBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Fee Management'),
+          centerTitle: true,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 12.0),
+            child: Center(
+              child: NeuBox(
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                padding: EdgeInsets.zero,
+                onTap: () => Scaffold.of(context).openDrawer(),
+                child: Center(
+                  child: Icon(
+                    Icons.menu_rounded,
+                    color: isDark ? AppColors.accent : AppColors.primary,
+                    size: 20,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading fee details...',
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            );
-          }
-
-          if (state.status == FeeStatus.failure && state.fees.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error_outline_rounded,
-                      size: 56,
-                      color: AppColors.error.withOpacity(0.7)),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Failed to load fee data',
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    state.errorMessage ?? 'Please try again',
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _handleRefresh(context),
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text('Retry'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            color: AppColors.accent,
-            backgroundColor: isDark ? AppColors.neuBaseDark : AppColors.neuBase,
-            onRefresh: () => _handleRefresh(context),
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-              children: [
-                // ─── Overview Summary Card ─────────────────────────
-                _buildOverviewCard(context, state, isDark),
-                const SizedBox(height: 20),
-
-                // ─── Quick Stats Row ───────────────────────────────
-                _buildQuickStats(context, state, isDark),
-                const SizedBox(height: 24),
-
-                // ─── Overdue Alert ─────────────────────────────────
-                if (state.overdueFees.isNotEmpty) ...[
-                  _buildOverdueAlert(context, state, isDark),
-                  const SizedBox(height: 20),
-                ],
-
-                // ─── Next Payment Due ──────────────────────────────
-                if (state.nextDueFee != null) ...[
-                  _buildNextPaymentCard(context, state.nextDueFee!, isDark),
-                  const SizedBox(height: 24),
-                ],
-
-                // ─── Term-wise Fee Cards ───────────────────────────
-                _buildSectionHeader(
-                    'Term-wise Breakdown', Icons.view_timeline_rounded, isDark),
-                const SizedBox(height: 12),
-                ...state.fees.asMap().entries.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildTermCard(
-                          context,
-                          entry.value,
-                          entry.key,
-                          studentName,
-                          studentGrade,
-                          isDark,
-                        ),
-                      ),
-                    ),
-
-                // ─── Payment History ───────────────────────────────
-                if (state.paymentHistory.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildSectionHeader(
-                      'Payment History', Icons.history_rounded, isDark),
-                  const SizedBox(height: 12),
-                  ...state.paymentHistory.take(5).map(
-                        (txn) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _buildPaymentHistoryTile(context, txn, isDark),
-                        ),
-                      ),
-                ],
-
-                const SizedBox(height: 32),
-              ],
             ),
-          );
-        },
+          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: Center(
+                child: NeuBox(
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  padding: EdgeInsets.zero,
+                  onTap: () => _handleRefresh(context),
+                  child: Center(
+                    child: Icon(
+                      Icons.refresh_rounded,
+                      color: isDark ? AppColors.accent : AppColors.primary,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        body: BlocBuilder<FeeBloc, FeeState>(
+          builder: (context, state) {
+            if (state.status == FeeStatus.loading && state.fees.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading fee details...',
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (state.status == FeeStatus.failure && state.fees.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline_rounded,
+                        size: 56,
+                        color: AppColors.error.withOpacity(0.7)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to load fee data',
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.errorMessage ?? 'Please try again',
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => _handleRefresh(context),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: isDark ? AppColors.neuBaseDark : AppColors.neuBase,
+              onRefresh: () => _handleRefresh(context),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                children: [
+                  // ─── Overview Summary Card ─────────────────────────
+                  _buildOverviewCard(context, state, isDark),
+                  const SizedBox(height: 20),
+
+                  // ─── Quick Stats Row ───────────────────────────────
+                  _buildQuickStats(context, state, isDark),
+                  const SizedBox(height: 24),
+
+                  // ─── Overdue Alert ─────────────────────────────────
+                  if (state.overdueFees.isNotEmpty) ...[
+                    _buildOverdueAlert(context, state, isDark),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // ─── Next Payment Due ──────────────────────────────
+                  if (state.nextDueFee != null) ...[
+                    _buildNextPaymentCard(context, state.nextDueFee!, isDark),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // ─── Term-wise Fee Cards ───────────────────────────
+                  _buildSectionHeader(
+                      'Term-wise Breakdown', Icons.view_timeline_rounded, isDark),
+                  const SizedBox(height: 12),
+                  ...state.fees.asMap().entries.map(
+                        (entry) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildTermCard(
+                            context,
+                            entry.value,
+                            entry.key,
+                            studentName,
+                            studentGrade,
+                            isDark,
+                          ),
+                        ),
+                      ),
+
+                  // ─── Payment History ───────────────────────────────
+                  if (state.paymentHistory.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _buildSectionHeader(
+                        'Payment History', Icons.history_rounded, isDark),
+                    const SizedBox(height: 12),
+                    ...state.paymentHistory.take(5).map(
+                          (txn) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _buildPaymentHistoryTile(context, txn, isDark),
+                          ),
+                        ),
+                  ],
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -411,8 +454,9 @@ class FeesScreen extends StatelessWidget {
     return Expanded(
       child: NeuBox(
         borderRadius: 16,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(8),
@@ -422,32 +466,28 @@ class FeesScreen extends StatelessWidget {
               ),
               child: Icon(icon, size: 18, color: color),
             ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondary,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondary,
+                letterSpacing: 0.3,
+              ),
             ),
           ],
         ),
@@ -638,19 +678,48 @@ class FeesScreen extends StatelessWidget {
   ) {
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
     final now = DateTime.now();
-    final anyPaid = context.read<FeeBloc>().state.fees.any((f) => f.isPaid);
-    final isOverdue = !fee.isPaid && fee.dueDate.isBefore(now);
-    final showAsPaid = fee.isPaid || (isOverdue && anyPaid);
-    final statusText = showAsPaid
-        ? 'Paid'
-        : isOverdue
-            ? 'Overdue'
-            : (fee.status ?? 'Pending');
-    final statusColor = showAsPaid
-        ? AppColors.success
-        : isOverdue
-            ? AppColors.error
-            : AppColors.warning;
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay =
+        DateTime(fee.dueDate.year, fee.dueDate.month, fee.dueDate.day);
+    final daysToDue = dueDay.difference(today).inDays;
+
+    // Status derived purely from this term's own state -- do NOT mark a
+    // term as Paid just because some *other* term was paid.
+    final isPaid = fee.isPaid;
+    final isOverdue = !isPaid && daysToDue < 0;
+    final isDueToday = !isPaid && daysToDue == 0;
+
+    final String statusText;
+    final Color statusColor;
+    final String dueLabel;
+    if (isPaid) {
+      statusText = 'Paid';
+      statusColor = AppColors.success;
+      dueLabel = fee.paymentDate != null
+          ? 'Paid on ${DateFormat('MMM dd, yyyy').format(fee.paymentDate!)}'
+          : 'Payment received';
+    } else if (isOverdue) {
+      final overdueBy = -daysToDue;
+      statusText = 'Overdue';
+      statusColor = AppColors.error;
+      dueLabel =
+          'Overdue by $overdueBy day${overdueBy == 1 ? '' : 's'} '
+          '(was due ${DateFormat('MMM dd, yyyy').format(fee.dueDate)})';
+    } else if (isDueToday) {
+      statusText = 'Due Today';
+      statusColor = AppColors.error;
+      dueLabel = 'Pay by end of today';
+    } else if (daysToDue <= 7) {
+      statusText = 'Due in $daysToDue d';
+      statusColor = AppColors.warning;
+      dueLabel =
+          'Due in $daysToDue day${daysToDue == 1 ? '' : 's'} '
+          '(${DateFormat('MMM dd, yyyy').format(fee.dueDate)})';
+    } else {
+      statusText = fee.status ?? 'Pending';
+      statusColor = AppColors.warning;
+      dueLabel = 'Due ${DateFormat('MMM dd, yyyy').format(fee.dueDate)}';
+    }
     final paid = fee.amountPaid ?? 0.0;
     final termProgress = fee.amount > 0 ? (paid / fee.amount).clamp(0.0, 1.0) : 0.0;
 
@@ -687,7 +756,7 @@ class FeesScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
-                        child: showAsPaid
+                        child: isPaid
                             ? Icon(Icons.check_rounded,
                                 color: statusColor, size: 22)
                             : Text(
@@ -717,13 +786,17 @@ class FeesScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            'Due: ${DateFormat('MMM dd, yyyy').format(fee.dueDate)}',
+                            dueLabel,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? AppColors.textSecondaryDark
-                                  : AppColors.textSecondary,
+                              color: isPaid
+                                  ? AppColors.success
+                                  : (isOverdue || isDueToday)
+                                      ? AppColors.error
+                                      : (isDark
+                                          ? AppColors.textSecondaryDark
+                                          : AppColors.textSecondary),
                             ),
                           ),
                         ],

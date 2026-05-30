@@ -115,6 +115,10 @@ class ProfileCubit extends Cubit<ProfileState> {
     required String fullName,
     required String phoneNumber,
     required String address,
+    String? secondaryContactName,
+    String? secondaryContactPhone,
+    String? secondaryContactEmail,
+    String? secondaryContactRelationship,
   }) async {
     final snapshot = state.snapshot;
     if (snapshot == null) return;
@@ -123,6 +127,10 @@ class ProfileCubit extends Cubit<ProfileState> {
       fullName: fullName,
       phoneNumber: phoneNumber,
       address: address,
+      secondaryContactName: secondaryContactName,
+      secondaryContactPhone: secondaryContactPhone,
+      secondaryContactEmail: secondaryContactEmail,
+      secondaryContactRelationship: secondaryContactRelationship,
     );
     final optimisticSnapshot = snapshot.copyWith(
       parent: optimisticParent,
@@ -141,6 +149,56 @@ class ProfileCubit extends Cubit<ProfileState> {
       final saved = await _repository.updateParentDetails(
         snapshot,
         optimisticParent,
+      );
+      emit(state.copyWith(status: ProfileStatus.loaded, snapshot: saved));
+    } catch (error) {
+      emit(
+        state.copyWith(
+          status: ProfileStatus.failure,
+          snapshot: snapshot,
+          errorMessage: error.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<void> saveStudentDetails({
+    required String studentId,
+    String? bloodGroup,
+    String? allergies,
+    String? medicalConditions,
+    String? dob,
+  }) async {
+    final snapshot = state.snapshot;
+    if (snapshot == null) return;
+
+    final currentStudent = snapshot.students.firstWhere((s) => s.id == studentId);
+    final optimisticStudent = currentStudent.copyWith(
+      bloodGroup: bloodGroup,
+      allergies: allergies,
+      medicalConditions: medicalConditions,
+      dob: dob,
+    );
+
+    final optimisticSnapshot = snapshot.copyWith(
+      students: snapshot.students
+          .map((s) => s.id == studentId ? optimisticStudent : s)
+          .toList(),
+      updatedAt: DateTime.now(),
+    );
+
+    emit(
+      state.copyWith(
+        status: ProfileStatus.loaded,
+        snapshot: optimisticSnapshot,
+        clearErrorMessage: true,
+      ),
+    );
+
+    try {
+      final saved = await _repository.updateStudentDetails(
+        snapshot,
+        optimisticStudent,
       );
       emit(state.copyWith(status: ProfileStatus.loaded, snapshot: saved));
     } catch (error) {

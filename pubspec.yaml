@@ -69,6 +69,8 @@ dependencies:
   geolocator: ^13.0.2
   permission_handler: ^12.0.1
   lucide_flutter: ^1.16.0
+  pdf: ^3.12.0
+  printing: ^5.14.3
 
 dev_dependencies:
   flutter_test:

@@ -6,6 +6,13 @@ class FeeRepository {
   final _supabase = Supabase.instance.client;
   final _parentIdentityService = ParentIdentityService();
 
+  /// Returns true when the status string represents a completed payment.
+  bool _statusIsPaid(String? status) {
+    if (status == null) return false;
+    final s = status.trim().toLowerCase();
+    return s == 'paid' || s == 'success' || s == 'completed';
+  }
+
   double _parseDouble(dynamic val) {
     if (val == null) return 0.0;
     if (val is num) return val.toDouble();
@@ -99,8 +106,6 @@ class FeeRepository {
       }
 
       final List<FeeRecord> records = [];
-      final lastPaymentDateStr = studentFeeResponse?['last_payment_date']?.toString();
-      final lastPaymentDate = lastPaymentDateStr != null ? DateTime.tryParse(lastPaymentDateStr) : null;
       final termStatusList = studentFeeResponse?['term_status'];
 
       if (structuresMap.isNotEmpty) {
@@ -169,7 +174,7 @@ class FeeRepository {
                 dueDate = DateTime(DateTime.now().year, DateTime.now().month + i, dueDay);
               }
 
-              final isPaid = termStatus == 'Paid';
+              final isPaid = _statusIsPaid(termStatus);
               final String recId = isPaid 
                   ? 'TXN-${(studentFeeResponse?['id'] ?? structureId).toString().substring(0, 8).toUpperCase()}-$i' 
                   : '';
@@ -226,7 +231,7 @@ class FeeRepository {
                 paymentDate = paymentDateStr != null ? DateTime.tryParse(paymentDateStr) : null;
               }
 
-              final isPaid = termStatus == 'Paid';
+              final isPaid = _statusIsPaid(termStatus);
 
               records.add(
                 FeeRecord(
@@ -259,7 +264,7 @@ class FeeRepository {
           final paymentDateStr = term['payment_date']?.toString() ?? term['last_payment_date']?.toString();
           final paymentDate = paymentDateStr != null ? DateTime.tryParse(paymentDateStr) : null;
 
-          final isPaid = termStatus == 'Paid';
+          final isPaid = _statusIsPaid(termStatus);
           final receiptId = isPaid ? 'TXN-${studentFeeResponse['id'].toString().substring(0, 8).toUpperCase()}-$i' : '';
 
           records.add(

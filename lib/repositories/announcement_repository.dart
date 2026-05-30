@@ -6,7 +6,7 @@ class AnnouncementRepository {
 
   Future<List<Announcement>> getActiveAnnouncements() async {
     try {
-      final now = DateTime.now().toIso8601String();
+      final now = DateTime.now().toUtc().toIso8601String();
       final response = await _supabase
           .from('announcements')
           .select()

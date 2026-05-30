@@ -85,7 +85,37 @@ class ProfileRepository {
         fullName: updatedParent.fullName.trim(),
         phoneNumber: updatedParent.phoneNumber?.trim(),
         address: updatedParent.address?.trim(),
+        secondaryContactName: updatedParent.secondaryContactName?.trim(),
+        secondaryContactPhone: updatedParent.secondaryContactPhone?.trim(),
+        secondaryContactEmail: updatedParent.secondaryContactEmail?.trim(),
+        secondaryContactRelationship: updatedParent.secondaryContactRelationship?.trim(),
       ),
+      updatedAt: DateTime.now(),
+    );
+    await _saveSnapshot(snapshot);
+    return snapshot;
+  }
+
+  Future<ProfileSnapshot> updateStudentDetails(
+    ProfileSnapshot current,
+    LinkedStudentProfile updatedStudent,
+  ) async {
+    await _validateTargetAccess(current, ProfileUploadTarget.student, updatedStudent.id);
+
+    await _supabase
+        .from('students')
+        .update({
+          'blood_group': updatedStudent.bloodGroup?.trim(),
+          'allergies': updatedStudent.allergies?.trim(),
+          'medical_conditions': updatedStudent.medicalConditions?.trim(),
+          'dob': updatedStudent.dob,
+        })
+        .eq('id', updatedStudent.id);
+
+    final snapshot = current.copyWith(
+      students: current.students
+          .map((s) => s.id == updatedStudent.id ? updatedStudent : s)
+          .toList(),
       updatedAt: DateTime.now(),
     );
     await _saveSnapshot(snapshot);

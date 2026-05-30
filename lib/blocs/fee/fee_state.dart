@@ -50,11 +50,9 @@ class FeeState extends Equatable {
     return upcoming.first;
   }
 
-  /// Overdue fees
+  /// Overdue fees — unpaid terms whose due date has already passed.
   List<FeeRecord> get overdueFees {
     final now = DateTime.now();
-    final anyPaid = fees.any((f) => f.isPaid);
-    if (anyPaid) return const [];
     return fees.where((f) => !f.isPaid && f.dueDate.isBefore(now)).toList();
   }
 

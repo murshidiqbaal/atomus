@@ -15,6 +15,7 @@ void main() async {
       final definitions = spec['definitions'] as Map<String, dynamic>;
 
       final tablesToInspect = [
+        'parents',
         'students',
         'exams',
         'marks',

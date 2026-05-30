@@ -13,7 +13,7 @@ void main() async {
         .from('student_fees')
         .select('*, students(id, full_name)');
     
-    if (response == null || (response as List).isEmpty) {
+    if ((response as List).isEmpty) {
       print('No records found in student_fees table.');
       return;
     }

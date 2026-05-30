@@ -89,7 +89,10 @@ class _MainLayoutState extends State<MainLayout> {
         child: Scaffold(
           key: _scaffoldKey,
           backgroundColor: Colors.transparent,
-          drawer: _buildDrawer(context),
+          drawer: SizedBox(
+            width: MediaQuery.of(context).size.width * 2 / 3,
+            child: _buildDrawer(context),
+          ),
           body: IndexedStack(index: _currentIndex, children: _screens),
           bottomNavigationBar: Container(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -187,27 +190,86 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
               ),
             ),
-            BlocBuilder<ThemeBloc, ThemeState>(
-              builder: (context, themeState) {
-                final isDark = themeState.themeMode == ThemeMode.dark;
-                return ListTile(
-                  leading: Icon(
-                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                    color: AppColors.primary,
-                  ),
-                  title: Text(
-                    isDark ? 'Light Mode' : 'Dark Mode',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  trailing: Switch(
-                    value: isDark,
-                    onChanged: (_) =>
-                        context.read<ThemeBloc>().add(ToggleTheme()),
-                    activeThumbColor: AppColors.primary,
-                  ),
-                  onTap: () => context.read<ThemeBloc>().add(ToggleTheme()),
-                );
-              },
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: BlocBuilder<ThemeBloc, ThemeState>(
+                builder: (context, themeState) {
+                  final isDark = themeState.themeMode == ThemeMode.dark;
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: NeuBox(
+                          isPressed: !isDark,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          onTap: () {
+                            if (isDark) {
+                              context.read<ThemeBloc>().add(ToggleTheme());
+                            }
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.light_mode_rounded,
+                                size: 18,
+                                color: !isDark
+                                    ? AppColors.accent
+                                    : AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'LIGHT',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  color: !isDark
+                                      ? AppColors.accent
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: NeuBox(
+                          isPressed: isDark,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          onTap: () {
+                            if (!isDark) {
+                              context.read<ThemeBloc>().add(ToggleTheme());
+                            }
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.dark_mode_rounded,
+                                size: 18,
+                                color: isDark
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'DARK',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  color: isDark
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
 
             const Padding(

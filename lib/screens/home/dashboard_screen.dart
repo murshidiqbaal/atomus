@@ -4,18 +4,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../blocs/announcement/announcement_bloc.dart';
-import '../../blocs/announcement/announcement_state.dart';
 import '../../blocs/announcement/announcement_event.dart';
+import '../../blocs/announcement/announcement_state.dart';
 import '../../blocs/course/course_bloc.dart';
 import '../../blocs/course/course_state.dart';
 import '../../blocs/fee/fee_bloc.dart';
-import '../../blocs/fee/fee_state.dart';
 import '../../blocs/fee/fee_event.dart';
+import '../../blocs/fee/fee_state.dart';
 import '../../blocs/notification/notification_bloc.dart';
-import '../../blocs/notification/notification_state.dart';
 import '../../blocs/notification/notification_event.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_state.dart';
+import '../../blocs/theme/theme_bloc.dart';
+import '../../blocs/theme/theme_event.dart';
+import '../../blocs/theme/theme_state.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/announcement_popup.dart';
 import '../../widgets/custom_card.dart';
@@ -25,7 +27,6 @@ import '../../widgets/marquee_widget.dart';
 import '../../widgets/neu_box.dart';
 import '../../widgets/status_badge.dart';
 import '../course/course_detail_screen.dart';
-import '../notifications/notification_screen.dart';
 import '../progress/progress_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+
   @override
   void initState() {
     super.initState();
@@ -92,9 +94,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: BlocBuilder<StudentBloc, StudentState>(
+    return BlocBuilder<StudentBloc, StudentState>(
         builder: (context, state) {
           if (state.status == StudentStatus.loading) {
             return const Center(child: CircularProgressIndicator());
@@ -173,7 +173,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 height: 50,
                                 borderRadius: 12,
                                 padding: EdgeInsets.zero,
-                                onTap: () => Scaffold.of(context).openDrawer(),
+                                onTap: () =>
+                                    Scaffold.of(context).openDrawer(),
                                 child: const Center(
                                   child: Icon(
                                     Icons.menu_rounded,
@@ -181,60 +182,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                               ),
-                              BlocBuilder<NotificationBloc, NotificationState>(
-                                builder: (context, notifState) {
-                                  final unread = notifState.unreadCount;
-                                  return Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      NeuBox(
-                                        width: 50,
-                                        height: 50,
-                                        borderRadius: 12,
-                                        padding: EdgeInsets.zero,
-                                        onTap: () => Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const NotificationScreen(),
-                                          ),
-                                        ),
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.notifications_none_rounded,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
+                              BlocBuilder<ThemeBloc, ThemeState>(
+                                builder: (context, themeState) {
+                                  final isDark = themeState.themeMode == ThemeMode.dark;
+                                  return NeuBox(
+                                    width: 50,
+                                    height: 50,
+                                    borderRadius: 12,
+                                    padding: EdgeInsets.zero,
+                                    onTap: () {
+                                      context.read<ThemeBloc>().add(ToggleTheme());
+                                    },
+                                    child: Center(
+                                      child: Icon(
+                                        isDark
+                                            ? Icons.light_mode_rounded
+                                            : Icons.dark_mode_rounded,
+                                        color: isDark
+                                            ? AppColors.accent
+                                            : AppColors.primary,
                                       ),
-                                      if (unread > 0)
-                                        Positioned(
-                                          right: 4,
-                                          top: 4,
-                                          child: Container(
-                                            constraints: const BoxConstraints(
-                                              minWidth: 18,
-                                              minHeight: 18,
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 4,
-                                            ),
-                                            decoration: const BoxDecoration(
-                                              color: AppColors.error,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                unread > 99 ? '99+' : '$unread',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
+                                    ),
                                   );
                                 },
                               ),
@@ -756,9 +724,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         },
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildCourseMarquee(BuildContext context) {
     return Column(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../blocs/auth/auth_bloc.dart';
 import '../blocs/auth/auth_event.dart';
@@ -21,6 +22,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscureText = true;
 
   @override
   void dispose() {
@@ -161,29 +163,41 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: 16,
                         child: TextField(
                           controller: _passwordController,
-                          obscureText: true,
+                          obscureText: _obscureText,
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Enter password',
-                            hintStyle: TextStyle(
+                            hintStyle: const TextStyle(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.normal,
                             ),
-                            prefixIcon: Icon(
+                            prefixIcon: const Icon(
                               Icons.lock_outline,
                               color: AppColors.primary,
                               size: 20,
                             ),
-                            suffixIcon: Icon(
-                              Icons.visibility_off_outlined,
-                              color: AppColors.textSecondary,
-                              size: 20,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureText
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: AppColors.textSecondary,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  //toggle password visibility
+                                  _obscureText = !_obscureText;
+                                });
+                              },
                             ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 18),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                            ),
                           ),
                         ),
                       ),
@@ -240,16 +254,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 60),
 
                   // Generate Test Credentials (Teacher context fallback description)
-                  Text(
-                    'For mock credentials, check database config.',
-                    style: TextStyle(
-                      color: AppColors.textSecondary.withOpacity(0.8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  // Text(
+                  //   'For mock credentials, check database config.',
+                  //   style: TextStyle(
+                  //     color: AppColors.textSecondary.withOpacity(0.8),
+                  //     fontSize: 12,
+                  //     fontWeight: FontWeight.w600,
+                  //   ),
+                  // ),
 
-                  const SizedBox(height: 16),
+                  // const SizedBox(height: 16),
 
                   // // Bypass Button for Testing
                   // TextButton.icon(
@@ -288,7 +302,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      //navigate to registrar whatspp number +917356471760
+                      launchUrl(
+                        Uri.parse('https://wa.me/917356471760'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please contact Institution Registrar at +917356471760 for assistance.',
+                          ),
+                        ),
+                      );
+                    },
                     child: const Text(
                       'Contact Institution Registrar',
                       style: TextStyle(

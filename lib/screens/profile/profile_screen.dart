@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/profile/profile_cubit.dart';
 import '../../blocs/profile/profile_state.dart';
+import '../../blocs/theme/theme_bloc.dart';
+import '../../blocs/theme/theme_event.dart';
+import '../../blocs/theme/theme_state.dart';
 import '../../models/profile_models.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/id_card_pdf_generator.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/drive_profile_image.dart';
 import '../../widgets/neu_box.dart';
@@ -26,8 +31,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
 
+  // Secondary/emergency contact controllers
+  final _secNameController = TextEditingController();
+  final _secPhoneController = TextEditingController();
+  final _secEmailController = TextEditingController();
+  final _secRelationController = TextEditingController();
+
+  // Dynamic student medical controllers
+  final Map<String, TextEditingController> _studentBloodControllers = {};
+  final Map<String, TextEditingController> _studentAllergiesControllers = {};
+  final Map<String, TextEditingController> _studentConditionsControllers = {};
+  final Map<String, TextEditingController> _studentDobControllers = {};
+
   bool _isEditing = false;
   bool _notificationsEnabled = true;
+  bool _biometricsEnabled = false;
   String? _controllerParentId;
 
   @override
@@ -42,6 +60,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _secNameController.dispose();
+    _secPhoneController.dispose();
+    _secEmailController.dispose();
+    _secRelationController.dispose();
+    for (final controller in _studentBloodControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _studentAllergiesControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _studentConditionsControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _studentDobControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -49,13 +83,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return context.read<ProfileCubit>().loadProfile();
   }
 
-  void _populateControllers(ParentProfile parent) {
+  void _populateControllers(ProfileSnapshot snapshot) {
+    final parent = snapshot.parent;
     if (_controllerParentId == parent.id && !_isEditing) return;
     _controllerParentId = parent.id;
     _nameController.text = parent.fullName;
     _emailController.text = parent.email ?? '';
     _phoneController.text = parent.phoneNumber ?? '';
     _addressController.text = parent.address ?? '';
+    _secNameController.text = parent.secondaryContactName ?? '';
+    _secPhoneController.text = parent.secondaryContactPhone ?? '';
+    _secEmailController.text = parent.secondaryContactEmail ?? '';
+    _secRelationController.text = parent.secondaryContactRelationship ?? '';
+
+    for (final student in snapshot.students) {
+      _studentBloodControllers
+              .putIfAbsent(student.id, () => TextEditingController())
+              .text =
+          student.bloodGroup ?? '';
+      _studentAllergiesControllers
+              .putIfAbsent(student.id, () => TextEditingController())
+              .text =
+          student.allergies ?? '';
+      _studentConditionsControllers
+              .putIfAbsent(student.id, () => TextEditingController())
+              .text =
+          student.medicalConditions ?? '';
+      _studentDobControllers
+              .putIfAbsent(student.id, () => TextEditingController())
+              .text =
+          student.dob ?? '';
+    }
   }
 
   @override
@@ -63,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Parent Profile' : 'Profile'),
+        title: Text(_isEditing ? 'Edit Parent & Student Profiles' : 'Profile'),
         actions: [
           BlocBuilder<ProfileCubit, ProfileState>(
             builder: (context, state) {
@@ -74,8 +132,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 onPressed: canEdit
                     ? () {
-                        final parent = state.snapshot!.parent;
-                        if (!_isEditing) _populateControllers(parent);
+                        final snapshot = state.snapshot!;
+                        if (!_isEditing) _populateControllers(snapshot);
                         setState(() => _isEditing = !_isEditing);
                       }
                     : null,
@@ -97,7 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           final snapshot = state.snapshot!;
-          if (!_isEditing) _populateControllers(snapshot.parent);
+          if (!_isEditing) _populateControllers(snapshot);
 
           if (_isEditing) {
             return _buildEditForm(snapshot, state);
@@ -138,14 +196,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     'Email',
                     snapshot.parent.email ?? 'Not provided',
                   ),
+
+                  // Secondary / Emergency Contact Details Display
+                  if (snapshot.parent.secondaryContactName != null &&
+                      snapshot.parent.secondaryContactName!.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    _buildSectionHeader('Emergency / Secondary Contact'),
+                    _buildDetailTile(
+                      Icons.contact_phone_outlined,
+                      'Name & Relation',
+                      '${snapshot.parent.secondaryContactName} (${snapshot.parent.secondaryContactRelationship ?? 'Secondary Contact'})',
+                    ),
+                    if (snapshot.parent.secondaryContactPhone != null &&
+                        snapshot.parent.secondaryContactPhone!.isNotEmpty)
+                      _buildDetailTile(
+                        Icons.phone_forwarded_rounded,
+                        'Emergency Phone',
+                        snapshot.parent.secondaryContactPhone!,
+                      ),
+                    if (snapshot.parent.secondaryContactEmail != null &&
+                        snapshot.parent.secondaryContactEmail!.isNotEmpty)
+                      _buildDetailTile(
+                        Icons.email_outlined,
+                        'Emergency Email',
+                        snapshot.parent.secondaryContactEmail!,
+                      ),
+                  ],
+
                   const SizedBox(height: 28),
                   _buildProfileImageManagement(snapshot, state),
                   const SizedBox(height: 28),
                   _buildLinkedStudentsSummary(snapshot),
                   const SizedBox(height: 28),
-                  _buildSectionHeader('Student Profile Management'),
+                  _buildSectionHeader('Student Profile ID Cards'),
                   ...snapshot.students.map(
-                    (student) => _buildStudentCard(student, snapshot, state),
+                    (student) => StudentIdCard(
+                      student: student,
+                      snapshot: snapshot,
+                      state: state,
+                      onEditImage: () => _showImageSourceSheet(
+                        onSelected: (source) => context
+                            .read<ProfileCubit>()
+                            .updateStudentImage(student.id, source),
+                      ),
+                      onEditMedical: () =>
+                          _showStudentMedicalEditSheet(context, student),
+                    ),
                   ),
                   const SizedBox(height: 28),
                   _buildAccountSettings(state),
@@ -272,84 +368,136 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return NeuBox(
       borderRadius: 24,
       padding: const EdgeInsets.all(20),
-      child: Row(
+      child: Column(
         children: [
-          Stack(
+          Row(
             children: [
-              DriveProfileImage(
-                driveId: parent.profilePhotoDriveId,
-                localPath: snapshot.parentLocalImagePath,
-                radius: 44,
-                initials: parent.initials,
-                isUploading: state.activeUploadKey == uploadKey,
-                hasError:
-                    snapshot.parentLocalImagePath != null &&
-                    state.pendingUploadCount > 0,
-                onRetry: () =>
-                    context.read<ProfileCubit>().retryPendingUploads(),
-                alt: '${parent.fullName} profile photo',
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Material(
-                  color: AppColors.accent,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => _showImageSourceSheet(
-                      onSelected: context
-                          .read<ProfileCubit>()
-                          .updateParentImage,
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.photo_camera_rounded,
-                        color: Colors.white,
-                        size: 18,
+              Stack(
+                children: [
+                  DriveProfileImage(
+                    driveId: parent.profilePhotoDriveId,
+                    localPath: snapshot.parentLocalImagePath,
+                    radius: 44,
+                    initials: parent.initials,
+                    isUploading: state.activeUploadKey == uploadKey,
+                    hasError:
+                        snapshot.parentLocalImagePath != null &&
+                        state.pendingUploadCount > 0,
+                    onRetry: () =>
+                        context.read<ProfileCubit>().retryPendingUploads(),
+                    alt: '${parent.fullName} profile photo',
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Material(
+                      color: AppColors.accent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => _showImageSourceSheet(
+                          onSelected: context
+                              .read<ProfileCubit>()
+                              .updateParentImage,
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.photo_camera_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      parent.fullName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      parent.email ?? parent.phoneNumber ?? 'Atomus Parent',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      parent.accountStatus ?? 'Active',
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 0.7,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  parent.fullName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  parent.email ?? parent.phoneNumber ?? 'Atomus Parent',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  parent.accountStatus ?? 'Active',
-                  style: const TextStyle(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 16),
+          const NeuDivider(),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildHeroBadge(
+                Icons.people_outline_rounded,
+                '${snapshot.students.length} Student${snapshot.students.length == 1 ? '' : 's'}',
+                AppColors.accent,
+              ),
+              _buildHeroBadge(
+                Icons.security_rounded,
+                parent.accountStatus ?? 'Active',
+                AppColors.success,
+              ),
+              _buildHeroBadge(
+                Icons.cloud_done_outlined,
+                state.isOffline ? 'Offline' : 'Connected',
+                state.isOffline ? AppColors.error : AppColors.primary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroBadge(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
@@ -447,106 +595,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStudentCard(
-    LinkedStudentProfile student,
-    ProfileSnapshot snapshot,
-    ProfileState state,
-  ) {
-    final uploadKey = 'student:${student.id}';
-    final localPath = snapshot.studentLocalImagePaths[student.id];
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: NeuBox(
-        borderRadius: 20,
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DriveProfileImage(
-                  driveId: student.profilePhotoDriveId,
-                  localPath: localPath,
-                  radius: 36,
-                  initials: student.initials,
-                  isUploading: state.activeUploadKey == uploadKey,
-                  hasError: localPath != null && state.pendingUploadCount > 0,
-                  onRetry: () =>
-                      context.read<ProfileCubit>().retryPendingUploads(),
-                  alt: '${student.fullName} profile photo',
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        student.fullName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        student.admissionNumber ??
-                            student.rollNumber ??
-                            'Student Profile',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            _buildStudentMeta(
-              Icons.menu_book_outlined,
-              'Course',
-              student.courseLabel,
-            ),
-            _buildStudentMeta(
-              Icons.groups_outlined,
-              'Batch',
-              student.batchLabel,
-            ),
-            _buildStudentMeta(
-              Icons.apartment_rounded,
-              'Campus',
-              student.campusLabel,
-            ),
-            const SizedBox(height: 16),
-            CustomButton(
-              text: 'EDIT STUDENT IMAGE',
-              icon: Icons.image_outlined,
-              isLoading:
-                  state.status == ProfileStatus.uploading &&
-                  state.activeUploadKey == uploadKey,
-              onPressed: () => _showImageSourceSheet(
-                onSelected: (source) => context
-                    .read<ProfileCubit>()
-                    .updateStudentImage(student.id, source),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildAccountSettings(ProfileState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionHeader('Account Settings'),
+        _buildSectionHeader('Account & System Settings'),
         NeuBox(
           borderRadius: 18,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -566,6 +619,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               const Divider(height: 1),
+
+              // Dark Mode Toggle using ThemeBloc
+              BlocBuilder<ThemeBloc, ThemeState>(
+                builder: (context, themeState) {
+                  final isDark = themeState.themeMode == ThemeMode.dark;
+                  return SwitchListTile(
+                    value: isDark,
+                    contentPadding: EdgeInsets.zero,
+                    activeThumbColor: AppColors.accent,
+                    title: const Text(
+                      'Dark Mode',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: const Text('Toggle app color theme'),
+                    onChanged: (value) {
+                      context.read<ThemeBloc>().add(ToggleTheme());
+                    },
+                  );
+                },
+              ),
+              const Divider(height: 1),
+
+              // Biometric authentication toggle stub
+              SwitchListTile(
+                value: _biometricsEnabled,
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: AppColors.accent,
+                title: const Text(
+                  'Biometric Login',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text('Secure login with Face ID / Fingerprint'),
+                onChanged: (value) {
+                  setState(() => _biometricsEnabled = value);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        value ? 'Biometrics enabled.' : 'Biometrics disabled.',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+
+              // Change Password Row
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.lock_outline_rounded,
+                  color: AppColors.accent,
+                ),
+                title: const Text(
+                  'Change Password',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text('Update account security'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _showChangePasswordSheet(context),
+              ),
+              const Divider(height: 1),
+
               _buildSettingsRow(
                 Icons.support_agent_rounded,
                 'Support',
@@ -634,6 +749,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
               readOnly: true,
               required: false,
             ),
+
+            // Secondary contact fields inside edit form
+            const SizedBox(height: 28),
+            _buildSectionHeader('Emergency / Secondary Contact'),
+            _buildTextField(
+              _secNameController,
+              'Contact Name',
+              Icons.person_pin_outlined,
+              required: false,
+            ),
+            const SizedBox(height: 18),
+            _buildTextField(
+              _secRelationController,
+              'Relationship (e.g. Father, Mother)',
+              Icons.family_restroom_rounded,
+              required: false,
+            ),
+            const SizedBox(height: 18),
+            _buildTextField(
+              _secPhoneController,
+              'Phone Number',
+              Icons.phone_forwarded_rounded,
+              keyboardType: TextInputType.phone,
+              required: false,
+            ),
+            const SizedBox(height: 18),
+            // address
+            _buildTextField(
+              _addressController,
+              'Address',
+              Icons.location_pin,
+              keyboardType: TextInputType.streetAddress,
+              required: false,
+            ),
+
+            const SizedBox(height: 18),
+            _buildTextField(
+              _secEmailController,
+              'Email Address',
+              Icons.alternate_email_rounded,
+              keyboardType: TextInputType.emailAddress,
+              required: false,
+            ),
+
+            // Student details for ID Card Backside
+            for (final student in snapshot.students) ...[
+              const SizedBox(height: 28),
+              _buildSectionHeader(
+                '${student.fullName} - ID Card Backside Details',
+              ),
+              _buildTextField(
+                _studentBloodControllers[student.id]!,
+                'Blood Group (e.g. O+, A-)',
+                Icons.favorite_rounded,
+                required: false,
+              ),
+              const SizedBox(height: 18),
+              _buildTextField(
+                _studentAllergiesControllers[student.id]!,
+                'Allergies',
+                Icons.warning_amber_rounded,
+                required: false,
+              ),
+              const SizedBox(height: 18),
+              _buildTextField(
+                _studentConditionsControllers[student.id]!,
+                'Medical / Chronic Conditions',
+                Icons.medical_services_outlined,
+                required: false,
+              ),
+              const SizedBox(height: 18),
+              _buildDateField(
+                context,
+                _studentDobControllers[student.id]!,
+                'Date of Birth',
+                Icons.calendar_month_rounded,
+                required: false,
+              ),
+            ],
+
             const SizedBox(height: 36),
             CustomButton(
               text: 'SAVE CHANGES',
@@ -641,11 +836,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isLoading: state.status == ProfileStatus.loading,
               onPressed: () {
                 if (!_formKey.currentState!.validate()) return;
+
+                // Save Parent Details
                 context.read<ProfileCubit>().saveParentDetails(
                   fullName: _nameController.text.trim(),
                   phoneNumber: _phoneController.text.trim(),
                   address: _addressController.text.trim(),
+                  secondaryContactName: _secNameController.text.trim(),
+                  secondaryContactPhone: _secPhoneController.text.trim(),
+                  secondaryContactEmail: _secEmailController.text.trim(),
+                  secondaryContactRelationship: _secRelationController.text
+                      .trim(),
                 );
+
+                // Save each linked student's details
+                for (final student in snapshot.students) {
+                  context.read<ProfileCubit>().saveStudentDetails(
+                    studentId: student.id,
+                    bloodGroup: _studentBloodControllers[student.id]?.text
+                        .trim(),
+                    allergies: _studentAllergiesControllers[student.id]?.text
+                        .trim(),
+                    medicalConditions: _studentConditionsControllers[student.id]
+                        ?.text
+                        .trim(),
+                    dob: _studentDobControllers[student.id]?.text.trim(),
+                  );
+                }
+
                 setState(() => _isEditing = false);
               },
             ),
@@ -681,6 +899,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           icon: Icon(icon, color: AppColors.accent, size: 20),
         ),
+        validator: required
+            ? (value) => value == null || value.trim().isEmpty
+                  ? 'Required field'
+                  : null
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildDateField(
+    BuildContext context,
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool required = true,
+  }) {
+    return NeuBox(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      borderRadius: 16,
+      child: TextFormField(
+        controller: controller,
+        readOnly: true,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          labelText: label,
+          labelStyle: const TextStyle(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+          icon: Icon(icon, color: AppColors.accent, size: 20),
+        ),
+        onTap: () async {
+          final DateTime? picked = await showDatePicker(
+            context: context,
+            initialDate: DateTime.tryParse(controller.text) ?? DateTime(2010),
+            firstDate: DateTime(1990),
+            lastDate: DateTime.now(),
+          );
+          if (picked != null) {
+            controller.text = picked.toIso8601String().split('T').first;
+          }
+        },
         validator: required
             ? (value) => value == null || value.trim().isEmpty
                   ? 'Required field'
@@ -727,40 +987,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildStudentMeta(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.accent, size: 18),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 62,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -847,7 +1073,1490 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showStudentMedicalEditSheet(
+    BuildContext context,
+    LinkedStudentProfile student,
+  ) {
+    final formKey = GlobalKey<FormState>();
+    final bloodGroupController = TextEditingController(
+      text: student.bloodGroup,
+    );
+    final allergiesController = TextEditingController(text: student.allergies);
+    final medicalConditionsController = TextEditingController(
+      text: student.medicalConditions,
+    );
+    final dobController = TextEditingController(text: student.dob);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Edit Student Medical Details',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    student.fullName,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value:
+                        [
+                          'A+',
+                          'A-',
+                          'B+',
+                          'B-',
+                          'AB+',
+                          'AB-',
+                          'O+',
+                          'O-',
+                        ].contains(bloodGroupController.text)
+                        ? bloodGroupController.text
+                        : null,
+                    decoration: InputDecoration(
+                      labelText: 'Blood Group',
+                      prefixIcon: const Icon(
+                        Icons.favorite_rounded,
+                        color: AppColors.error,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+                        .map(
+                          (bg) => DropdownMenuItem(value: bg, child: Text(bg)),
+                        )
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) bloodGroupController.text = val;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: allergiesController,
+                    decoration: InputDecoration(
+                      labelText: 'Allergies',
+                      prefixIcon: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppColors.warning,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: medicalConditionsController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Medical/Safety Conditions',
+                      prefixIcon: const Icon(
+                        Icons.medical_services_outlined,
+                        color: AppColors.accent,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: dobController,
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      labelText: 'Date of Birth',
+                      prefixIcon: const Icon(
+                        Icons.calendar_month_rounded,
+                        color: AppColors.accent,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate:
+                            DateTime.tryParse(dobController.text) ??
+                            DateTime(2010),
+                        firstDate: DateTime(1990),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        dobController.text = picked
+                            .toIso8601String()
+                            .split('T')
+                            .first;
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  CustomButton(
+                    text: 'SAVE DETAILS',
+                    onPressed: () {
+                      context.read<ProfileCubit>().saveStudentDetails(
+                        studentId: student.id,
+                        bloodGroup: bloodGroupController.text.trim(),
+                        allergies: allergiesController.text.trim(),
+                        medicalConditions: medicalConditionsController.text
+                            .trim(),
+                        dob: dobController.text.trim(),
+                      );
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showChangePasswordSheet(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Change Password',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: newPasswordController,
+                        obscureText: obscureNew,
+                        decoration: InputDecoration(
+                          labelText: 'New Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureNew
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () =>
+                                setSheetState(() => obscureNew = !obscureNew),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        validator: (value) => value == null || value.length < 6
+                            ? 'Password must be at least 6 characters'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: confirmPasswordController,
+                        obscureText: obscureConfirm,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm New Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureConfirm
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () => setSheetState(
+                              () => obscureConfirm = !obscureConfirm,
+                            ),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        validator: (value) =>
+                            value != newPasswordController.text
+                            ? 'Passwords do not match'
+                            : null,
+                      ),
+                      const SizedBox(height: 24),
+                      CustomButton(
+                        text: 'UPDATE PASSWORD',
+                        onPressed: () async {
+                          if (!formKey.currentState!.validate()) return;
+                          try {
+                            await Supabase.instance.client.auth.updateUser(
+                              UserAttributes(
+                                password: newPasswordController.text,
+                              ),
+                            );
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Password updated successfully!',
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Failed to update password: $e',
+                                  ),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _logout() {
     context.read<AuthBloc>().add(LogoutRequested());
   }
+}
+
+class StudentIdCard extends StatefulWidget {
+  final LinkedStudentProfile student;
+  final ProfileSnapshot snapshot;
+  final ProfileState state;
+  final VoidCallback onEditImage;
+  final VoidCallback onEditMedical;
+
+  const StudentIdCard({
+    super.key,
+    required this.student,
+    required this.snapshot,
+    required this.state,
+    required this.onEditImage,
+    required this.onEditMedical,
+  });
+
+  @override
+  State<StudentIdCard> createState() => _StudentIdCardState();
+}
+
+class _StudentIdCardState extends State<StudentIdCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  bool _isFront = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _animation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggleCard() {
+    if (_isFront) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+    setState(() {
+      _isFront = !_isFront;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: GestureDetector(
+        onTap: _toggleCard,
+        child: AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            final transformValue = _animation.value * 3.1415926535897932;
+            final isBack = _animation.value > 0.5;
+            return Transform(
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.001) // perspective
+                ..rotateY(transformValue),
+              alignment: Alignment.center,
+              child: isBack
+                  ? Transform(
+                      transform: Matrix4.identity()
+                        ..rotateY(3.1415926535897932),
+                      alignment: Alignment.center,
+                      child: _buildBackSide(),
+                    )
+                  : _buildFrontSide(),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardContainer({required Widget child, required bool isDark}) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFBF953F), // Gold metallic stops
+            Color(0xFFFCF6BA),
+            Color(0xFFB38728),
+            Color(0xFFFBF5B7),
+            Color(0xFFAA771C),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.45 : 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(1.5), // Simulated gold border thickness
+      child: Container(
+        height: 230,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22.5),
+          gradient: LinearGradient(
+            colors: isDark
+                ? [const Color(0xFF131824), const Color(0xFF090D14)]
+                : [const Color(0xFFFFFFFF), const Color(0xFFF2F6FE)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22.5),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetaField(
+    BuildContext context,
+    String label,
+    String value,
+    bool isDark,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 7.5,
+            fontWeight: FontWeight.w900,
+            color: isDark ? const Color(0xFFC59A3F) : const Color(0xFF8C641B),
+            letterSpacing: 1.0,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1E2433),
+            fontWeight: FontWeight.w800,
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBackMetaLabel(
+    IconData icon,
+    String label,
+    String value, {
+    Color? textColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 10, color: textColor ?? const Color(0xFFD4AF37)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 7.5,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white54 : Colors.black45,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFrontSide() {
+    final uploadKey = 'student:${widget.student.id}';
+    final localPath = widget.snapshot.studentLocalImagePaths[widget.student.id];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return _buildCardContainer(
+      isDark: isDark,
+      child: Stack(
+        children: [
+          // Security Pattern
+          Positioned.fill(
+            child: CustomPaint(
+              painter: SecurityPatternPainter(
+                color:
+                    (isDark ? const Color(0xFFD4AF37) : const Color(0xFF4B61DD))
+                        .withOpacity(0.025),
+              ),
+            ),
+          ),
+
+          // Faded Crest Watermark in Background
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(
+              Icons.shield_rounded,
+              size: 160,
+              color:
+                  (isDark ? const Color(0xFFD4AF37) : const Color(0xFF4B61DD))
+                      .withOpacity(0.035),
+            ),
+          ),
+
+          // Diagonal Holographic Sheen
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.06),
+                    Colors.white.withOpacity(0.12),
+                    Colors.white.withOpacity(0.06),
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.0),
+                  ],
+                  stops: const [0.0, 0.4, 0.45, 0.5, 0.55, 0.6, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Card Contents
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Top Header Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.stars_rounded,
+                          color: Color(0xFFD4AF37), // Gold Logo
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'ATOMUS ACADEMICS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: isDark
+                                ? const Color(0xFFD4AF37)
+                                : const Color(0xFF1E2433),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Icon(
+                      Icons.nfc_rounded,
+                      color: isDark
+                          ? const Color(0xFFD4AF37).withOpacity(0.3)
+                          : Colors.black26,
+                      size: 18,
+                    ),
+                  ],
+                ),
+
+                // Middle Details Row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Avatar Image with Golden Ring
+                    Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2), // Border thickness
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFBF953F),
+                                Color(0xFFFCF6BA),
+                                Color(0xFFB38728),
+                                Color(0xFFFBF5B7),
+                                Color(0xFFAA771C),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: Container(
+                              color: Colors.transparent,
+                              child: DriveProfileImage(
+                                driveId: widget.student.profilePhotoDriveId,
+                                localPath: localPath,
+                                radius: 33,
+                                initials: widget.student.initials,
+                                isUploading:
+                                    widget.state.activeUploadKey == uploadKey,
+                                hasError:
+                                    localPath != null &&
+                                    widget.state.pendingUploadCount > 0,
+                                onRetry: () => context
+                                    .read<ProfileCubit>()
+                                    .retryPendingUploads(),
+                                alt: '${widget.student.fullName} profile photo',
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Material(
+                            color: const Color(0xFFD4AF37),
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () {
+                                widget.onEditImage();
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(5),
+                                child: Icon(
+                                  Icons.camera_alt_rounded,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Metadata Details Column
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.student.fullName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E2433),
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            widget.student.admissionNumber ??
+                                widget.student.rollNumber ??
+                                'Student ID Card',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : Colors.black54,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMetaField(
+                                  context,
+                                  'COURSE',
+                                  widget.student.courseLabel,
+                                  isDark,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildMetaField(
+                                  context,
+                                  'BATCH',
+                                  widget.student.batchLabel,
+                                  isDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMetaField(
+                                  context,
+                                  'CAMPUS',
+                                  widget.student.campusLabel,
+                                  isDark,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildMetaField(
+                                  context,
+                                  'DATE OF BIRTH',
+                                  widget.student.dob != null &&
+                                          widget.student.dob!.isNotEmpty
+                                      ? widget.student.dob!
+                                      : 'Not Provided',
+                                  isDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Bottom Flippable Row
+                Column(
+                  children: [
+                    Container(
+                      height: 0.5,
+                      color: isDark ? Colors.white12 : Colors.black12,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // High-fidelity EMV chip mockup
+                        Container(
+                          width: 32,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFFFDF7A),
+                                Color(0xFFE2B755),
+                                Color(0xFFC59A3F),
+                                Color(0xFFFFF2B2),
+                                Color(0xFFC59A3F),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: const Color(0xFF8C641B),
+                              width: 0.8,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.12),
+                                blurRadius: 2,
+                                offset: const Offset(0, 1.5),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                left: 10,
+                                top: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 0.8,
+                                  color: const Color(
+                                    0xFF8C641B,
+                                  ).withOpacity(0.6),
+                                ),
+                              ),
+                              Positioned(
+                                right: 10,
+                                top: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 0.8,
+                                  color: const Color(
+                                    0xFF8C641B,
+                                  ).withOpacity(0.6),
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  height: 0.8,
+                                  color: const Color(
+                                    0xFF8C641B,
+                                  ).withOpacity(0.6),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  height: 0.8,
+                                  color: const Color(
+                                    0xFF8C641B,
+                                  ).withOpacity(0.6),
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.center,
+                                child: Container(
+                                  width: 8,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE2B755),
+                                    borderRadius: BorderRadius.circular(1.5),
+                                    border: Border.all(
+                                      color: const Color(0xFF8C641B),
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.swap_horizontal_circle_outlined,
+                              size: 14,
+                              color: Color(0xFFD4AF37),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'TAP TO FLIP DETAILS',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: isDark ? Colors.white54 : Colors.black45,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackSide() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return _buildCardContainer(
+      isDark: isDark,
+      child: Stack(
+        children: [
+          // Security Pattern
+          Positioned.fill(
+            child: CustomPaint(
+              painter: SecurityPatternPainter(
+                color:
+                    (isDark ? const Color(0xFFD4AF37) : const Color(0xFF4B61DD))
+                        .withOpacity(0.025),
+              ),
+            ),
+          ),
+
+          // Faded Crest Watermark
+          Positioned(
+            left: -20,
+            bottom: -20,
+            child: Icon(
+              Icons.shield_rounded,
+              size: 160,
+              color:
+                  (isDark ? const Color(0xFFD4AF37) : const Color(0xFF4B61DD))
+                      .withOpacity(0.035),
+            ),
+          ),
+
+          // Diagonal Holographic Sheen
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.06),
+                    Colors.white.withOpacity(0.12),
+                    Colors.white.withOpacity(0.06),
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.0),
+                  ],
+                  stops: const [0.0, 0.4, 0.45, 0.5, 0.55, 0.6, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Content
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Magnetic Stripe
+              const SizedBox(height: 8),
+              Container(
+                height: 28,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF261D15), // Dark bronze stripe
+                      Color(0xFF140F0A),
+                      Color(0xFF261D15),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Remaining Content
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Header Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.health_and_safety_rounded,
+                                color: Colors.redAccent,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'EMERGENCY & MEDICAL',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.redAccent,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 16,
+                              color: Color(0xFFD4AF37),
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: widget.onEditMedical,
+                          ),
+                        ],
+                      ),
+
+                      // Medical Details in Structured Grid
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildBackMetaLabel(
+                                      Icons.favorite_rounded,
+                                      'BLOOD GROUP',
+                                      widget.student.bloodGroup ??
+                                          'Not provided',
+                                      textColor: Colors.redAccent,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _buildBackMetaLabel(
+                                      Icons.warning_amber_rounded,
+                                      'ALLERGIES',
+                                      widget.student.allergies ?? 'None',
+                                      textColor: const Color(0xFFD4AF37),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildBackMetaLabel(
+                                      Icons.medical_information_outlined,
+                                      'SAFETY CONDITIONS',
+                                      widget.student.medicalConditions ??
+                                          'None reported',
+                                      textColor: isDark
+                                          ? const Color(0xFFF2D17E)
+                                          : const Color(0xFF8C641B),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _buildBackMetaLabel(
+                                      Icons.phone_in_talk_rounded,
+                                      'EMERGENCY CONTACT',
+                                      widget.snapshot.parent.phoneNumber ??
+                                          'Not provided',
+                                      textColor: isDark
+                                          ? const Color(0xFFF2D17E)
+                                          : const Color(0xFF8C641B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Signature Panel Mockup
+                      Container(
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.08)
+                              : Colors.black.withOpacity(0.04),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : Colors.black12,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8.0,
+                              ),
+                              child: Text(
+                                'AUTHORISED SIGNATURE',
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? Colors.white38
+                                      : Colors.black38,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Text(
+                                widget.student.rollNumber ??
+                                    widget.student.admissionNumber ??
+                                    'SECURE',
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 8,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black54,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // Bottom flip guide and options button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'ATOMUS DIGITAL SECURITY CERTIFIED',
+                            style: TextStyle(
+                              fontSize: 7.5,
+                              fontWeight: FontWeight.w900,
+                              color: isDark ? Colors.white38 : Colors.black38,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _showIdCardActionsSheet(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF1E2433)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: const Color(0xFFD4AF37),
+                                  width: 0.8,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 1.5),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CustomPaint(
+                                      painter: QrPainter(
+                                        color: isDark
+                                            ? const Color(0xFFD4AF37)
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'OPTIONS',
+                                    style: TextStyle(
+                                      fontSize: 7.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: isDark
+                                          ? const Color(0xFFD4AF37)
+                                          : const Color(0xFF1E2433),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showIdCardActionsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondary.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'ID Card Options',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.student.fullName,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // QR Mockup in options sheet
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: CustomPaint(
+                        painter: QrPainter(color: Colors.black87),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.download_rounded,
+                    color: AppColors.success,
+                  ),
+                  title: const Text(
+                    'Download ID Card (PDF)',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Save softcopy to device'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    try {
+                      await IdCardPdfGenerator.downloadIdCard(
+                        student: widget.student,
+                        parent: widget.snapshot.parent,
+                      );
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to download PDF: $e'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(
+                    Icons.print_rounded,
+                    color: AppColors.accent,
+                  ),
+                  title: const Text(
+                    'Print ID Card',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Send to local wireless printer'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    try {
+                      await IdCardPdfGenerator.printIdCard(
+                        student: widget.student,
+                        parent: widget.snapshot.parent,
+                      );
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to print: $e'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class QrPainter extends CustomPainter {
+  final Color color;
+
+  QrPainter({this.color = Colors.black87});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Draw QR Finder Patterns in 3 corners
+    final finderSize = size.width * 0.25;
+
+    // Top-Left
+    _drawFinder(canvas, paint, Offset.zero, finderSize);
+    // Top-Right
+    _drawFinder(canvas, paint, Offset(size.width - finderSize, 0), finderSize);
+    // Bottom-Left
+    _drawFinder(canvas, paint, Offset(0, size.height - finderSize), finderSize);
+
+    // Draw random-looking QR data blocks in the remaining area
+    final double block = size.width / 15;
+    for (int i = 0; i < 15; i++) {
+      for (int j = 0; j < 15; j++) {
+        // Skip finder areas
+        if (i < 4 && j < 4) continue;
+        if (i > 10 && j < 4) continue;
+        if (i < 4 && j > 10) continue;
+
+        // Pseudo-random deterministic noise
+        final hash = (i * 37 + j * 17) % 2;
+        if (hash == 0) {
+          canvas.drawRect(
+            Rect.fromLTWH(i * block, j * block, block - 1, block - 1),
+            paint,
+          );
+        }
+      }
+    }
+  }
+
+  void _drawFinder(Canvas canvas, Paint paint, Offset offset, double size) {
+    final block = size / 7;
+    // Outer square
+    canvas.drawRect(Rect.fromLTWH(offset.dx, offset.dy, size, size), paint);
+    // White middle
+    final whitePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTWH(
+        offset.dx + block,
+        offset.dy + block,
+        size - block * 2,
+        size - block * 2,
+      ),
+      whitePaint,
+    );
+    // Inner square
+    canvas.drawRect(
+      Rect.fromLTWH(
+        offset.dx + block * 2,
+        offset.dy + block * 2,
+        size - block * 4,
+        size - block * 4,
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class SecurityPatternPainter extends CustomPainter {
+  final Color color;
+
+  SecurityPatternPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    // Draw wavy lines from left to right
+    final path = Path();
+    for (double i = -60; i < size.width + 60; i += 24) {
+      path.reset();
+      path.moveTo(i, -20);
+      path.cubicTo(
+        i + 30,
+        size.height * 0.3,
+        i - 30,
+        size.height * 0.7,
+        i + 20,
+        size.height + 20,
+      );
+      canvas.drawPath(path, paint);
+    }
+
+    // Draw secondary intersecting curves
+    for (double i = -60; i < size.width + 60; i += 24) {
+      path.reset();
+      path.moveTo(i, size.height + 20);
+      path.cubicTo(
+        i - 30,
+        size.height * 0.7,
+        i + 30,
+        size.height * 0.3,
+        i - 20,
+        -20,
+      );
+      canvas.drawPath(path, paint);
+    }
+
+    // Draw concentric circles / security rosette in the bottom-right corner
+    final rosetteCenter = Offset(size.width * 0.85, size.height * 0.65);
+    for (double r = 12; r < 140; r += 16) {
+      canvas.drawCircle(rosetteCenter, r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant SecurityPatternPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

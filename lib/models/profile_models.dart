@@ -45,6 +45,10 @@ class ParentProfile {
     this.address,
     this.profilePhotoDriveId,
     this.accountStatus,
+    this.secondaryContactName,
+    this.secondaryContactPhone,
+    this.secondaryContactEmail,
+    this.secondaryContactRelationship,
   });
 
   final String id;
@@ -55,6 +59,10 @@ class ParentProfile {
   final String? address;
   final String? profilePhotoDriveId;
   final String? accountStatus;
+  final String? secondaryContactName;
+  final String? secondaryContactPhone;
+  final String? secondaryContactEmail;
+  final String? secondaryContactRelationship;
 
   factory ParentProfile.fromMap(Map<String, dynamic> map) {
     return ParentProfile(
@@ -66,6 +74,10 @@ class ParentProfile {
       address: map['address']?.toString(),
       profilePhotoDriveId: map['profile_photo_drive_id']?.toString(),
       accountStatus: map['account_status']?.toString(),
+      secondaryContactName: map['secondary_contact_name']?.toString(),
+      secondaryContactPhone: map['secondary_contact_phone']?.toString(),
+      secondaryContactEmail: map['secondary_contact_email']?.toString(),
+      secondaryContactRelationship: map['secondary_contact_relationship']?.toString(),
     );
   }
 
@@ -79,6 +91,10 @@ class ParentProfile {
       'address': address,
       'profile_photo_drive_id': profilePhotoDriveId,
       'account_status': accountStatus,
+      'secondary_contact_name': secondaryContactName,
+      'secondary_contact_phone': secondaryContactPhone,
+      'secondary_contact_email': secondaryContactEmail,
+      'secondary_contact_relationship': secondaryContactRelationship,
     };
   }
 
@@ -87,6 +103,10 @@ class ParentProfile {
       'full_name': fullName.trim(),
       'phone_number': phoneNumber?.trim(),
       'address': address?.trim(),
+      'secondary_contact_name': secondaryContactName?.trim(),
+      'secondary_contact_phone': secondaryContactPhone?.trim(),
+      'secondary_contact_email': secondaryContactEmail?.trim(),
+      'secondary_contact_relationship': secondaryContactRelationship?.trim(),
     };
   }
 
@@ -99,6 +119,10 @@ class ParentProfile {
     String? address,
     String? profilePhotoDriveId,
     String? accountStatus,
+    String? secondaryContactName,
+    String? secondaryContactPhone,
+    String? secondaryContactEmail,
+    String? secondaryContactRelationship,
   }) {
     return ParentProfile(
       id: id ?? this.id,
@@ -109,6 +133,10 @@ class ParentProfile {
       address: address ?? this.address,
       profilePhotoDriveId: profilePhotoDriveId ?? this.profilePhotoDriveId,
       accountStatus: accountStatus ?? this.accountStatus,
+      secondaryContactName: secondaryContactName ?? this.secondaryContactName,
+      secondaryContactPhone: secondaryContactPhone ?? this.secondaryContactPhone,
+      secondaryContactEmail: secondaryContactEmail ?? this.secondaryContactEmail,
+      secondaryContactRelationship: secondaryContactRelationship ?? this.secondaryContactRelationship,
     );
   }
 
@@ -137,6 +165,10 @@ class LinkedStudentProfile {
     this.email,
     this.phoneNumber,
     this.profilePhotoDriveId,
+    this.bloodGroup,
+    this.allergies,
+    this.medicalConditions,
+    this.dob,
   });
 
   final String id;
@@ -153,6 +185,10 @@ class LinkedStudentProfile {
   final String? email;
   final String? phoneNumber;
   final String? profilePhotoDriveId;
+  final String? bloodGroup;
+  final String? allergies;
+  final String? medicalConditions;
+  final String? dob;
 
   factory LinkedStudentProfile.fromMap(Map<String, dynamic> map) {
     final course = map['courses'] is Map<String, dynamic>
@@ -181,6 +217,10 @@ class LinkedStudentProfile {
       phoneNumber:
           map['student_phone']?.toString() ?? map['phone_number']?.toString(),
       profilePhotoDriveId: map['profile_photo_drive_id']?.toString(),
+      bloodGroup: map['blood_group']?.toString(),
+      allergies: map['allergies']?.toString(),
+      medicalConditions: map['medical_conditions']?.toString(),
+      dob: map['dob']?.toString(),
     );
   }
 
@@ -200,6 +240,10 @@ class LinkedStudentProfile {
       'email': email,
       'phone_number': phoneNumber,
       'profile_photo_drive_id': profilePhotoDriveId,
+      'blood_group': bloodGroup,
+      'allergies': allergies,
+      'medical_conditions': medicalConditions,
+      'dob': dob,
     };
   }
 
@@ -218,6 +262,10 @@ class LinkedStudentProfile {
     String? email,
     String? phoneNumber,
     String? profilePhotoDriveId,
+    String? bloodGroup,
+    String? allergies,
+    String? medicalConditions,
+    String? dob,
   }) {
     return LinkedStudentProfile(
       id: id ?? this.id,
@@ -234,6 +282,10 @@ class LinkedStudentProfile {
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       profilePhotoDriveId: profilePhotoDriveId ?? this.profilePhotoDriveId,
+      bloodGroup: bloodGroup ?? this.bloodGroup,
+      allergies: allergies ?? this.allergies,
+      medicalConditions: medicalConditions ?? this.medicalConditions,
+      dob: dob ?? this.dob,
     );
   }
 
