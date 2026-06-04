@@ -46,11 +46,33 @@ class ProfileRepository {
     final students = await _getLinkedStudents(parent.id);
     final cached = await _cache.getProfile(parent.id);
 
+    // Compare remote drive IDs with cached drive IDs to decide whether to override/keep local images
+    String? parentLocalImagePath = cached?.parentLocalImagePath;
+    if (cached != null && cached.parent.profilePhotoDriveId != parent.profilePhotoDriveId) {
+      parentLocalImagePath = null;
+    }
+
+    final Map<String, String> studentLocalImagePaths = {};
+    if (cached != null) {
+      for (final student in students) {
+        final cachedStudent = cached.students.firstWhere(
+          (s) => s.id == student.id,
+          orElse: () => student,
+        );
+        if (cachedStudent.profilePhotoDriveId == student.profilePhotoDriveId) {
+          final path = cached.studentLocalImagePaths[student.id];
+          if (path != null) {
+            studentLocalImagePaths[student.id] = path;
+          }
+        }
+      }
+    }
+
     final snapshot = ProfileSnapshot(
       parent: parent,
       students: students,
-      parentLocalImagePath: cached?.parentLocalImagePath,
-      studentLocalImagePaths: cached?.studentLocalImagePaths ?? const {},
+      parentLocalImagePath: parentLocalImagePath,
+      studentLocalImagePaths: studentLocalImagePaths,
       updatedAt: DateTime.now(),
     );
 
@@ -165,6 +187,14 @@ class ProfileRepository {
       localPath: localPath,
     );
 
+    // Save profile photo references in database directly
+    await _updateProfilePhotoInDb(
+      target: target,
+      targetId: targetId,
+      parentId: current.parent.id,
+      driveId: driveId,
+    );
+
     final snapshot = current.withDriveId(
       target: target,
       targetId: targetId,
@@ -224,6 +254,15 @@ class ProfileRepository {
           targetId: upload.targetId,
           localPath: upload.localPath,
         );
+
+        // Save profile photo references in database directly
+        await _updateProfilePhotoInDb(
+          target: upload.target,
+          targetId: upload.targetId,
+          parentId: current.parent.id,
+          driveId: driveId,
+        );
+
         snapshot = snapshot.withDriveId(
           target: upload.target,
           targetId: upload.targetId,
@@ -357,6 +396,32 @@ class ProfileRepository {
     if (student == null ||
         student['parent_id']?.toString() != snapshot.parent.id) {
       throw Exception('This student is not linked to your parent profile.');
+    }
+  }
+
+  Future<void> _updateProfilePhotoInDb({
+    required ProfileUploadTarget target,
+    required String targetId,
+    required String parentId,
+    required String driveId,
+  }) async {
+    if (target == ProfileUploadTarget.parent) {
+      await _supabase
+          .from('parents')
+          .update({
+            'profile_photo_drive_id': driveId,
+            'profile_photo_url': '/api/media?id=$driveId',
+          })
+          .eq('id', targetId);
+    } else if (target == ProfileUploadTarget.student) {
+      await _supabase
+          .from('students')
+          .update({
+            'profile_photo_drive_id': driveId,
+            'profile_photo_url': '/api/media?id=$driveId',
+          })
+          .eq('id', targetId)
+          .eq('parent_id', parentId);
     }
   }
 }

@@ -562,35 +562,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildLinkedStudentsSummary(ProfileSnapshot snapshot) {
+    if (snapshot.students.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionHeader('Linked Students'),
+          NeuBox(
+            borderRadius: 18,
+            padding: const EdgeInsets.all(18),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.school_outlined,
+                  color: AppColors.accent,
+                  size: 28,
+                ),
+                SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    'No students are linked to this parent account.',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSectionHeader('Linked Students'),
-        NeuBox(
-          borderRadius: 18,
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.school_outlined,
-                color: AppColors.accent,
-                size: 28,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  snapshot.students.isEmpty
-                      ? 'No students are linked to this parent account.'
-                      : '${snapshot.students.length} linked student${snapshot.students.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
+        ...snapshot.students.map((student) {
+          final localPath = snapshot.studentLocalImagePaths[student.id];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: NeuBox(
+              borderRadius: 18,
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  DriveProfileImage(
+                    driveId: student.profilePhotoDriveId,
+                    localPath: localPath,
+                    radius: 20,
+                    initials: student.initials,
+                    alt: '${student.fullName} profile photo',
                   ),
-                ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          student.fullName,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Roll: ${student.rollNumber ?? "N/A"} · ${student.courseLabel}',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        }),
       ],
     );
   }
@@ -799,6 +851,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildSectionHeader(
                 '${student.fullName} - ID Card Backside Details',
               ),
+              Center(
+                child: DriveProfileImage(
+                  driveId: student.profilePhotoDriveId,
+                  localPath: snapshot.studentLocalImagePaths[student.id],
+                  radius: 48,
+                  initials: student.initials,
+                  alt: '${student.fullName} profile photo',
+                ),
+              ),
+              const SizedBox(height: 18),
               _buildTextField(
                 _studentBloodControllers[student.id]!,
                 'Blood Group (e.g. O+, A-)',

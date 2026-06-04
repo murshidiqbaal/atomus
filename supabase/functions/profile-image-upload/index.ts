@@ -239,9 +239,13 @@ async function resolveFolderId(
   const configured = Deno.env.get(envName);
   if (configured) return configured;
 
+  if (targetType === "parent") {
+    return "1bBwK2-emly4lpO7KD7EFz0H-VcVLb3Wq";
+  }
+
   return findOrCreateFolder(
     accessToken,
-    targetType === "parent" ? "ParentProfiles" : "StudentProfiles",
+    "StudentProfiles",
   );
 }
 
@@ -350,7 +354,10 @@ async function saveDriveFileId(
   if (targetType === "parent") {
     const { error } = await admin
       .from("parents")
-      .update({ profile_photo_drive_id: driveFileId })
+      .update({ 
+        profile_photo_drive_id: driveFileId,
+        profile_photo_url: `/api/media?id=${driveFileId}`
+      })
       .eq("id", parentId);
     if (error) throw new HttpError(error.message, 500);
     return;
@@ -358,7 +365,10 @@ async function saveDriveFileId(
 
   const { error } = await admin
     .from("students")
-    .update({ profile_photo_drive_id: driveFileId })
+    .update({ 
+      profile_photo_drive_id: driveFileId,
+      profile_photo_url: `/api/media?id=${driveFileId}`
+    })
     .eq("id", targetId)
     .eq("parent_id", parentId);
   if (error) throw new HttpError(error.message, 500);

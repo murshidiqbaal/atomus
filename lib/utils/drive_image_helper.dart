@@ -36,6 +36,31 @@ class DriveImageHelper {
     return 'https://lh3.googleusercontent.com/d/$id=w$width';
   }
 
+  /// Extracts the Google Drive file ID from a URL, query, or path.
+  /// Returns the original string if it is already a valid Drive ID.
+  static String? extractDriveId(String? input) {
+    if (input == null || input.trim().isEmpty) return null;
+    final trimmed = input.trim();
+    
+    if (isValid(trimmed)) return trimmed;
+    
+    // Format: /file/d/DRIVE_ID/...
+    final fileDRegExp = RegExp(r'/file/d/([A-Za-z0-9_\-]{10,60})');
+    final matchFileD = fileDRegExp.firstMatch(trimmed);
+    if (matchFileD != null && matchFileD.groupCount >= 1) {
+      return matchFileD.group(1);
+    }
+    
+    // Format: ?id=DRIVE_ID or &id=DRIVE_ID
+    final queryIdRegExp = RegExp(r'[?&]id=([A-Za-z0-9_\-]{10,60})');
+    final matchQueryId = queryIdRegExp.firstMatch(trimmed);
+    if (matchQueryId != null && matchQueryId.groupCount >= 1) {
+      return matchQueryId.group(1);
+    }
+    
+    return null;
+  }
+
   /// Resolves the best URL for [fileId].
   ///
   /// Returns [thumbnailUrl] for [highQuality]=false (default) and
@@ -46,10 +71,11 @@ class DriveImageHelper {
     int width = 1000,
     bool highQuality = false,
   }) {
-    if (!isValid(fileId)) return null;
+    final extractedId = extractDriveId(fileId);
+    if (!isValid(extractedId)) return null;
     return highQuality
-        ? highQualityUrl(fileId!, width: width)
-        : thumbnailUrl(fileId!, width: width);
+        ? highQualityUrl(extractedId!, width: width)
+        : thumbnailUrl(extractedId!, width: width);
   }
 
   /// Compatibility helper for profile screens and admin surfaces.

@@ -25,6 +25,59 @@ class FeeRepository {
     return int.tryParse(val.toString()) ?? 0;
   }
 
+  int? _parseStartMonth(String termName) {
+    final clean = termName.toLowerCase();
+    String startMonthStr = clean;
+    if (clean.contains('-')) {
+      startMonthStr = clean.split('-').first.trim();
+    } else if (clean.contains(' to ')) {
+      startMonthStr = clean.split(' to ').first.trim();
+    }
+    
+    if (startMonthStr.startsWith('jan')) return 1;
+    if (startMonthStr.startsWith('feb')) return 2;
+    if (startMonthStr.startsWith('mar')) return 3;
+    if (startMonthStr.startsWith('apr')) return 4;
+    if (startMonthStr.startsWith('may')) return 5;
+    if (startMonthStr.startsWith('jun')) return 6;
+    if (startMonthStr.startsWith('jul')) return 7;
+    if (startMonthStr.startsWith('aug')) return 8;
+    if (startMonthStr.startsWith('sep')) return 9;
+    if (startMonthStr.startsWith('oct')) return 10;
+    if (startMonthStr.startsWith('nov')) return 11;
+    if (startMonthStr.startsWith('dec')) return 12;
+    return null;
+  }
+
+  DateTime _calculateDueDate(String termName, int dueDaysOffset, DateTime? updatedAt, int index, List<dynamic>? termDetailsList) {
+    final startMonth = _parseStartMonth(termName);
+    int year = DateTime.now().year;
+    if (updatedAt != null) {
+      year = updatedAt.year;
+    }
+    
+    if (startMonth != null) {
+      int? firstTermStartMonth;
+      if (termDetailsList != null && termDetailsList.isNotEmpty) {
+        final firstTerm = termDetailsList.first;
+        if (firstTerm is Map<String, dynamic>) {
+          final firstTermName = firstTerm['term_name']?.toString() ?? firstTerm['name']?.toString() ?? '';
+          firstTermStartMonth = _parseStartMonth(firstTermName);
+        }
+      }
+      
+      int targetYear = year;
+      if (firstTermStartMonth != null && startMonth < firstTermStartMonth) {
+        targetYear = year + 1;
+      }
+      
+      final termStart = DateTime(targetYear, startMonth, 1);
+      return termStart.subtract(Duration(days: dueDaysOffset));
+    }
+    
+    return DateTime(year, DateTime.now().month + index, 10);
+  }
+
   Future<List<FeeRecord>> getFeeRecords() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -150,7 +203,12 @@ class FeeRepository {
               double termAmount = _parseDouble(term['amount'] ?? term['total_amount']);
               double termPaidAmount = 0.0;
               String termStatus = 'Pending';
-              DateTime dueDate = DateTime.now();
+              DateTime? updatedAtDate;
+              if (studentFeeResponse != null && studentFeeResponse['updated_at'] != null) {
+                updatedAtDate = DateTime.tryParse(studentFeeResponse['updated_at'].toString());
+              }
+              final dueDaysOffset = _parseInt(structure['due_date_day'] ?? 10);
+              DateTime dueDate = _calculateDueDate(termName, dueDaysOffset, updatedAtDate, i, termDetailsList);
               DateTime? paymentDate;
 
               if (matchedTermStatus != null) {
@@ -158,20 +216,8 @@ class FeeRepository {
                 termPaidAmount = _parseDouble(matchedTermStatus['amount_paid'] ?? matchedTermStatus['paid_amount'] ?? 0.0);
                 termStatus = matchedTermStatus['status']?.toString() ?? matchedTermStatus['payment_status']?.toString() ?? 'Pending';
                 
-                final dueDateStr = matchedTermStatus['due_date']?.toString();
-                if (dueDateStr != null) {
-                  dueDate = DateTime.tryParse(dueDateStr) ?? dueDate;
-                } else {
-                  final dueDay = _parseInt(term['due_day'] ?? structure['due_date_day'] ?? 10);
-                  dueDate = DateTime(DateTime.now().year, DateTime.now().month + i, dueDay);
-                }
-
                 final paymentDateStr = matchedTermStatus['payment_date']?.toString() ?? matchedTermStatus['last_payment_date']?.toString();
                 paymentDate = paymentDateStr != null ? DateTime.tryParse(paymentDateStr) : null;
-              } else {
-                // No matched term status, use defaults from structure term details
-                final dueDay = _parseInt(term['due_day'] ?? structure['due_date_day'] ?? 10);
-                dueDate = DateTime(DateTime.now().year, DateTime.now().month + i, dueDay);
               }
 
               final isPaid = _statusIsPaid(termStatus);
@@ -258,8 +304,11 @@ class FeeRepository {
           final double termPaidAmount = _parseDouble(term['amount_paid'] ?? term['paid_amount'] ?? 0.0);
           final String termStatus = term['status']?.toString() ?? term['payment_status']?.toString() ?? 'Pending';
           
-          final dueDateStr = term['due_date']?.toString();
-          final dueDate = dueDateStr != null ? DateTime.tryParse(dueDateStr) ?? DateTime.now() : DateTime.now();
+          DateTime? updatedAtDate;
+          if (studentFeeResponse['updated_at'] != null) {
+            updatedAtDate = DateTime.tryParse(studentFeeResponse['updated_at'].toString());
+          }
+          final dueDate = _calculateDueDate(termName, 10, updatedAtDate, i, termStatusList);
 
           final paymentDateStr = term['payment_date']?.toString() ?? term['last_payment_date']?.toString();
           final paymentDate = paymentDateStr != null ? DateTime.tryParse(paymentDateStr) : null;

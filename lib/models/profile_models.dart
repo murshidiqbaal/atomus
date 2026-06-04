@@ -1,3 +1,5 @@
+import '../utils/drive_image_helper.dart';
+
 enum ProfileUploadTarget { parent, student, teacher }
 
 extension ProfileUploadTargetX on ProfileUploadTarget {
@@ -65,6 +67,8 @@ class ParentProfile {
   final String? secondaryContactRelationship;
 
   factory ParentProfile.fromMap(Map<String, dynamic> map) {
+    final driveId = map['profile_photo_drive_id']?.toString() ?? 
+                    DriveImageHelper.extractDriveId(map['profile_photo_url']?.toString());
     return ParentProfile(
       id: map['id']?.toString() ?? '',
       authUserId: map['auth_user_id']?.toString() ?? map['auth_id']?.toString(),
@@ -72,7 +76,7 @@ class ParentProfile {
       email: map['email']?.toString(),
       phoneNumber: map['phone_number']?.toString(),
       address: map['address']?.toString(),
-      profilePhotoDriveId: map['profile_photo_drive_id']?.toString(),
+      profilePhotoDriveId: driveId,
       accountStatus: map['account_status']?.toString(),
       secondaryContactName: map['secondary_contact_name']?.toString(),
       secondaryContactPhone: map['secondary_contact_phone']?.toString(),
@@ -205,6 +209,9 @@ class LinkedStudentProfile {
         ? map['campuses'] as Map<String, dynamic>
         : null;
 
+    final driveId = map['profile_photo_drive_id']?.toString() ?? 
+                    DriveImageHelper.extractDriveId(map['profile_photo_url']?.toString());
+
     return LinkedStudentProfile(
       id: map['id']?.toString() ?? '',
       parentId: map['parent_id']?.toString() ?? '',
@@ -220,7 +227,7 @@ class LinkedStudentProfile {
       email: map['student_email']?.toString() ?? map['email']?.toString(),
       phoneNumber:
           map['student_phone']?.toString() ?? map['phone_number']?.toString(),
-      profilePhotoDriveId: map['profile_photo_drive_id']?.toString(),
+      profilePhotoDriveId: driveId,
       bloodGroup: map['blood_group']?.toString(),
       allergies: map['allergies']?.toString(),
       medicalConditions: map['medical_conditions']?.toString(),
