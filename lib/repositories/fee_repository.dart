@@ -291,6 +291,68 @@ class FeeRepository {
 
       // Sort by due date (chronological so Term 1 is shown before Term 2, etc.)
       records.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+      // Correct individual term statuses based on overall paid_amount from student_fees.
+      // This ensures that if the individual term_status array elements are Pending/0
+      // but the overall paid_amount reflects a payment (like Aswin Manoj who paid 1000.0),
+      // we correctly display the corresponding term(s) as Paid.
+      if (studentFeeResponse != null) {
+        final double overallPaidAmount = _parseDouble(studentFeeResponse['paid_amount']);
+        double remainingPaid = overallPaidAmount;
+
+        for (var i = 0; i < records.length; i++) {
+          final record = records[i];
+          final double termAmount = record.amount;
+
+          if (remainingPaid >= termAmount) {
+            // This term is fully covered by the overall paid amount
+            records[i] = FeeRecord(
+              id: record.id,
+              title: record.title,
+              amount: record.amount,
+              dueDate: record.dueDate,
+              isPaid: true,
+              receiptId: record.receiptId.isNotEmpty
+                  ? record.receiptId
+                  : 'TXN-${studentFeeResponse['id'].toString().substring(0, 8).toUpperCase()}-$i',
+              status: 'Paid',
+              amountPaid: termAmount,
+              paymentDate: record.paymentDate ?? DateTime.tryParse(studentFeeResponse['last_payment_date']?.toString() ?? '') ?? DateTime.now(),
+            );
+            remainingPaid -= termAmount;
+          } else if (remainingPaid > 0) {
+            // This term is partially covered by the remaining paid amount
+            records[i] = FeeRecord(
+              id: record.id,
+              title: record.title,
+              amount: record.amount,
+              dueDate: record.dueDate,
+              isPaid: false,
+              receiptId: record.receiptId,
+              status: 'Partially Paid',
+              amountPaid: remainingPaid,
+              paymentDate: record.paymentDate ?? DateTime.tryParse(studentFeeResponse['last_payment_date']?.toString() ?? '') ?? DateTime.now(),
+            );
+            remainingPaid = 0.0;
+          } else {
+            // No remaining paid amount to allocate to this term.
+            // If it was already marked as paid via other DB parsing paths, keep it, otherwise pending.
+            if (!record.isPaid) {
+              records[i] = FeeRecord(
+                id: record.id,
+                title: record.title,
+                amount: record.amount,
+                dueDate: record.dueDate,
+                isPaid: false,
+                receiptId: record.receiptId,
+                status: 'Pending',
+                amountPaid: 0.0,
+                paymentDate: null,
+              );
+            }
+          }
+        }
+      }
       return records;
 
     } catch (e) {

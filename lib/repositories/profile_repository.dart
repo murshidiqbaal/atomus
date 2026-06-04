@@ -88,7 +88,8 @@ class ProfileRepository {
         secondaryContactName: updatedParent.secondaryContactName?.trim(),
         secondaryContactPhone: updatedParent.secondaryContactPhone?.trim(),
         secondaryContactEmail: updatedParent.secondaryContactEmail?.trim(),
-        secondaryContactRelationship: updatedParent.secondaryContactRelationship?.trim(),
+        secondaryContactRelationship: updatedParent.secondaryContactRelationship
+            ?.trim(),
       ),
       updatedAt: DateTime.now(),
     );
@@ -100,7 +101,11 @@ class ProfileRepository {
     ProfileSnapshot current,
     LinkedStudentProfile updatedStudent,
   ) async {
-    await _validateTargetAccess(current, ProfileUploadTarget.student, updatedStudent.id);
+    await _validateTargetAccess(
+      current,
+      ProfileUploadTarget.student,
+      updatedStudent.id,
+    );
 
     await _supabase
         .from('students')

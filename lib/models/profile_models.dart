@@ -77,7 +77,8 @@ class ParentProfile {
       secondaryContactName: map['secondary_contact_name']?.toString(),
       secondaryContactPhone: map['secondary_contact_phone']?.toString(),
       secondaryContactEmail: map['secondary_contact_email']?.toString(),
-      secondaryContactRelationship: map['secondary_contact_relationship']?.toString(),
+      secondaryContactRelationship: map['secondary_contact_relationship']
+          ?.toString(),
     );
   }
 
@@ -134,9 +135,12 @@ class ParentProfile {
       profilePhotoDriveId: profilePhotoDriveId ?? this.profilePhotoDriveId,
       accountStatus: accountStatus ?? this.accountStatus,
       secondaryContactName: secondaryContactName ?? this.secondaryContactName,
-      secondaryContactPhone: secondaryContactPhone ?? this.secondaryContactPhone,
-      secondaryContactEmail: secondaryContactEmail ?? this.secondaryContactEmail,
-      secondaryContactRelationship: secondaryContactRelationship ?? this.secondaryContactRelationship,
+      secondaryContactPhone:
+          secondaryContactPhone ?? this.secondaryContactPhone,
+      secondaryContactEmail:
+          secondaryContactEmail ?? this.secondaryContactEmail,
+      secondaryContactRelationship:
+          secondaryContactRelationship ?? this.secondaryContactRelationship,
     );
   }
 

@@ -172,7 +172,9 @@ class ProfileCubit extends Cubit<ProfileState> {
     final snapshot = state.snapshot;
     if (snapshot == null) return;
 
-    final currentStudent = snapshot.students.firstWhere((s) => s.id == studentId);
+    final currentStudent = snapshot.students.firstWhere(
+      (s) => s.id == studentId,
+    );
     final optimisticStudent = currentStudent.copyWith(
       bloodGroup: bloodGroup,
       allergies: allergies,
