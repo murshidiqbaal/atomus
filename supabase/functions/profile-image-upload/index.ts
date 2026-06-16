@@ -243,6 +243,10 @@ async function resolveFolderId(
     return "1bBwK2-emly4lpO7KD7EFz0H-VcVLb3Wq";
   }
 
+  if (targetType === "student") {
+    return "1m9AtmDhtje_vBFgsUWstQnKJeReGIfTN";
+  }
+
   return findOrCreateFolder(
     accessToken,
     "StudentProfiles",

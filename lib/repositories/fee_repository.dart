@@ -414,6 +414,28 @@ class FeeRepository {
     await Future.delayed(const Duration(seconds: 1));
   }
 
+  Future<void> submitPaymentTransaction({
+    required String studentId,
+    required double amount,
+    required String termName,
+    required String transactionId,
+    required String paymentMethod,
+  }) async {
+    try {
+      await _supabase.from('payment_transactions').insert({
+        'student_id': studentId,
+        'amount_paid': amount,
+        'payment_method': paymentMethod,
+        'transaction_id': transactionId,
+        'remarks': 'Submitted via App: $termName',
+        'payment_date': DateTime.now().toIso8601String().split('T')[0],
+      });
+    } catch (e) {
+      print('ERROR [submitPaymentTransaction]: $e');
+      rethrow;
+    }
+  }
+
   /// Fetches payment transaction history for the student
   Future<List<Map<String, dynamic>>> getPaymentHistory() async {
     try {

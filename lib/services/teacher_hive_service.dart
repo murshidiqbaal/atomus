@@ -8,6 +8,7 @@ class TeacherHiveService {
   static const String _cachedStudentsBox    = 'teacher_cached_students';
   static const String _assignmentsBox       = 'teacher_assignments';
   static const String _activeSessionBox     = 'teacher_active_session';
+  static const String _dailyReportsBox      = 'teacher_daily_reports';
 
   // Singleton instance
   static final TeacherHiveService _instance = TeacherHiveService._internal();
@@ -27,6 +28,7 @@ class TeacherHiveService {
       _openBox(_cachedStudentsBox),
       _openBox(_assignmentsBox),
       _openBox(_activeSessionBox),
+      _openBox(_dailyReportsBox),
     ]);
     _initialized = true;
   }
@@ -166,4 +168,27 @@ class TeacherHiveService {
 
   int get pendingMarksCount =>
       _getBox(_pendingMarksBox).length;
+
+  // ── Daily reports ─────────────────────────────────────────────
+  Future<void> saveDailyReport(String key, Map<String, dynamic> report) async {
+    final box = _getBox(_dailyReportsBox);
+    await box.put(key, jsonEncode(report));
+  }
+
+  Map<String, dynamic>? getDailyReport(String key) {
+    final box = _getBox(_dailyReportsBox);
+    final raw = box.get(key);
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  Future<void> deleteDailyReport(String key) async {
+    final box = _getBox(_dailyReportsBox);
+    await box.delete(key);
+  }
+
+  List<Map<String, dynamic>> getAllDailyReports() {
+    final box = _getBox(_dailyReportsBox);
+    return box.values.map((v) => jsonDecode(v) as Map<String, dynamic>).toList();
+  }
 }

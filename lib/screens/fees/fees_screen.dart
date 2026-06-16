@@ -8,7 +8,10 @@ import '../../blocs/fee/fee_event.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../widgets/neu_box.dart';
 import '../../widgets/glass_background.dart';
+import '../../widgets/drive_network_image.dart';
+import '../../utils/drive_image_helper.dart';
 import '../../models/dummy_data.dart';
+import '../../repositories/fee_repository.dart';
 
 class FeesScreen extends StatelessWidget {
   const FeesScreen({super.key});
@@ -24,9 +27,10 @@ class FeesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final studentState = context.read<StudentBloc>().state;
-    final studentName = studentState.studentInfo?.fullName ?? 'Student';
+    final studentInfo = studentState.studentInfo;
+    final studentName = studentInfo?.fullName ?? 'Student';
     final studentGrade =
-        studentState.studentInfo?.grade ?? 'Academic Program';
+        studentInfo?.grade ?? 'Academic Program';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassBackground(
@@ -165,6 +169,12 @@ class FeesScreen extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
+                  // ─── Campus Payment QR Code ────────────────────────
+                  if (studentInfo != null) ...[
+                    _buildCampusQrCard(context, studentInfo, isDark),
+                    const SizedBox(height: 20),
+                  ],
+
                   // ─── Overview Summary Card ─────────────────────────
                   _buildOverviewCard(context, state, isDark),
                   const SizedBox(height: 20),
@@ -224,6 +234,247 @@ class FeesScreen extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  CAMPUS PAYMENT QR CARD — Scan & Pay with zoom capability
+  // ════════════════════════════════════════════════════════════════
+  Widget _buildCampusQrCard(
+      BuildContext context, StudentInfo student, bool isDark) {
+    final driveId = student.paymentQrDriveId;
+    final url = student.paymentQrUrl;
+    final campus = student.campusName ?? 'Campus';
+
+    final hasDriveId = driveId != null && driveId.isNotEmpty && DriveImageHelper.isValid(driveId);
+    final hasUrl = url != null && url.isNotEmpty;
+
+    if (!hasDriveId && !hasUrl) return const SizedBox.shrink();
+
+    return NeuBox(
+      borderRadius: 24,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.qr_code_2_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CAMPUS SCAN & PAY',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        letterSpacing: 1.2,
+                        color: isDark
+                            ? AppColors.textPrimaryDark.withOpacity(0.7)
+                            : AppColors.textPrimary.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      campus,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Quick Payment',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Scan this QR code using any UPI app (GPay, PhonePe, Paytm) to make payment. Tap the QR code to enlarge.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () => _showFullscreenQr(context, campus, driveId, url, isDark),
+                child: NeuBox(
+                  borderRadius: 16,
+                  padding: const EdgeInsets.all(8),
+                  color: Colors.white,
+                  child: SizedBox(
+                    width: 96,
+                    height: 96,
+                    child: hasDriveId
+                        ? DriveNetworkImage(
+                            driveId: driveId,
+                            fit: BoxFit.contain,
+                            placeholderType: DrivePlaceholderType.banner,
+                          )
+                        : Image.network(
+                            url!,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.broken_image_rounded,
+                              color: Colors.grey,
+                              size: 40,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullscreenQr(BuildContext context, String campus, String? driveId, String? url, bool isDark) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final hasDriveId = driveId != null && driveId.isNotEmpty && DriveImageHelper.isValid(driveId);
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: NeuBox(
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  padding: EdgeInsets.zero,
+                  onTap: () => Navigator.pop(context),
+                  child: Center(
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: isDark ? AppColors.accent : AppColors.primary,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              NeuBox(
+                borderRadius: 28,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      campus.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                        letterSpacing: 1.0,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Payment QR Code',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : Colors.grey.shade200,
+                        ),
+                      ),
+                      width: 280,
+                      height: 280,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: hasDriveId
+                            ? DriveNetworkImage(
+                                driveId: driveId,
+                                fit: BoxFit.contain,
+                                placeholderType: DrivePlaceholderType.banner,
+                              )
+                            : Image.network(
+                                url!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) => const Center(
+                                  child: Icon(
+                                    Icons.broken_image_rounded,
+                                    color: Colors.grey,
+                                    size: 64,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Scan to make fee payment',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? AppColors.accent : AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -726,10 +977,20 @@ class FeesScreen extends StatelessWidget {
     return NeuBox(
       borderRadius: 18,
       padding: EdgeInsets.zero,
-      onTap: fee.isPaid
-          ? () => _showReceiptBottomSheet(
-                context, fee, studentName, studentGrade, isDark)
-          : null,
+      onTap: () {
+        if (fee.isPaid) {
+          _showReceiptBottomSheet(
+              context, fee, studentName, studentGrade, isDark);
+        } else {
+          final studentState = context.read<StudentBloc>().state;
+          final studentInfo = studentState.studentInfo;
+          final paymentQrUrl = studentInfo?.paymentQrUrl;
+          final paymentQrDriveId = studentInfo?.paymentQrDriveId;
+          final studentId = studentInfo?.id ?? '';
+          _showPaymentBottomSheet(
+              context, fee, studentId, paymentQrUrl, paymentQrDriveId, isDark);
+        }
+      },
       child: Column(
         children: [
           // Top colored strip
@@ -1383,5 +1644,330 @@ class FeesScreen extends StatelessWidget {
     if (progress >= 0.5) return AppColors.info;
     if (progress >= 0.25) return AppColors.warning;
     return AppColors.error;
+  }
+
+  void _showPaymentBottomSheet(
+    BuildContext context,
+    FeeRecord fee,
+    String studentId,
+    String? paymentQrUrl,
+    String? paymentQrDriveId,
+    bool isDark,
+  ) {
+    final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+    final txController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF151521) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, -8),
+                  ),
+                ],
+              ),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      Text(
+                        'PAY FEE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? AppColors.accent : AppColors.primary,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        fee.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        currencyFmt.format(fee.amount),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? AppColors.accent : AppColors.primary,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      if ((paymentQrDriveId != null && paymentQrDriveId.isNotEmpty && DriveImageHelper.isValid(paymentQrDriveId)) ||
+                          (paymentQrUrl != null && paymentQrUrl.isNotEmpty)) ...[
+                        Text(
+                          'Scan the QR code below to make payment',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isDark ? Colors.white10 : Colors.grey.shade200,
+                            ),
+                          ),
+                          width: 220,
+                          height: 220,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: (paymentQrDriveId != null && paymentQrDriveId.isNotEmpty && DriveImageHelper.isValid(paymentQrDriveId))
+                                ? DriveNetworkImage(
+                                    driveId: paymentQrDriveId,
+                                    fit: BoxFit.contain,
+                                    placeholderType: DrivePlaceholderType.banner,
+                                  )
+                                : Image.network(
+                                    paymentQrUrl!,
+                                    fit: BoxFit.contain,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          color: AppColors.primary,
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded /
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Icon(
+                                          Icons.broken_image_rounded,
+                                          color: Colors.grey.shade400,
+                                          size: 48,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.warning.withOpacity(0.25),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'No QR code configured for your campus. Please contact administration for payment details.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+
+                      TextFormField(
+                        controller: txController,
+                        enabled: !isSubmitting,
+                        decoration: InputDecoration(
+                          labelText: 'UPI Transaction ID / Ref Number',
+                          labelStyle: TextStyle(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          hintText: 'Enter 12-digit transaction ID',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade500,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.receipt_rounded,
+                            color: isDark ? AppColors.accent : AppColors.primary,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: isDark ? AppColors.accent : AppColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter transaction ID';
+                          }
+                          if (value.trim().length < 6) {
+                            return 'Transaction ID is too short';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 24),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      if (formKey.currentState!.validate()) {
+                                        setState(() {
+                                          isSubmitting = true;
+                                        });
+
+                                        try {
+                                          final feeRepository = FeeRepository();
+                                          await feeRepository.submitPaymentTransaction(
+                                            studentId: studentId,
+                                            amount: fee.amount,
+                                            termName: fee.title,
+                                            transactionId: txController.text.trim(),
+                                            paymentMethod: 'UPI / QR',
+                                          );
+
+                                          if (context.mounted) {
+                                            context.read<FeeBloc>().add(LoadFeeData());
+
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: const Text('Payment proof submitted successfully!'),
+                                                backgroundColor: AppColors.success,
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                            Navigator.pop(context);
+                                          }
+                                        } catch (e) {
+                                          setState(() {
+                                            isSubmitting = false;
+                                          });
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Submission failed: $e'),
+                                                backgroundColor: AppColors.error,
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: isSubmitting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Submit Confirmation'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                side: BorderSide(
+                                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

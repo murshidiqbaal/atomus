@@ -30,6 +30,12 @@ class StudentRepository {
               full_name,
               phone_number,
               email
+            ),
+            campuses (
+              id,
+              name,
+              payment_qr_url,
+              payment_qr_drive_id
             )
           ''')
           .eq('parent_id', parentId!)

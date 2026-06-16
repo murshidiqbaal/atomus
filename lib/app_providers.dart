@@ -20,6 +20,7 @@ import 'repositories/teacher_repository.dart';
 import 'repositories/teacher_attendance_repository.dart';
 import 'repositories/student_attendance_teacher_repository.dart';
 import 'repositories/marks_entry_repository.dart';
+import 'repositories/daily_report_repository.dart';
 
 // Services
 import 'services/parent_identity_service.dart';
@@ -49,6 +50,7 @@ import 'blocs/student_attendance/student_attendance_cubit.dart';
 import 'blocs/marks/marks_cubit.dart';
 import 'blocs/geofence/geofence_cubit.dart';
 import 'blocs/connectivity/connectivity_cubit.dart';
+import 'blocs/daily_report/daily_report_cubit.dart';
 
 class AppProviders extends StatelessWidget {
   final AppBootstrapResult bootstrapResult;
@@ -113,6 +115,11 @@ class AppProviders extends StatelessWidget {
         ),
         RepositoryProvider(
           create: (ctx) => MarksEntryRepository(
+            hive: ctx.read<TeacherHiveService>(),
+          ),
+        ),
+        RepositoryProvider(
+          create: (ctx) => DailyReportRepository(
             hive: ctx.read<TeacherHiveService>(),
           ),
         ),
@@ -210,6 +217,11 @@ class AppProviders extends StatelessWidget {
           BlocProvider(
             create: (ctx) => MarksCubit(
               repository: ctx.read<MarksEntryRepository>(),
+            ),
+          ),
+          BlocProvider(
+            create: (ctx) => DailyReportCubit(
+              repository: ctx.read<DailyReportRepository>(),
             ),
           ),
           BlocProvider(

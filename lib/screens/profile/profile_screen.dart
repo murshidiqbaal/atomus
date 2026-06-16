@@ -349,12 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-            if (state.pendingUploadCount > 0)
-              TextButton(
-                onPressed: () =>
-                    context.read<ProfileCubit>().retryPendingUploads(),
-                child: const Text('Retry'),
-              ),
+            // Automatically syncing in background when online
           ],
         ),
       ),
@@ -543,17 +538,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onSelected: context.read<ProfileCubit>().updateParentImage,
                 ),
               ),
-              if (state.pendingUploadCount > 0) ...[
-                const SizedBox(height: 12),
-                CustomButton(
-                  text: 'SYNC PENDING',
-                  icon: Icons.sync_rounded,
-                  isOutline: true,
-                  isLoading: state.status == ProfileStatus.syncing,
-                  onPressed: () =>
-                      context.read<ProfileCubit>().retryPendingUploads(),
-                ),
-              ],
             ],
           ),
         ),

@@ -12,6 +12,7 @@ import '../../blocs/teacher_attendance/teacher_attendance_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
 import '../../models/teacher_attendance_model.dart';
+import '../../models/teacher_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/custom_card.dart';
@@ -133,6 +134,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             return BlocBuilder<TeacherDashboardCubit, TeacherDashboardState>(
               builder: (ctx2, dashState) {
                 final teacher = dashState.teacher;
+                final active = attState.activeSession;
+                if (attState.hasActiveSession && active != null) {
+                  _filterCourseId = active.courseId;
+                  _filterSubjectId = active.subjectId;
+                }
                 return RefreshIndicator(
                   color: AppColors.accent,
                   backgroundColor: AppColors.primary,
@@ -432,9 +438,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     );
   }
 
-  Widget _buildFilters(dynamic teacher) {
-    final List assignments = (teacher?.subjects as List?) ?? const <dynamic>[];
-    if (assignments.isEmpty) {
+  Widget _buildFilters(
+    dynamic teacher, {
+    bool isDisabled = false,
+    TeacherAttendanceModel? activeSession,
+  }) {
+    final List<dynamic> assignments = (teacher?.subjects as List?) ?? const <dynamic>[];
+    if (assignments.isEmpty && !isDisabled) {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -464,15 +474,44 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       courses[cid] = (a.courseName as String?) ?? 'Course';
     }
 
-    // Subjects scoped by the currently selected course (if any).
-    final List subjectItems = _filterCourseId == null
-        ? assignments
-        : assignments.where((a) => a.courseId == _filterCourseId).toList();
+    if (isDisabled && activeSession != null) {
+      _filterCourseId = activeSession.courseId;
+      _filterSubjectId = activeSession.subjectId;
+      if (_filterCourseId != null && !courses.containsKey(_filterCourseId)) {
+        String? cName;
+        for (final a in assignments) {
+          if (a.courseId == _filterCourseId) {
+            cName = a.courseName;
+            break;
+          }
+        }
+        courses[_filterCourseId!] = cName ?? 'Course';
+      }
+    }
 
-    // Self-heal stale selections (e.g., course changed -> subject mismatch).
-    if (_filterSubjectId != null &&
-        !subjectItems.any((a) => a.subjectId == _filterSubjectId)) {
-      _filterSubjectId = null;
+    // Subjects scoped by the currently selected course (if any).
+    final List<dynamic> subjectItems = _filterCourseId == null
+        ? List<dynamic>.from(assignments)
+        : List<dynamic>.from(assignments.where((a) => a.courseId == _filterCourseId));
+
+    if (isDisabled && activeSession != null) {
+      final hasSubject = subjectItems.any((a) => a.subjectId == _filterSubjectId);
+      if (_filterSubjectId != null && !hasSubject) {
+        subjectItems.add(
+          TeacherSubjectAssignment(
+            id: 'mock_active_assignment',
+            courseId: _filterCourseId!,
+            subjectId: _filterSubjectId!,
+            subjectName: activeSession.subjectName ?? 'Subject',
+          ),
+        );
+      }
+    } else {
+      // Self-heal stale selections (e.g., course changed -> subject mismatch).
+      if (_filterSubjectId != null &&
+          !subjectItems.any((a) => a.subjectId == _filterSubjectId)) {
+        _filterSubjectId = null;
+      }
     }
 
     return Row(
@@ -498,12 +537,14 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   ),
                 )
                 .toList(),
-            onChanged: (val) {
-              setState(() {
-                _filterCourseId = val;
-                _filterSubjectId = null;
-              });
-            },
+            onChanged: isDisabled
+                ? null
+                : (val) {
+                    setState(() {
+                      _filterCourseId = val;
+                      _filterSubjectId = null;
+                    });
+                  },
           ),
         ),
         const SizedBox(width: 10),
@@ -529,7 +570,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   ),
                 )
                 .toList(),
-            onChanged: subjectItems.isEmpty
+            onChanged: (isDisabled || subjectItems.isEmpty)
                 ? null
                 : (val) => setState(() => _filterSubjectId = val),
           ),
@@ -608,19 +649,26 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         return CustomCard(
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _statusPill(
-                label: 'PUNCHED IN',
-                color: AppColors.success,
-                showDot: true,
+              Center(
+                child: _statusPill(
+                  label: 'PUNCHED IN',
+                  color: AppColors.success,
+                  showDot: true,
+                ),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Punched in at ${session.startTime != null ? DateFormat('hh:mm a').format(session.startTime!) : '--'}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primary,
+              _buildFilters(teacher, isDisabled: true, activeSession: session),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  'Punched in at ${session.startTime != null ? DateFormat('hh:mm a').format(session.startTime!) : '--'}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 18),

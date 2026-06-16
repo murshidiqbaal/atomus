@@ -272,6 +272,15 @@ class ProfileCubit extends Cubit<ProfileState> {
           errorMessage: error.toString(),
         ),
       );
+      // Automatically schedule a retry in 15 seconds if online
+      final connected = _hasConnection(await _connectivity.checkConnectivity());
+      if (connected && state.pendingUploadCount > 0) {
+        _syncDebounce?.cancel();
+        _syncDebounce = Timer(
+          const Duration(seconds: 15),
+          retryPendingUploads,
+        );
+      }
     } finally {
       _isSyncing = false;
     }
@@ -372,6 +381,16 @@ class ProfileCubit extends Cubit<ProfileState> {
                 'Image saved locally. Upload will retry automatically.',
           ),
         );
+
+        // Automatically schedule retry if online
+        final connected = _hasConnection(await _connectivity.checkConnectivity());
+        if (connected) {
+          _syncDebounce?.cancel();
+          _syncDebounce = Timer(
+            const Duration(seconds: 10),
+            retryPendingUploads,
+          );
+        }
         return;
       }
 

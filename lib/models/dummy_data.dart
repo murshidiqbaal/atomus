@@ -17,6 +17,10 @@ class StudentInfo {
   final String? profilePhotoDriveId;
 
   final String? courseId;
+  final String? campusId;
+  final String? campusName;
+  final String? paymentQrUrl;
+  final String? paymentQrDriveId;
 
   StudentInfo({
     required this.id,
@@ -33,6 +37,10 @@ class StudentInfo {
     this.relationship,
     this.profilePhotoDriveId,
     this.courseId,
+    this.campusId,
+    this.campusName,
+    this.paymentQrUrl,
+    this.paymentQrDriveId,
     @Deprecated('Use profilePhotoDriveId') String? avatarUrl,
   });
 
@@ -52,6 +60,19 @@ class StudentInfo {
       relationship: map['relationship'],
       profilePhotoDriveId: map['profile_photo_drive_id']?.toString(),
       courseId: map['course_id']?.toString(),
+      campusId: map['campus_id']?.toString(),
+      campusName: map['campuses']?['name']?.toString() ?? map['campus_name']?.toString(),
+      paymentQrUrl: () {
+        final url = map['campuses']?['payment_qr_url']?.toString() ?? map['payment_qr_url']?.toString();
+        if (url == null) return null;
+        if (url.startsWith('/')) {
+          return 'http://localhost:3000$url';
+        } else if (url.startsWith('uploads/')) {
+          return 'http://localhost:3000/$url';
+        }
+        return url;
+      }(),
+      paymentQrDriveId: map['campuses']?['payment_qr_drive_id']?.toString() ?? map['payment_qr_drive_id']?.toString(),
     );
   }
 

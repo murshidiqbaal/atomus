@@ -11,7 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
 import 'marks_entry_screen.dart';
-import 'teacher_analytics_screen.dart';
+import 'teacher_reports_screen.dart';
 import 'teacher_attendance_screen.dart';
 import 'teacher_dashboard_screen.dart';
 import 'teacher_profile_screen.dart';
@@ -38,7 +38,7 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
     TeacherAttendanceScreen(),
     StudentAttendanceScreen(subjectId: '', subjectName: '', batchId: ''),
     MarksEntryScreen(),
-    TeacherAnalyticsScreen(),
+    TeacherReportsScreen(),
     TeacherProfileScreen(),
   ];
 
@@ -127,6 +127,19 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
               child: IndexedStack(index: _currentIndex, children: _screens),
             ),
           ),
+          floatingActionButton: _currentIndex != 4
+              ? FloatingActionButton(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _currentIndex = 4);
+                  },
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 6,
+                  child: const Icon(LucideIcons.clipboardList, size: 24),
+                )
+              : null,
           bottomNavigationBar: SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(0, 1),
@@ -208,14 +221,6 @@ class _BottomNavBar extends StatelessWidget {
                   isDark: isDark,
                   hasBadge: hasPendingMarks,
                 ),
-                // _NavItem(
-                //   icon: LucideIcons.barChart2,
-                //   label: 'Analytics',
-                //   index: 4,
-                //   currentIndex: currentIndex,
-                //   onTap: onTabChanged,
-                //   isDark: isDark,
-                // ),
                 _NavItem(
                   icon: LucideIcons.user,
                   label: 'Profile',
