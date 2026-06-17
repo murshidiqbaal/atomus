@@ -1654,320 +1654,359 @@ class FeesScreen extends StatelessWidget {
     String? paymentQrDriveId,
     bool isDark,
   ) {
-    final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
-    final txController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool isSubmitting = false;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF151521) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, -8),
+      builder: (context) => _PaymentBottomSheet(
+        fee: fee,
+        studentId: studentId,
+        paymentQrUrl: paymentQrUrl,
+        paymentQrDriveId: paymentQrDriveId,
+        isDark: isDark,
+      ),
+    );
+  }
+}
+
+class _PaymentBottomSheet extends StatefulWidget {
+  final FeeRecord fee;
+  final String studentId;
+  final String? paymentQrUrl;
+  final String? paymentQrDriveId;
+  final bool isDark;
+
+  const _PaymentBottomSheet({
+    required this.fee,
+    required this.studentId,
+    required this.paymentQrUrl,
+    required this.paymentQrDriveId,
+    required this.isDark,
+  });
+
+  @override
+  State<_PaymentBottomSheet> createState() => _PaymentBottomSheetState();
+}
+
+class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _txController;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _txController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _txController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.isDark ? const Color(0xFF151521) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(widget.isDark ? 0.5 : 0.15),
+            blurRadius: 24,
+            offset: const Offset(0, -8),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              Text(
+                'PAY FEE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: widget.isDark ? AppColors.accent : AppColors.primary,
+                  letterSpacing: 2.0,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.fee.title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: widget.isDark ? Colors.white : AppColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                currencyFmt.format(widget.fee.amount),
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: widget.isDark ? AppColors.accent : AppColors.primary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              if ((widget.paymentQrDriveId != null && widget.paymentQrDriveId!.isNotEmpty && DriveImageHelper.isValid(widget.paymentQrDriveId!)) ||
+                  (widget.paymentQrUrl != null && widget.paymentQrUrl!.isNotEmpty)) ...[
+                Text(
+                  'Scan the QR code below to make payment',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: widget.isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
                   ),
-                ],
-              ),
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: widget.isDark ? Colors.white10 : Colors.grey.shade200,
+                    ),
+                  ),
+                  width: 220,
+                  height: 220,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: (widget.paymentQrDriveId != null && widget.paymentQrDriveId!.isNotEmpty && DriveImageHelper.isValid(widget.paymentQrDriveId!))
+                        ? DriveNetworkImage(
+                            driveId: widget.paymentQrDriveId!,
+                            fit: BoxFit.contain,
+                            placeholderType: DrivePlaceholderType.banner,
+                          )
+                        : Image.network(
+                            widget.paymentQrUrl!,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Icon(
+                                  Icons.broken_image_rounded,
+                                  color: Colors.grey.shade400,
+                                  size: 48,
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.warning.withOpacity(0.25),
+                    ),
+                  ),
+                  child: Row(
                     children: [
-                      Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      Text(
-                        'PAY FEE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? AppColors.accent : AppColors.primary,
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        fee.title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : AppColors.textPrimary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        currencyFmt.format(fee.amount),
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? AppColors.accent : AppColors.primary,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      if ((paymentQrDriveId != null && paymentQrDriveId.isNotEmpty && DriveImageHelper.isValid(paymentQrDriveId)) ||
-                          (paymentQrUrl != null && paymentQrUrl.isNotEmpty)) ...[
-                        Text(
-                          'Scan the QR code below to make payment',
+                      Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'No QR code configured for your campus. Please contact administration for payment details.',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isDark ? Colors.white10 : Colors.grey.shade200,
-                            ),
-                          ),
-                          width: 220,
-                          height: 220,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: (paymentQrDriveId != null && paymentQrDriveId.isNotEmpty && DriveImageHelper.isValid(paymentQrDriveId))
-                                ? DriveNetworkImage(
-                                    driveId: paymentQrDriveId,
-                                    fit: BoxFit.contain,
-                                    placeholderType: DrivePlaceholderType.banner,
-                                  )
-                                : Image.network(
-                                    paymentQrUrl!,
-                                    fit: BoxFit.contain,
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Center(
-                                        child: CircularProgressIndicator(
-                                          color: AppColors.primary,
-                                          value: loadingProgress.expectedTotalBytes != null
-                                              ? loadingProgress.cumulativeBytesLoaded /
-                                                  loadingProgress.expectedTotalBytes!
-                                              : null,
-                                        ),
-                                      );
-                                    },
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Center(
-                                        child: Icon(
-                                          Icons.broken_image_rounded,
-                                          color: Colors.grey.shade400,
-                                          size: 48,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ),
-                      ] else ...[
-                        Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: AppColors.warning.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.warning.withOpacity(0.25),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 24),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'No QR code configured for your campus. Please contact administration for payment details.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-
-                      TextFormField(
-                        controller: txController,
-                        enabled: !isSubmitting,
-                        decoration: InputDecoration(
-                          labelText: 'UPI Transaction ID / Ref Number',
-                          labelStyle: TextStyle(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
                             fontWeight: FontWeight.w600,
-                          ),
-                          hintText: 'Enter 12-digit transaction ID',
-                          hintStyle: TextStyle(
-                            color: Colors.grey.shade500,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.receipt_rounded,
-                            color: isDark ? AppColors.accent : AppColors.primary,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: isDark ? Colors.white24 : Colors.grey.shade300,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: isDark ? AppColors.accent : AppColors.primary,
-                              width: 2,
-                            ),
+                            color: widget.isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
                           ),
                         ),
-                        style: TextStyle(
-                          color: isDark ? Colors.white : AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter transaction ID';
-                          }
-                          if (value.trim().length < 6) {
-                            return 'Transaction ID is too short';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 24),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: isSubmitting
-                                  ? null
-                                  : () async {
-                                      if (formKey.currentState!.validate()) {
-                                        setState(() {
-                                          isSubmitting = true;
-                                        });
-
-                                        try {
-                                          final feeRepository = FeeRepository();
-                                          await feeRepository.submitPaymentTransaction(
-                                            studentId: studentId,
-                                            amount: fee.amount,
-                                            termName: fee.title,
-                                            transactionId: txController.text.trim(),
-                                            paymentMethod: 'UPI / QR',
-                                          );
-
-                                          if (context.mounted) {
-                                            context.read<FeeBloc>().add(LoadFeeData());
-
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: const Text('Payment proof submitted successfully!'),
-                                                backgroundColor: AppColors.success,
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
-                                            );
-                                            Navigator.pop(context);
-                                          }
-                                        } catch (e) {
-                                          setState(() {
-                                            isSubmitting = false;
-                                          });
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text('Submission failed: $e'),
-                                                backgroundColor: AppColors.error,
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      }
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: isSubmitting
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text('Submit Confirmation'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                side: BorderSide(
-                                  color: isDark ? Colors.white24 : Colors.grey.shade300,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
                 ),
+              ],
+              const SizedBox(height: 24),
+
+              TextFormField(
+                controller: _txController,
+                enabled: !_isSubmitting,
+                decoration: InputDecoration(
+                  labelText: 'UPI Transaction ID / Ref Number',
+                  labelStyle: TextStyle(
+                    color: widget.isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  hintText: 'Enter 12-digit transaction ID',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade500,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.receipt_rounded,
+                    color: widget.isDark ? AppColors.accent : AppColors.primary,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: widget.isDark ? Colors.white24 : Colors.grey.shade300,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: widget.isDark ? AppColors.accent : AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                style: TextStyle(
+                  color: widget.isDark ? Colors.white : AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter transaction ID';
+                  }
+                  if (value.trim().length < 6) {
+                    return 'Transaction ID is too short';
+                  }
+                  return null;
+                },
               ),
-            );
-          },
-        );
-      },
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting
+                          ? null
+                          : () async {
+                              if (_formKey.currentState!.validate()) {
+                                setState(() {
+                                  _isSubmitting = true;
+                                });
+
+                                try {
+                                  final feeRepository = FeeRepository();
+                                  await feeRepository.submitPaymentTransaction(
+                                    studentId: widget.studentId,
+                                    amount: widget.fee.amount,
+                                    termName: widget.fee.title,
+                                    transactionId: _txController.text.trim(),
+                                    paymentMethod: 'UPI / QR',
+                                  );
+
+                                  if (mounted) {
+                                    context.read<FeeBloc>().add(LoadFeeData());
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text('Payment proof submitted successfully!'),
+                                        backgroundColor: AppColors.success,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                    Navigator.pop(context);
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isSubmitting = false;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Submission failed: $e'),
+                                        backgroundColor: AppColors.error,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Submit Confirmation'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(
+                          color: widget.isDark ? Colors.white24 : Colors.grey.shade300,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: widget.isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

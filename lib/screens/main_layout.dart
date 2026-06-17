@@ -426,102 +426,9 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   void _showCreateParentDialog(BuildContext context) {
-    final emailController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New Parent'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Enter the parent email address to generate credentials.',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailController.text.trim();
-              if (email.isEmpty || !email.contains('@')) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid email')),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) =>
-                    const Center(child: CircularProgressIndicator()),
-              );
-
-              try {
-                final authRepo = context.read<AuthRepository>();
-                final result = await authRepo.createParentWithEmail(email);
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Parent Created Successfully'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Share these credentials with the parent:',
-                          ),
-                          const SizedBox(height: 16),
-                          SelectableText('Email: ${result['email']}'),
-                          SelectableText('Password: ${result['password']}'),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Note: Copy these now, they won\'t be shown again.',
-                            style: TextStyle(color: Colors.red, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Done'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
-              }
-            },
-            child: const Text('Add Parent'),
-          ),
-        ],
-      ),
+      builder: (context) => const _CreateParentDialog(),
     );
   }
 
@@ -565,5 +472,132 @@ class _MainLayoutState extends State<MainLayout> {
         ),
       ),
     );
+  }
+}
+
+class _CreateParentDialog extends StatefulWidget {
+  const _CreateParentDialog();
+
+  @override
+  State<_CreateParentDialog> createState() => _CreateParentDialogState();
+}
+
+class _CreateParentDialogState extends State<_CreateParentDialog> {
+  late final TextEditingController _emailController;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Create New Parent'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Enter the parent email address to generate credentials.',
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(
+              labelText: 'Email Address',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.emailAddress,
+            enabled: !_isLoading,
+          ),
+          if (_isLoading) ...[
+            const SizedBox(height: 16),
+            const LinearProgressIndicator(),
+          ],
+        ],
+      ),
+      actions: _isLoading
+          ? []
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: _submit,
+                child: const Text('Add Parent'),
+              ),
+            ],
+    );
+  }
+
+  void _submit() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authRepo = context.read<AuthRepository>();
+      final result = await authRepo.createParentWithEmail(email);
+
+      if (mounted) {
+        Navigator.pop(context); // Close create dialog
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Parent Created Successfully'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Share these credentials with the parent:',
+                ),
+                const SizedBox(height: 16),
+                SelectableText('Email: ${result['email']}'),
+                SelectableText('Password: ${result['password']}'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Note: Copy these now, they won\'t be shown again.',
+                  style: TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }

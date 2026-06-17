@@ -1052,42 +1052,75 @@ class StudentAttendanceTile extends StatelessWidget {
   }
 
   void _showRemarksDialog(BuildContext context, StudentAttendanceEntry entry) {
-    final ctrl = TextEditingController(text: entry.remarks ?? '');
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Remarks for ${entry.studentName}',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-        ),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText:
-                'e.g. Absent with permission, Medical leave, Late 10 mins',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              cubit.setRemarks(entry.studentId, ctrl.text.trim());
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save Remarks'),
-          ),
-        ],
+      builder: (ctx) => _RemarksDialog(entry: entry, cubit: cubit),
+    );
+  }
+}
+
+class _RemarksDialog extends StatefulWidget {
+  final StudentAttendanceEntry entry;
+  final StudentAttendanceCubit cubit;
+
+  const _RemarksDialog({
+    required this.entry,
+    required this.cubit,
+  });
+
+  @override
+  State<_RemarksDialog> createState() => _RemarksDialogState();
+}
+
+class _RemarksDialogState extends State<_RemarksDialog> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.entry.remarks ?? '');
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        'Remarks for ${widget.entry.studentName}',
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
       ),
+      content: TextField(
+        controller: _ctrl,
+        maxLines: 3,
+        decoration: InputDecoration(
+          hintText:
+              'e.g. Absent with permission, Medical leave, Late 10 mins',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () {
+            widget.cubit.setRemarks(widget.entry.studentId, _ctrl.text.trim());
+            Navigator.pop(context);
+          },
+          child: const Text('Save Remarks'),
+        ),
+      ],
     );
   }
 }

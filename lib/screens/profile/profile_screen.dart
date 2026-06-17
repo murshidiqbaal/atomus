@@ -1123,16 +1123,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     BuildContext context,
     LinkedStudentProfile student,
   ) {
-    final formKey = GlobalKey<FormState>();
-    final bloodGroupController = TextEditingController(
-      text: student.bloodGroup,
-    );
-    final allergiesController = TextEditingController(text: student.allergies);
-    final medicalConditionsController = TextEditingController(
-      text: student.medicalConditions,
-    );
-    final dobController = TextEditingController(text: student.dob);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1140,162 +1130,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Edit Student Medical Details',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    student.fullName,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    initialValue:
-                        [
-                          'A+',
-                          'A-',
-                          'B+',
-                          'B-',
-                          'AB+',
-                          'AB-',
-                          'O+',
-                          'O-',
-                        ].contains(bloodGroupController.text)
-                        ? bloodGroupController.text
-                        : null,
-                    decoration: InputDecoration(
-                      labelText: 'Blood Group',
-                      prefixIcon: const Icon(
-                        Icons.favorite_rounded,
-                        color: AppColors.error,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-                        .map(
-                          (bg) => DropdownMenuItem(value: bg, child: Text(bg)),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) bloodGroupController.text = val;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: allergiesController,
-                    decoration: InputDecoration(
-                      labelText: 'Allergies',
-                      prefixIcon: const Icon(
-                        Icons.warning_amber_rounded,
-                        color: AppColors.warning,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: medicalConditionsController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: 'Medical/Safety Conditions',
-                      prefixIcon: const Icon(
-                        Icons.medical_services_outlined,
-                        color: AppColors.accent,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: dobController,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                      labelText: 'Date of Birth',
-                      prefixIcon: const Icon(
-                        Icons.calendar_month_rounded,
-                        color: AppColors.accent,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate:
-                            DateTime.tryParse(dobController.text) ??
-                            DateTime(2010),
-                        firstDate: DateTime(1990),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) {
-                        dobController.text = picked
-                            .toIso8601String()
-                            .split('T')
-                            .first;
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  CustomButton(
-                    text: 'SAVE DETAILS',
-                    onPressed: () {
-                      context.read<ProfileCubit>().saveStudentDetails(
-                        studentId: student.id,
-                        bloodGroup: bloodGroupController.text.trim(),
-                        allergies: allergiesController.text.trim(),
-                        medicalConditions: medicalConditionsController.text
-                            .trim(),
-                        dob: dobController.text.trim(),
-                      );
-                      Navigator.pop(context);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (context) => _StudentMedicalEditSheet(student: student),
     );
   }
 
   void _showChangePasswordSheet(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-    bool obscureNew = true;
-    bool obscureConfirm = true;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1303,129 +1142,348 @@ class _ProfileScreenState extends State<ProfileScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              child: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'Change Password',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: newPasswordController,
-                        obscureText: obscureNew,
-                        decoration: InputDecoration(
-                          labelText: 'New Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscureNew
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                            ),
-                            onPressed: () =>
-                                setSheetState(() => obscureNew = !obscureNew),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        validator: (value) => value == null || value.length < 6
-                            ? 'Password must be at least 6 characters'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: confirmPasswordController,
-                        obscureText: obscureConfirm,
-                        decoration: InputDecoration(
-                          labelText: 'Confirm New Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscureConfirm
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                            ),
-                            onPressed: () => setSheetState(
-                              () => obscureConfirm = !obscureConfirm,
-                            ),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        validator: (value) =>
-                            value != newPasswordController.text
-                            ? 'Passwords do not match'
-                            : null,
-                      ),
-                      const SizedBox(height: 24),
-                      CustomButton(
-                        text: 'UPDATE PASSWORD',
-                        onPressed: () async {
-                          if (!formKey.currentState!.validate()) return;
-                          try {
-                            await Supabase.instance.client.auth.updateUser(
-                              UserAttributes(
-                                password: newPasswordController.text,
-                              ),
-                            );
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Password updated successfully!',
-                                  ),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Failed to update password: $e',
-                                  ),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (context) => const _ChangePasswordSheet(),
     );
   }
 
   void _logout() {
     context.read<AuthBloc>().add(LogoutRequested());
+  }
+}
+
+class _StudentMedicalEditSheet extends StatefulWidget {
+  final LinkedStudentProfile student;
+
+  const _StudentMedicalEditSheet({required this.student});
+
+  @override
+  State<_StudentMedicalEditSheet> createState() => _StudentMedicalEditSheetState();
+}
+
+class _StudentMedicalEditSheetState extends State<_StudentMedicalEditSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _bloodGroupController;
+  late final TextEditingController _allergiesController;
+  late final TextEditingController _medicalConditionsController;
+  late final TextEditingController _dobController;
+
+  @override
+  void initState() {
+    super.initState();
+    _bloodGroupController = TextEditingController(text: widget.student.bloodGroup);
+    _allergiesController = TextEditingController(text: widget.student.allergies);
+    _medicalConditionsController = TextEditingController(
+      text: widget.student.medicalConditions,
+    );
+    _dobController = TextEditingController(text: widget.student.dob);
+  }
+
+  @override
+  void dispose() {
+    _bloodGroupController.dispose();
+    _allergiesController.dispose();
+    _medicalConditionsController.dispose();
+    _dobController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Edit Student Medical Details',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.student.fullName,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                initialValue:
+                    [
+                      'A+',
+                      'A-',
+                      'B+',
+                      'B-',
+                      'AB+',
+                      'AB-',
+                      'O+',
+                      'O-',
+                    ].contains(_bloodGroupController.text)
+                    ? _bloodGroupController.text
+                    : null,
+                decoration: InputDecoration(
+                  labelText: 'Blood Group',
+                  prefixIcon: const Icon(
+                    Icons.favorite_rounded,
+                    color: AppColors.error,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+                    .map(
+                      (bg) => DropdownMenuItem(value: bg, child: Text(bg)),
+                    )
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _bloodGroupController.text = val;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _allergiesController,
+                decoration: InputDecoration(
+                  labelText: 'Allergies',
+                  prefixIcon: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.warning,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _medicalConditionsController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Medical/Safety Conditions',
+                  prefixIcon: const Icon(
+                    Icons.medical_services_outlined,
+                    color: AppColors.accent,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _dobController,
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: 'Date of Birth',
+                  prefixIcon: const Icon(
+                    Icons.calendar_month_rounded,
+                    color: AppColors.accent,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onTap: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate:
+                        DateTime.tryParse(_dobController.text) ??
+                        DateTime(2010),
+                    firstDate: DateTime(1990),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _dobController.text = picked
+                          .toIso8601String()
+                          .split('T')
+                          .first;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 24),
+              CustomButton(
+                text: 'SAVE DETAILS',
+                onPressed: () {
+                  context.read<ProfileCubit>().saveStudentDetails(
+                    studentId: widget.student.id,
+                    bloodGroup: _bloodGroupController.text.trim(),
+                    allergies: _allergiesController.text.trim(),
+                    medicalConditions: _medicalConditionsController.text
+                        .trim(),
+                    dob: _dobController.text.trim(),
+                  );
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChangePasswordSheet extends StatefulWidget {
+  const _ChangePasswordSheet();
+
+  @override
+  State<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _newPasswordController;
+  late final TextEditingController _confirmPasswordController;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _newPasswordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Change Password',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _newPasswordController,
+                obscureText: _obscureNew,
+                decoration: InputDecoration(
+                  labelText: 'New Password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureNew
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureNew = !_obscureNew),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (value) => value == null || value.length < 6
+                    ? 'Password must be at least 6 characters'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirm,
+                decoration: InputDecoration(
+                  labelText: 'Confirm New Password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirm
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () => setState(
+                      () => _obscureConfirm = !_obscureConfirm,
+                    ),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (value) =>
+                    value != _newPasswordController.text
+                    ? 'Passwords do not match'
+                    : null,
+              ),
+              const SizedBox(height: 24),
+              CustomButton(
+                text: 'UPDATE PASSWORD',
+                onPressed: () async {
+                  if (!_formKey.currentState!.validate()) return;
+                  try {
+                    await Supabase.instance.client.auth.updateUser(
+                      UserAttributes(
+                        password: _newPasswordController.text,
+                      ),
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Password updated successfully!',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Failed to update password: $e',
+                          ),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

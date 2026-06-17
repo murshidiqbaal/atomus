@@ -39,10 +39,19 @@ class TeacherHiveService {
   }
 
   Future<Box<String>> _openBox(String name) async {
-    if (!Hive.isBoxOpen(name)) {
-      return await Hive.openBox<String>(name);
+    try {
+      if (!Hive.isBoxOpen(name)) {
+        return await Hive.openBox<String>(name);
+      }
+      return Hive.box<String>(name);
+    } catch (e) {
+      try {
+        await Hive.deleteBoxFromDisk(name);
+        return await Hive.openBox<String>(name);
+      } catch (_) {
+        rethrow;
+      }
     }
-    return Hive.box<String>(name);
   }
 
   Box<String> _getBox(String name) {

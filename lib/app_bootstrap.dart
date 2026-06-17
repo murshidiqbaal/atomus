@@ -8,6 +8,7 @@ import 'services/hive_profile_cache_service.dart';
 import 'services/fee_hive_service.dart';
 import 'services/teacher_hive_service.dart';
 import 'services/teacher_profile_hive_service.dart';
+import 'utils/logger.dart';
 
 class AppBootstrapResult {
   final TeacherHiveService teacherHiveService;
@@ -46,17 +47,25 @@ class AppBootstrap {
       );
     }
 
-    debugPrint('AppBootstrap: Starting core initializations...');
+    AppLogger.info('AppBootstrap', 'Starting core initializations...');
 
     // 1. Hive initialization (including Flutter adapter setups if needed, and Profile Cache)
-    await HiveProfileCacheService.initializeHive();
-    await TeacherProfileHiveService.initializeHive();
+    try {
+      await HiveProfileCacheService.initializeHive();
+      await TeacherProfileHiveService.initializeHive();
+    } catch (e, stack) {
+      AppLogger.critical('AppBootstrap', 'Hive initialization failed', e, stack);
+    }
     
     // 2. Supabase initialization
-    await Supabase.initialize(
-      url: SupabaseConstants.url,
-      anonKey: SupabaseConstants.anonKey,
-    );
+    try {
+      await Supabase.initialize(
+        url: SupabaseConstants.url,
+        anonKey: SupabaseConstants.anonKey,
+      );
+    } catch (e, stack) {
+      AppLogger.critical('AppBootstrap', 'Supabase initialization failed', e, stack);
+    }
 
     // 3. Register adapters & Lazy/Concurrent Box Openings
     _teacherHiveService = TeacherHiveService();
@@ -64,18 +73,26 @@ class AppBootstrap {
     _teacherProfileHiveService = TeacherProfileHiveService();
     
     // Open Hive boxes asynchronously and concurrently to prevent blocking startup
-    await Future.wait([
-      _teacherHiveService.initBoxes(),
-      FeeHiveService().initBoxes(),
-    ]);
+    try {
+      await Future.wait([
+        _teacherHiveService.initBoxes(),
+        FeeHiveService().initBoxes(),
+      ]);
+    } catch (e, stack) {
+      AppLogger.critical('AppBootstrap', 'Opening Hive boxes failed', e, stack);
+    }
 
     // 4. Initialize Firebase
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e, stack) {
+      AppLogger.critical('AppBootstrap', 'Firebase initialization failed', e, stack);
+    }
 
     _initialized = true;
-    debugPrint('AppBootstrap: All core systems bootstrapped successfully.');
+    AppLogger.info('AppBootstrap', 'All core systems bootstrapped successfully.');
 
     return AppBootstrapResult(
       teacherHiveService: _teacherHiveService,

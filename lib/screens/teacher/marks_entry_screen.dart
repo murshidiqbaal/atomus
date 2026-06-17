@@ -1397,6 +1397,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   }
 
   // ── Create/Edit Exam sheet ────────────────────────────────────
+  // ── Create/Edit Exam sheet ────────────────────────────────────
   void _showCreateExamSheet(BuildContext context, {TeacherExam? examToEdit}) {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     final assignments = teacher?.subjects ?? [];
@@ -1410,13 +1411,6 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       return;
     }
 
-    final formKey = GlobalKey<FormState>();
-    final nameCtrl = TextEditingController(text: examToEdit?.name);
-    final marksCtrl = TextEditingController(
-      text: examToEdit != null ? examToEdit.totalMarks.toInt().toString() : '',
-    );
-    DateTime examDate = examToEdit?.examDate ?? DateTime.now();
-
     // Map of courseId -> courseName derived from assignments
     final courseMap = <String, String>{};
     for (final s in assignments) {
@@ -1427,7 +1421,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       }
     }
 
-    // Default subject/batch/course mappings
+    // Default course mapping
     String? selCourseId = examToEdit?.courseId;
     if (selCourseId == null || !courseMap.containsKey(selCourseId)) {
       if (assignments.isNotEmpty) {
@@ -1439,303 +1433,17 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       }
     }
 
-    // Find filtered assignments for the selected course
-    List<TeacherSubjectAssignment> filteredAssignments = assignments;
-    if (selCourseId != null) {
-      filteredAssignments = assignments
-          .where((s) => s.courseId == selCourseId)
-          .toList();
-    }
-
-    // Select the assignment
-    String selAssignmentId = '';
-    String selSubjectId = '';
-    String selBatchId = '';
-
-    if (filteredAssignments.isNotEmpty) {
-      final match = examToEdit != null
-          ? filteredAssignments.firstWhere(
-              (s) =>
-                  s.subjectId == examToEdit.subjectId &&
-                  (s.batchId ?? '') == (examToEdit.batchId ?? ''),
-              orElse: () => filteredAssignments.first,
-            )
-          : filteredAssignments.first;
-      selAssignmentId = match.id;
-      selSubjectId = match.subjectId;
-      selBatchId = match.batchId ?? '';
-    }
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: StatefulBuilder(
-          builder: (sheetCtx, setSheetState) => Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(30),
-              ),
-            ),
-            child: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          examToEdit != null
-                              ? 'EDIT EXAM ASSESSMENT'
-                              : 'CREATE NEW EXAM',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(LucideIcons.x, size: 20),
-                          onPressed: () => Navigator.pop(sheetCtx),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Course selection dropdown
-                    if (courseMap.isNotEmpty) ...[
-                      DropdownButtonFormField<String>(
-                        initialValue: selCourseId,
-                        decoration: InputDecoration(
-                          labelText: 'Course',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        items: courseMap.entries.map((e) {
-                          return DropdownMenuItem<String>(
-                            value: e.key,
-                            child: Text(e.value),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val == null) return;
-                          final newFiltered = assignments
-                              .where((s) => s.courseId == val)
-                              .toList();
-                          setSheetState(() {
-                            selCourseId = val;
-                            filteredAssignments = newFiltered;
-                            if (newFiltered.isNotEmpty) {
-                              final firstS = newFiltered.first;
-                              selAssignmentId = firstS.id;
-                              selSubjectId = firstS.subjectId;
-                              selBatchId = firstS.batchId ?? '';
-                            } else {
-                              selAssignmentId = '';
-                              selSubjectId = '';
-                              selBatchId = '';
-                            }
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    // Subject pre-filtered selector
-                    DropdownButtonFormField<String>(
-                      initialValue: selAssignmentId.isNotEmpty
-                          ? selAssignmentId
-                          : null,
-                      decoration: InputDecoration(
-                        labelText: 'Subject / Batch Class',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      items: filteredAssignments.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s.id,
-                          child: Text(
-                            '${s.subjectName} · ${s.batchName ?? "All"}',
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val == null) return;
-                        final s = filteredAssignments.firstWhere(
-                          (x) => x.id == val,
-                        );
-                        setSheetState(() {
-                          selAssignmentId = s.id;
-                          selSubjectId = s.subjectId;
-                          selBatchId = s.batchId ?? '';
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Exam Assessment Name',
-                        hintText: 'e.g. Midterm 1, Quiz 3, Lab 1',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Name is required' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: marksCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Total Marks',
-                              hintText: 'e.g. 50, 100',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Marks required';
-                              }
-                              final double? val = double.tryParse(v);
-                              if (val == null || val <= 0) return 'Must be > 0';
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Date picker
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final d = await showDatePicker(
-                                context: context,
-                                initialDate: examDate,
-                                firstDate: DateTime.now().subtract(
-                                  const Duration(days: 365),
-                                ),
-                                lastDate: DateTime.now().add(
-                                  const Duration(days: 365),
-                                ),
-                              );
-                              if (d != null) {
-                                setSheetState(() => examDate = d);
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: 'Exam Date',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    DateFormat('d MMM yyyy').format(examDate),
-                                  ),
-                                  const Icon(LucideIcons.calendar, size: 16),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () {
-                          if (formKey.currentState!.validate()) {
-                            final teacher = context
-                                .read<TeacherDashboardCubit>()
-                                .state
-                                .teacher;
-                            final subjectIds =
-                                teacher?.subjects
-                                    .map((s) => s.subjectId)
-                                    .toList() ??
-                                [];
-                            final batchIds =
-                                teacher?.subjects
-                                    .map((s) => s.batchId)
-                                    .whereType<String>()
-                                    .toSet()
-                                    .toList() ??
-                                [];
-                            final courseIds =
-                                teacher?.courses
-                                    .map((c) => c.courseId)
-                                    .toSet()
-                                    .toList() ??
-                                [];
-
-                            if (examToEdit == null) {
-                              context.read<MarksCubit>().createExam(
-                                name: nameCtrl.text.trim(),
-                                date: examDate,
-                                totalMarks: double.parse(marksCtrl.text),
-                                batchId: selBatchId,
-                                subjectId: selSubjectId,
-                                courseId: selCourseId,
-                                subjectIds: subjectIds,
-                                batchIds: batchIds,
-                                courseIds: courseIds,
-                                listDate: _examListDate,
-                              );
-                            } else {
-                              context.read<MarksCubit>().updateExam(
-                                examId: examToEdit.id,
-                                name: nameCtrl.text.trim(),
-                                date: examDate,
-                                totalMarks: double.parse(marksCtrl.text),
-                                batchId: selBatchId,
-                                subjectId: selSubjectId,
-                                courseId: selCourseId,
-                                currentSubjectId: examToEdit.subjectId,
-                                subjectIds: subjectIds,
-                                batchIds: batchIds,
-                                courseIds: courseIds,
-                                listDate: _examListDate,
-                              );
-                            }
-                            Navigator.pop(sheetCtx);
-                          }
-                        },
-                        child: Text(
-                          examToEdit != null
-                              ? 'Save Exam Assessment'
-                              : 'Create Exam Assessment',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+      builder: (ctx) => _CreateEditExamBottomSheet(
+        examToEdit: examToEdit,
+        assignments: assignments,
+        courseMap: courseMap,
+        listDate: _examListDate ?? DateTime.now(),
+        initialCourseId: selCourseId,
+        teacher: teacher,
       ),
     );
   }
@@ -1789,4 +1497,333 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       ),
     );
   }
+}
+
+class _CreateEditExamBottomSheet extends StatefulWidget {
+  final TeacherExam? examToEdit;
+  final List<TeacherSubjectAssignment> assignments;
+  final Map<String, String> courseMap;
+  final DateTime listDate;
+  final String? initialCourseId;
+  final TeacherModel? teacher;
+
+  const _CreateEditExamBottomSheet({
+    required this.examToEdit,
+    required this.assignments,
+    required this.courseMap,
+    required this.listDate,
+    required this.initialCourseId,
+    required this.teacher,
+  });
+
+  @override
+  State<_CreateEditExamBottomSheet> createState() => _CreateEditExamBottomSheetState();
+}
+
+class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _marksCtrl;
+  late DateTime _examDate;
+  late String? _selCourseId;
+  late List<TeacherSubjectAssignment> _filteredAssignments;
+  late String _selAssignmentId;
+  late String _selSubjectId;
+  late String _selBatchId;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.examToEdit?.name);
+    _marksCtrl = TextEditingController(
+      text: widget.examToEdit != null ? widget.examToEdit!.totalMarks.toInt().toString() : '',
+    );
+    _examDate = widget.examToEdit?.examDate ?? DateTime.now();
+    _selCourseId = widget.initialCourseId;
+
+    _updateFilteredAssignments(isInit: true);
+  }
+
+  void _updateFilteredAssignments({bool isInit = false}) {
+    if (_selCourseId != null) {
+      _filteredAssignments = widget.assignments
+          .where((s) => s.courseId == _selCourseId)
+          .toList();
+    } else {
+      _filteredAssignments = widget.assignments;
+    }
+
+    _selAssignmentId = '';
+    _selSubjectId = '';
+    _selBatchId = '';
+
+    if (_filteredAssignments.isNotEmpty) {
+      final match = widget.examToEdit != null && isInit
+          ? _filteredAssignments.firstWhere(
+              (s) =>
+                  s.subjectId == widget.examToEdit!.subjectId &&
+                  (s.batchId ?? '') == (widget.examToEdit!.batchId ?? ''),
+              orElse: () => _filteredAssignments.first,
+            )
+          : _filteredAssignments.first;
+      _selAssignmentId = match.id;
+      _selSubjectId = match.subjectId;
+      _selBatchId = match.batchId ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _marksCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(30),
+          ),
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.examToEdit != null
+                          ? 'EDIT EXAM ASSESSMENT'
+                          : 'CREATE NEW EXAM',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.x, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (widget.courseMap.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    value: _selCourseId,
+                    decoration: InputDecoration(
+                      labelText: 'Course',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: widget.courseMap.entries.map((e) {
+                      return DropdownMenuItem<String>(
+                        value: e.key,
+                        child: Text(e.value),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val == null) return;
+                      setState(() {
+                        _selCourseId = val;
+                        _updateFilteredAssignments();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                DropdownButtonFormField<String>(
+                  value: _selAssignmentId.isNotEmpty ? _selAssignmentId : null,
+                  decoration: InputDecoration(
+                    labelText: 'Subject / Batch Class',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: _filteredAssignments.map((s) {
+                    return DropdownMenuItem<String>(
+                      value: s.id,
+                      child: Text(
+                        '${s.subjectName} · ${s.batchName ?? "All"}',
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    final s = _filteredAssignments.firstWhere(
+                      (x) => x.id == val,
+                    );
+                    setState(() {
+                      _selAssignmentId = s.id;
+                      _selSubjectId = s.subjectId;
+                      _selBatchId = s.batchId ?? '';
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Exam Assessment Name',
+                    hintText: 'e.g. Midterm 1, Quiz 3, Lab 1',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Name is required' : null,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _marksCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Total Marks',
+                          hintText: 'e.g. 50, 100',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Marks required';
+                          }
+                          final double? val = double.tryParse(v);
+                          if (val == null || val <= 0) return 'Must be > 0';
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final d = await showDatePicker(
+                            context: context,
+                            initialDate: _examDate,
+                            firstDate: DateTime.now().subtract(
+                              const Duration(days: 365),
+                            ),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                          );
+                          if (d != null) {
+                            setState(() => _examDate = d);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Exam Date',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                DateFormat('d MMM yyyy').format(_examDate),
+                              ),
+                              const Icon(LucideIcons.calendar, size: 16),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        final subjectIds =
+                            widget.teacher?.subjects
+                                .map((s) => s.subjectId)
+                                .toList() ??
+                            [];
+                        final batchIds =
+                            widget.teacher?.subjects
+                                .map((s) => s.batchId)
+                                .whereType<String>()
+                                .toSet()
+                                .toList() ??
+                            [];
+                        final courseIds =
+                            widget.teacher?.courses
+                                .map((c) => c.courseId)
+                                .toSet()
+                                .toList() ??
+                            [];
+
+                        if (widget.examToEdit == null) {
+                          context.read<MarksCubit>().createExam(
+                            name: _nameCtrl.text.trim(),
+                            date: _examDate,
+                            totalMarks: double.parse(_marksCtrl.text),
+                            batchId: _selBatchId,
+                            subjectId: _selSubjectId,
+                            courseId: _selCourseId,
+                            subjectIds: subjectIds,
+                            batchIds: batchIds,
+                            courseIds: courseIds,
+                            listDate: widget.listDate,
+                          );
+                        } else {
+                          context.read<MarksCubit>().updateExam(
+                            examId: widget.examToEdit!.id,
+                            name: _nameCtrl.text.trim(),
+                            date: _examDate,
+                            totalMarks: double.parse(_marksCtrl.text),
+                            batchId: _selBatchId,
+                            subjectId: _selSubjectId,
+                            courseId: _selCourseId,
+                            currentSubjectId: widget.examToEdit!.subjectId,
+                            subjectIds: subjectIds,
+                            batchIds: batchIds,
+                            courseIds: courseIds,
+                            listDate: widget.listDate,
+                          );
+                        }
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text(
+                      widget.examToEdit != null
+                          ? 'Save Exam Assessment'
+                          : 'Create Exam Assessment',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 }

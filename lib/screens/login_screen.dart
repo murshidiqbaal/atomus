@@ -12,6 +12,8 @@ import '../widgets/neu_box.dart';
 import 'main_layout.dart';
 import 'teacher/teacher_main_layout.dart';
 
+import '../utils/logger.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -302,19 +304,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
                       //navigate to registrar whatspp number +917356471760
-                      launchUrl(
-                        Uri.parse('https://wa.me/917356471760'),
-                        mode: LaunchMode.externalApplication,
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please contact Institution Registrar at +917356471760 for assistance.',
+                      final uri = Uri.parse('https://wa.me/917356471760');
+                      try {
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } else {
+                          AppLogger.warning('LoginScreen', 'Could not launch URL: $uri');
+                        }
+                      } catch (e) {
+                        AppLogger.error('LoginScreen', 'Error launching URL: $uri', e);
+                      }
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please contact Institution Registrar at +917356471760 for assistance.',
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                     },
                     child: const Text(
                       'Contact Institution Registrar',

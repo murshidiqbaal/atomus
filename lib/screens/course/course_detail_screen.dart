@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/dummy_data.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/logger.dart';
 import '../../widgets/drive_network_image.dart';
 import '../../widgets/glass_background.dart';
 
@@ -118,11 +119,17 @@ class CourseDetailScreen extends StatelessWidget {
                           final whatsappUrl = Uri.parse(
                             'https://wa.me/917356471760?text=${Uri.encodeComponent(message)}',
                           );
-                          if (await canLaunchUrl(whatsappUrl)) {
-                            await launchUrl(
-                              whatsappUrl,
-                              mode: LaunchMode.externalApplication,
-                            );
+                          try {
+                            if (await canLaunchUrl(whatsappUrl)) {
+                              await launchUrl(
+                                whatsappUrl,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            } else {
+                              AppLogger.warning('CourseDetailScreen', 'Could not launch URL: $whatsappUrl');
+                            }
+                          } catch (e) {
+                            AppLogger.error('CourseDetailScreen', 'Error launching URL: $whatsappUrl', e);
                           }
                         },
                         style: ElevatedButton.styleFrom(

@@ -92,7 +92,11 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  bool _handoffStarted = false;
+
   void _handoff(AuthState state) {
+    if (_handoffStarted) return;
+    _handoffStarted = true;
     final navigator = Navigator.of(context);
     Future.delayed(const Duration(milliseconds: 900), () {
       if (!mounted) return;

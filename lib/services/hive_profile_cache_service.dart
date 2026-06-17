@@ -9,14 +9,24 @@ class HiveProfileCacheService {
 
   static Future<void> initializeHive() async {
     await Hive.initFlutter();
-    if (!Hive.isBoxOpen(_profileBoxName)) {
-      await Hive.openBox<dynamic>(_profileBoxName);
-    }
-    if (!Hive.isBoxOpen(_pendingUploadBoxName)) {
-      await Hive.openBox<dynamic>(_pendingUploadBoxName);
-    }
-    if (!Hive.isBoxOpen(_metaBoxName)) {
-      await Hive.openBox<dynamic>(_metaBoxName);
+    await _openSafeBox(_profileBoxName);
+    await _openSafeBox(_pendingUploadBoxName);
+    await _openSafeBox(_metaBoxName);
+  }
+
+  static Future<Box<dynamic>> _openSafeBox(String name) async {
+    try {
+      if (!Hive.isBoxOpen(name)) {
+        return await Hive.openBox<dynamic>(name);
+      }
+      return Hive.box<dynamic>(name);
+    } catch (e) {
+      try {
+        await Hive.deleteBoxFromDisk(name);
+        return await Hive.openBox<dynamic>(name);
+      } catch (_) {
+        rethrow;
+      }
     }
   }
 

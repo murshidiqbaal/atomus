@@ -7,8 +7,22 @@ class TeacherProfileHiveService {
 
   static Future<void> initializeHive() async {
     await Hive.initFlutter();
-    if (!Hive.isBoxOpen(_boxName)) {
-      await Hive.openBox<dynamic>(_boxName);
+    await _openSafeBox(_boxName);
+  }
+
+  static Future<Box<dynamic>> _openSafeBox(String name) async {
+    try {
+      if (!Hive.isBoxOpen(name)) {
+        return await Hive.openBox<dynamic>(name);
+      }
+      return Hive.box<dynamic>(name);
+    } catch (e) {
+      try {
+        await Hive.deleteBoxFromDisk(name);
+        return await Hive.openBox<dynamic>(name);
+      } catch (_) {
+        rethrow;
+      }
     }
   }
 

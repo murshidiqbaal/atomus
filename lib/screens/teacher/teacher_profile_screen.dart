@@ -734,201 +734,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
     );
   }
 
-  // ──────────────── Edit Details Sheet ────────────────
-  void _showEditProfileBottomSheet(BuildContext context, TeacherModel teacher) {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(text: teacher.fullName);
-    final phoneController = TextEditingController(
-      text: teacher.phoneNumber ?? '',
-    );
-    final addressController = TextEditingController(
-      text: teacher.address ?? '',
-    );
-    final qualController = TextEditingController(
-      text: teacher.qualification ?? '',
-    );
-    final expController = TextEditingController(
-      text: teacher.experienceYears?.toString() ?? '',
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(30),
-              ),
-            ),
-            child: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'EDIT PROFILE DETAILS',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(LucideIcons.x, size: 20),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Full Name',
-                        prefixIcon: const Icon(LucideIcons.user, size: 18),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Name is required'
-                          : null,
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number',
-                        prefixIcon: const Icon(LucideIcons.phone, size: 18),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: addressController,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        labelText: 'Home Address',
-                        prefixIcon: const Icon(LucideIcons.home, size: 18),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: qualController,
-                      decoration: InputDecoration(
-                        labelText: 'Qualification (e.g. MSc, B.Ed)',
-                        prefixIcon: const Icon(
-                          LucideIcons.graduationCap,
-                          size: 18,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: expController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Experience (Years)',
-                        prefixIcon: const Icon(LucideIcons.history, size: 18),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v != null && v.isNotEmpty) {
-                          if (int.tryParse(v) == null) {
-                            return 'Enter a valid number';
-                          }
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    // Save and Cancel actions
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () {
-                              if (formKey.currentState!.validate()) {
-                                final exp =
-                                    int.tryParse(expController.text.trim()) ??
-                                    0;
-                                context
-                                    .read<TeacherProfileCubit>()
-                                    .updateProfile(
-                                      fullName: nameController.text.trim(),
-                                      phoneNumber: phoneController.text.trim(),
-                                      address: addressController.text.trim(),
-                                      qualification: qualController.text.trim(),
-                                      experienceYears: exp,
-                                    );
-                                Navigator.pop(ctx);
-                              }
-                            },
-                            child: const Text(
-                              'Save Changes',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   // ──────────────── Quick Actions ────────────────
   Widget _buildQuickActionsCard(BuildContext context) {
     return NeuBox(
@@ -1097,6 +902,234 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
       child: Divider(
         color: AppColors.textSecondary.withValues(alpha: 0.08),
         height: 16,
+      ),
+    );
+  }
+
+  // ──────────────── Edit Details Sheet ────────────────
+  void _showEditProfileBottomSheet(BuildContext context, TeacherModel teacher) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _EditProfileBottomSheet(teacher: teacher),
+    );
+  }
+}
+
+class _EditProfileBottomSheet extends StatefulWidget {
+  final TeacherModel teacher;
+
+  const _EditProfileBottomSheet({required this.teacher});
+
+  @override
+  State<_EditProfileBottomSheet> createState() => _EditProfileBottomSheetState();
+}
+
+class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _qualController;
+  late final TextEditingController _expController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.teacher.fullName);
+    _phoneController = TextEditingController(
+      text: widget.teacher.phoneNumber ?? '',
+    );
+    _addressController = TextEditingController(
+      text: widget.teacher.address ?? '',
+    );
+    _qualController = TextEditingController(
+      text: widget.teacher.qualification ?? '',
+    );
+    _expController = TextEditingController(
+      text: widget.teacher.experienceYears?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _qualController.dispose();
+    _expController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(30),
+          ),
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'EDIT PROFILE DETAILS',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.x, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: const Icon(LucideIcons.user, size: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Name is required'
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number',
+                    prefixIcon: const Icon(LucideIcons.phone, size: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _addressController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Home Address',
+                    prefixIcon: const Icon(LucideIcons.home, size: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _qualController,
+                  decoration: InputDecoration(
+                    labelText: 'Qualification (e.g. MSc, B.Ed)',
+                    prefixIcon: const Icon(
+                      LucideIcons.graduationCap,
+                      size: 18,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _expController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Experience (Years)',
+                    prefixIcon: const Icon(LucideIcons.history, size: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v != null && v.isNotEmpty) {
+                      if (int.tryParse(v) == null) {
+                        return 'Enter a valid number';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            final exp =
+                                int.tryParse(_expController.text.trim()) ??
+                                0;
+                            context
+                                .read<TeacherProfileCubit>()
+                                .updateProfile(
+                                  fullName: _nameController.text.trim(),
+                                  phoneNumber: _phoneController.text.trim(),
+                                  address: _addressController.text.trim(),
+                                  qualification: _qualController.text.trim(),
+                                  experienceYears: exp,
+                                );
+                            Navigator.pop(context);
+                          }
+                        },
+                        child: const Text(
+                          'Save Changes',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
