@@ -167,7 +167,10 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       }
       if (_selectedFilterSubjectId != null &&
           _selectedFilterSubjectId != 'All') {
-        if (exam.subjectId != _selectedFilterSubjectId) return false;
+        final isDailyCourseWide = exam.isDaily && exam.subjectId == null;
+        if (!isDailyCourseWide && exam.subjectId != _selectedFilterSubjectId) {
+          return false;
+        }
       }
       if (_selectedFilterExamType == 'Daily') {
         if (!exam.isDaily) return false;
@@ -407,7 +410,34 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     return NeuBox(
       padding: const EdgeInsets.all(14),
       borderRadius: 20,
-      onTap: () => context.read<MarksCubit>().selectExam(exam),
+      onTap: () {
+        if (_selectedFilterCourseId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please select a specific course to enter marks.'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.error,
+            ),
+          );
+          return;
+        }
+        if (_selectedFilterSubjectId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please select a specific subject to enter marks.'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.error,
+            ),
+          );
+          return;
+        }
+
+        context.read<MarksCubit>().selectExam(
+          exam,
+          markDate: _examListDate,
+          subjectId: _selectedFilterSubjectId,
+        );
+      },
       child: Row(
         children: [
           Container(
@@ -777,13 +807,33 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                     fontSize: 16,
                   ),
                 ),
-                Text(
-                  '${exam.subjectName} · Max Marks: ${exam.totalMarks.toInt()}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Builder(
+                  builder: (ctx) {
+                    final teacher = ctx.read<TeacherDashboardCubit>().state.teacher;
+                    final String resolvedSubjectName;
+                    if (exam.subjectId != null) {
+                      resolvedSubjectName = exam.subjectName;
+                    } else {
+                      final selectedSubjId = state.entries.isNotEmpty ? state.entries.first.subjectId : null;
+                      if (selectedSubjId != null && teacher != null) {
+                        final match = teacher.subjects.firstWhere(
+                          (s) => s.subjectId == selectedSubjId,
+                          orElse: () => teacher.subjects.first,
+                        );
+                        resolvedSubjectName = match.subjectName;
+                      } else {
+                        resolvedSubjectName = exam.subjectName;
+                      }
+                    }
+                    return Text(
+                      '$resolvedSubjectName · Max Marks: ${exam.totalMarks.toInt()}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -870,6 +920,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           await context.read<MarksCubit>().selectExam(
             exam,
             markDate: state.selectedMarkDate,
+            subjectId: state.entries.isNotEmpty ? state.entries.first.subjectId : null,
           );
         }
       },
@@ -1152,10 +1203,12 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null) return const SizedBox.shrink();
 
-    // Get unique subjects
+    // Get unique subjects filtered by course selection
     final uniqueSubjects = <String, String>{};
     for (final s in teacher.subjects) {
-      uniqueSubjects[s.subjectId] = s.subjectName;
+      if (_selectedFilterCourseId == null || s.courseId == _selectedFilterCourseId) {
+        uniqueSubjects[s.subjectId] = s.subjectName;
+      }
     }
 
     return SingleChildScrollView(
@@ -1179,6 +1232,16 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             onChanged: (val) {
               setState(() {
                 _selectedFilterCourseId = val == 'All' ? null : val;
+
+                // Validate selected subject under the new course selection
+                if (_selectedFilterSubjectId != null) {
+                  final isValid = teacher.subjects.any((s) =>
+                      s.subjectId == _selectedFilterSubjectId &&
+                      (_selectedFilterCourseId == null || s.courseId == _selectedFilterCourseId));
+                  if (!isValid) {
+                    _selectedFilterSubjectId = null;
+                  }
+                }
               });
               // Refetch -- "All Courses" lifts the today-only filter
               // and pulls every assigned exam across all dates;

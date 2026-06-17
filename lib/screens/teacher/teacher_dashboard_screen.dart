@@ -16,6 +16,8 @@ import '../../widgets/neu_box.dart';
 import 'marks_entry_screen.dart';
 import 'student_attendance_screen.dart';
 import 'teacher_attendance_screen.dart';
+import '../../blocs/marks/marks_cubit.dart';
+import '../../models/exam_marks_model.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -94,7 +96,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       ),
                     ],
                     const SizedBox(height: 20),
-                    _buildAttendanceSummaryCard(context, state),
+                    // _buildAttendanceSummaryCard(context, state),
                   ],
                 ),
               );
@@ -398,20 +400,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   Widget _buildStatsRow(BuildContext context, TeacherDashboardState state) {
     final subjects = state.teacher?.subjects ?? [];
-    final uniqueBatches = subjects
-        .map((s) => s.batchId)
-        .toSet()
-        .where((id) => id != null)
-        .length;
-    final pendingAtt = state.stats.todayClassCount > 0 ? 1 : 0;
+    final coursesCount = state.teacher?.courses.length ?? 0;
+    final monthlyAttendance = state.stats.monthlyAttendanceCount;
 
     return Row(
       children: [
         _buildStatCard(
           context,
-          icon: LucideIcons.users,
-          label: 'Batches',
-          value: '$uniqueBatches',
+          icon: LucideIcons.graduationCap,
+          label: 'Courses',
+          value: '$coursesCount',
           color: AppColors.primary,
         ),
         const SizedBox(width: 10),
@@ -425,10 +423,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         const SizedBox(width: 10),
         _buildStatCard(
           context,
-          icon: LucideIcons.clock,
-          label: 'Pending',
-          value: '$pendingAtt',
-          color: pendingAtt > 0 ? AppColors.error : AppColors.success,
+          icon: LucideIcons.calendarCheck,
+          label: 'Attendance',
+          value: '$monthlyAttendance',
+          color: AppColors.success,
         ),
       ],
     );
@@ -729,68 +727,94 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // ── Exam tile ──────────────────────────────────────────────────────────────
 
-  Widget _buildExamTile(BuildContext context, dynamic exam) {
+  Widget _buildExamTile(BuildContext context, TeacherExam exam) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      child: NeuBox(
-        padding: const EdgeInsets.all(12),
-        borderRadius: 20,
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                LucideIcons.fileCheck,
-                color: AppColors.accent,
-                size: 18,
-              ),
+      child: GestureDetector(
+        onTap: () {
+          context.read<MarksCubit>().selectExam(exam);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const MarksEntryScreen(),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    exam.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
+          );
+        },
+        child: NeuBox(
+          padding: const EdgeInsets.all(12),
+          borderRadius: 20,
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  LucideIcons.fileCheck,
+                  color: AppColors.accent,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exam.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${exam.subjectName}${exam.batchName != null ? " · ${exam.batchName}" : ""}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (exam.isDaily)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Daily',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.success,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${exam.subjectName}${exam.batchName != null ? " · ${exam.batchName}" : ""}',
+                )
+              else if (exam.examDate != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    DateFormat('d MMM').format(exam.examDate!),
                     style: const TextStyle(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
                     ),
                   ),
-                ],
-              ),
-            ),
-            if (exam.examDate != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  DateFormat('d MMM').format(exam.examDate!),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -798,76 +822,76 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // ── Attendance summary card ────────────────────────────────────────────────
 
-  Widget _buildAttendanceSummaryCard(
-    BuildContext context,
-    TeacherDashboardState state,
-  ) {
-    final pct = state.stats.attendancePercentage;
-    final presentPct = pct.clamp(0.0, 100.0);
-    final absentPct = (100.0 - presentPct).clamp(0.0, 100.0);
+  // Widget _buildAttendanceSummaryCard(
+  //   BuildContext context,
+  //   TeacherDashboardState state,
+  // ) {
+  //   final pct = state.stats.attendancePercentage;
+  //   final presentPct = pct.clamp(0.0, 100.0);
+  //   final absentPct = (100.0 - presentPct).clamp(0.0, 100.0);
 
-    return NeuBox(
-      padding: const EdgeInsets.all(18),
-      borderRadius: 24,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle("Today's Attendance Summary"),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _dotRow(
-                      'Present: ${presentPct.toInt()}%',
-                      AppColors.success,
-                    ),
-                    const SizedBox(height: 10),
-                    _dotRow('Absent: ${absentPct.toInt()}%', AppColors.error),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Aggregated today across all subjects',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      value: presentPct / 100,
-                      backgroundColor: AppColors.success.withValues(
-                        alpha: 0.08,
-                      ),
-                      valueColor: const AlwaysStoppedAnimation(
-                        AppColors.success,
-                      ),
-                      strokeWidth: 7,
-                    ),
-                    const Icon(
-                      LucideIcons.smile,
-                      color: AppColors.success,
-                      size: 28,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  //   return NeuBox(
+  //     padding: const EdgeInsets.all(18),
+  //     borderRadius: 24,
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         _buildSectionTitle("Today's Attendance Summary"),
+  //         const SizedBox(height: 16),
+  //         Row(
+  //           children: [
+  //             Expanded(
+  //               child: Column(
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   _dotRow(
+  //                     'Present: ${presentPct.toInt()}%',
+  //                     AppColors.success,
+  //                   ),
+  //                   const SizedBox(height: 10),
+  //                   _dotRow('Absent: ${absentPct.toInt()}%', AppColors.error),
+  //                   const SizedBox(height: 12),
+  //                   Text(
+  //                     'Aggregated today across all subjects',
+  //                     style: TextStyle(
+  //                       fontSize: 11,
+  //                       color: AppColors.textSecondary.withValues(alpha: 0.8),
+  //                       fontWeight: FontWeight.w600,
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //             SizedBox(
+  //               width: 80,
+  //               height: 80,
+  //               child: Stack(
+  //                 alignment: Alignment.center,
+  //                 children: [
+  //                   CircularProgressIndicator(
+  //                     value: presentPct / 100,
+  //                     backgroundColor: AppColors.success.withValues(
+  //                       alpha: 0.08,
+  //                     ),
+  //                     valueColor: const AlwaysStoppedAnimation(
+  //                       AppColors.success,
+  //                     ),
+  //                     strokeWidth: 7,
+  //                   ),
+  //                   const Icon(
+  //                     LucideIcons.smile,
+  //                     color: AppColors.success,
+  //                     size: 28,
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _dotRow(String label, Color color) {
     return Row(

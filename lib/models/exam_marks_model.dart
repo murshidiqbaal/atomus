@@ -197,6 +197,7 @@ class TeacherDashboardStats {
   final int pendingMarksCount;
   final int weakStudentCount;
   final int unreadNotificationCount;
+  final int monthlyAttendanceCount;
 
   const TeacherDashboardStats({
     this.todayClassCount = 0,
@@ -206,5 +207,6 @@ class TeacherDashboardStats {
     this.pendingMarksCount = 0,
     this.weakStudentCount = 0,
     this.unreadNotificationCount = 0,
+    this.monthlyAttendanceCount = 0,
   });
 }

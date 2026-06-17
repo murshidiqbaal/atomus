@@ -43,6 +43,16 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
       final activeSession  = await _attendanceRepo.fetchTodayActiveSession(teacher.id);
       final monthlyPct     = await _attendanceRepo.fetchMonthlyAttendancePercentage(teacher.id);
 
+      final now = DateTime.now();
+      final from = DateTime(now.year, now.month, 1);
+      final to = DateTime(now.year, now.month + 1, 0);
+      final history = await _attendanceRepo.fetchHistory(
+        teacherId: teacher.id,
+        from: from,
+        to: to,
+      );
+      final monthlyAttendanceCount = history.where((r) => r.isCompleted).length;
+
       List<TeacherExam> upcomingExams = [];
       int pendingMarks = 0;
       if (subjectIds.isNotEmpty || courseIds.isNotEmpty) {
@@ -50,6 +60,7 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
           subjectIds: subjectIds,
           batchIds:   batchIds,
           courseIds:  courseIds,
+          includeUpcoming: true,
         );
         pendingMarks = upcomingExams
             .where((e) => !e.isMarksEntered)
@@ -62,6 +73,7 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
         hasActiveSession:        activeSession != null,
         upcomingExamCount:       upcomingExams.length,
         pendingMarksCount:       pendingMarks,
+        monthlyAttendanceCount:  monthlyAttendanceCount,
       );
 
       emit(state.copyWith(
@@ -70,7 +82,7 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
         activeSession: activeSession,
         clearSession:  activeSession == null,
         stats:         stats,
-        upcomingExams: upcomingExams.take(5).toList(),
+        upcomingExams: upcomingExams.take(10).toList(),
       ));
     } catch (e) {
       emit(state.copyWith(

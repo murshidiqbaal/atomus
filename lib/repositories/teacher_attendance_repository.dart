@@ -26,6 +26,10 @@ class TeacherAttendanceRepository {
     final existing = await fetchTodayActiveSession(teacherId);
     if (existing != null) return existing;
 
+    // Guard: block if a completed session already exists in DB
+    final completed = await fetchTodayCompletedSession(teacherId);
+    if (completed != null) return completed;
+
     final record = TeacherAttendanceModel(
       teacherId:      teacherId,
       campusId:       campusId,
@@ -42,7 +46,7 @@ class TeacherAttendanceRepository {
     try {
       final inserted = await _supabase
           .from('teacher_attendance')
-          .upsert(record.toInsertMap())
+          .upsert(record.toInsertMap(), onConflict: 'teacher_id,attendance_date')
           .select()
           .single();
       final saved = TeacherAttendanceModel.fromMap(inserted);
@@ -84,7 +88,6 @@ class TeacherAttendanceRepository {
             .select('id')
             .eq('teacher_id', active.teacherId)
             .eq('attendance_date', today)
-            .eq('attendance_status', 'Active')
             .limit(1);
         if (rows.isNotEmpty) {
           rowId = rows.first['id'] as String?;
@@ -106,7 +109,7 @@ class TeacherAttendanceRepository {
         // No existing row found -- insert the whole record.
         result = await _supabase
             .from('teacher_attendance')
-            .insert(updated.toInsertMap())
+            .upsert(updated.toInsertMap(), onConflict: 'teacher_id,attendance_date')
             .select();
       }
 

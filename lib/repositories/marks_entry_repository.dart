@@ -15,6 +15,7 @@ class MarksEntryRepository {
     required List<String> batchIds,
     required List<String> courseIds,
     bool includeAllDates = false,
+    bool includeUpcoming = false,
     DateTime? date,
   }) async {
     if (subjectIds.isEmpty && courseIds.isEmpty) return [];
@@ -40,12 +41,17 @@ class MarksEntryRepository {
 
       // Daily-exams visibility rule: a daily exam template is ALWAYS
       // visible; a regular exam is only visible on its exam_date.
+      // If includeUpcoming is true, we want to see regular exams in the future too.
       // When the UI is in an unfiltered "All" view we lift this rule
-      // and return every assigned exam across all dates -- the
-      // teacher explicitly asked for the full set.
+      // and return every assigned exam across all dates.
       final targetDate = date ?? DateTime.now();
       final dateIso = targetDate.toIso8601String().split('T').first;
-      final visibilityOr = 'is_daily.eq.true,exam_date.eq.$dateIso';
+      final String visibilityOr;
+      if (includeUpcoming) {
+        visibilityOr = 'is_daily.eq.true,exam_date.gte.$dateIso';
+      } else {
+        visibilityOr = 'is_daily.eq.true,exam_date.eq.$dateIso';
+      }
 
       var builder = _supabase
           .from('exams')
@@ -56,10 +62,39 @@ class MarksEntryRepository {
         builder = builder.or(visibilityOr);
       }
       builder = builder.eq('marks.mark_date', dateIso);
-      final rows = await builder.order('exam_date', ascending: false);
+      final rows = await builder.order('exam_date', ascending: includeUpcoming ? true : false);
       final allExams = (rows as List)
           .map((r) => TeacherExam.fromMap(r as Map<String, dynamic>))
           .toList();
+
+      if (includeUpcoming) {
+        final todayDate = DateTime(targetDate.year, targetDate.month, targetDate.day);
+        allExams.sort((a, b) {
+          // 1. Regular exams scheduled for today
+          final isTodayA = a.examDate != null &&
+              DateTime(a.examDate!.year, a.examDate!.month, a.examDate!.day)
+                  .isAtSameMomentAs(todayDate);
+          final isTodayB = b.examDate != null &&
+              DateTime(b.examDate!.year, b.examDate!.month, b.examDate!.day)
+                  .isAtSameMomentAs(todayDate);
+
+          if (isTodayA && !isTodayB) return -1;
+          if (!isTodayA && isTodayB) return 1;
+
+          // 2. Daily exams
+          if (a.isDaily && !b.isDaily) return -1;
+          if (!a.isDaily && b.isDaily) return 1;
+
+          if (a.isDaily && b.isDaily) {
+            return a.name.compareTo(b.name);
+          }
+
+          // 3. Future regular exams (sorted chronologically)
+          final da = a.examDate ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final db = b.examDate ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return da.compareTo(db);
+        });
+      }
 
       final teacherUserId = _supabase.auth.currentUser?.id;
       return allExams.where((e) {

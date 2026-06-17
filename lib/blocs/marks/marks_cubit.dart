@@ -39,13 +39,14 @@ class MarksCubit extends Cubit<MarksState> {
     }
   }
 
-  Future<void> selectExam(TeacherExam exam, {DateTime? markDate}) async {
+  Future<void> selectExam(TeacherExam exam, {DateTime? markDate, String? subjectId}) async {
     // For daily exams default to today; for regular exams default to
     // the exam's own date (or today as a fallback).
     final resolvedDate = markDate ??
         (exam.isDaily
             ? _today()
             : (exam.examDate ?? _today()));
+    final resolvedSubjectId = exam.subjectId ?? subjectId;
     emit(
       state.copyWith(
         status: MarksLoadStatus.loading,
@@ -58,7 +59,7 @@ class MarksCubit extends Cubit<MarksState> {
     try {
       final entries = await _repo.loadStudentsWithMarks(
         examId: exam.id,
-        subjectId: exam.subjectId,
+        subjectId: resolvedSubjectId,
         batchId: exam.batchId,
         courseId: exam.courseId,
         totalMarks: exam.totalMarks,
