@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/student_attendance_entry_model.dart';
 import '../services/security_validation_service.dart';
 import '../services/teacher_hive_service.dart';
+import '../utils/attendance_date_validator.dart';
+
 
 class StudentAttendanceTeacherRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -124,12 +126,20 @@ class StudentAttendanceTeacherRepository {
     if (entries.isEmpty) return [];
 
     final first = entries.first;
+    final deviceTime = DateTime.now();
+    final dbUtcTime = await AttendanceDateValidator.getDatabaseUtcTime();
+    final convertedLocalDate = AttendanceDateValidator.convertToLocal(dbUtcTime);
+    final dbToday = DateTime(convertedLocalDate.year, convertedLocalDate.month, convertedLocalDate.day);
 
-    // 1. Prevent future dates
-    final nowStr = DateTime.now().toIso8601String().split('T').first;
-    final dateStr = first.attendanceDate.toIso8601String().split('T').first;
-    if (first.attendanceDate.isAfter(DateTime.now()) && dateStr != nowStr) {
-      throw Exception('Cannot mark attendance for future dates.');
+    AttendanceDateValidator.logValidation(
+      deviceTime: deviceTime,
+      dbUtcTime: dbUtcTime,
+      selectedDate: first.attendanceDate,
+      convertedLocalDate: convertedLocalDate,
+    );
+
+    if (!AttendanceDateValidator.canSubmit(first.attendanceDate, dbToday)) {
+      throw Exception('Attendance cannot be marked for future dates.');
     }
 
     // 2. Validate assignments in teacher_subjects, teacher_batches, teacher_courses
@@ -170,6 +180,12 @@ class StudentAttendanceTeacherRepository {
       }
       return (result as List).map((r) => Map<String, dynamic>.from(r as Map)).toList();
     } catch (e) {
+      if (e is PostgrestException) {
+        final errStr = e.toString();
+        if (errStr.contains('attendance_no_future_dates')) {
+          throw Exception('Attendance cannot be marked for future dates.');
+        }
+      }
       // Queue for later retry, but surface the error so the cubit emits
       // failure and the user sees a SnackBar instead of a silent no-op.
       final batchKey = entries.first.batchId ?? 'unknown';

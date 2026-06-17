@@ -56,7 +56,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
   // Toggle a single student's status cyclically: Present → Absent → Late → Leave → Present
   void toggleStatus(String studentId) {
     final updated = state.entries.map((e) {
-      if (e.studentId != studentId || e.id != null) return e;
+      if (e.studentId != studentId) return e;
       final next = _nextStatus(e.status);
       return e.copyWith(status: next);
     }).toList();
@@ -65,7 +65,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
 
   void setStatus(String studentId, StudentAttendanceStatus status) {
     final updated = state.entries.map((e) {
-      return e.studentId == studentId && e.id == null
+      return e.studentId == studentId
           ? e.copyWith(status: status)
           : e;
     }).toList();
@@ -74,7 +74,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
 
   void setRemarks(String studentId, String remarks) {
     final updated = state.entries.map((e) {
-      return e.studentId == studentId && e.id == null
+      return e.studentId == studentId
           ? e.copyWith(remarks: remarks.isEmpty ? null : remarks)
           : e;
     }).toList();
@@ -85,9 +85,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
   void markAllPresent() {
     final updated = state.entries
         .map(
-          (e) => e.id == null
-              ? e.copyWith(status: StudentAttendanceStatus.present)
-              : e,
+          (e) => e.copyWith(status: StudentAttendanceStatus.present),
         )
         .toList();
     emit(state.copyWith(entries: updated, saved: false));
@@ -97,12 +95,10 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
   void clearAll() {
     final updated = state.entries
         .map(
-          (e) => e.id == null
-              ? e.copyWith(
-                  status: StudentAttendanceStatus.present,
-                  remarks: null,
-                )
-              : e,
+          (e) => e.copyWith(
+            status: StudentAttendanceStatus.present,
+            remarks: null,
+          ),
         )
         .toList();
     emit(state.copyWith(entries: updated, saved: false));

@@ -692,14 +692,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   }
 
   Widget _buildCompletedPunchCard(TeacherAttendanceModel session) {
+    final isLate = session.isLate;
     return CustomCard(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           _statusPill(
-            label: 'ATTENDANCE COMPLETED',
-            color: AppColors.success,
-            icon: LucideIcons.checkCircle,
+            label: isLate ? 'LATE ATTENDANCE' : 'ATTENDANCE COMPLETED',
+            color: isLate ? AppColors.warning : AppColors.success,
+            icon: isLate ? LucideIcons.clock : LucideIcons.checkCircle,
           ),
           const SizedBox(height: 16),
           Row(
@@ -1116,7 +1117,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               Color? bgColor;
               if (!isFuture && record != null) {
                 if (record.isCompleted) {
-                  bgColor = AppColors.success;
+                  bgColor = record.isLate ? AppColors.warning : AppColors.success;
                 } else if (record.isActive) {
                   bgColor = AppColors.warning;
                 } else {
@@ -1236,9 +1237,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       icon = LucideIcons.helpCircle;
       statusLabel = 'NOT MARKED';
     } else if (record.isCompleted) {
-      color = AppColors.success;
-      icon = LucideIcons.checkCircle;
-      statusLabel = 'PRESENT';
+      if (record.isLate) {
+        color = AppColors.warning;
+        icon = LucideIcons.clock;
+        statusLabel = 'LATE';
+      } else {
+        color = AppColors.success;
+        icon = LucideIcons.checkCircle;
+        statusLabel = 'PRESENT';
+      }
     } else if (record.isActive) {
       color = AppColors.warning;
       icon = LucideIcons.clock;

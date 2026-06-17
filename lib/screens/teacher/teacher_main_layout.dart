@@ -127,7 +127,7 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
               child: IndexedStack(index: _currentIndex, children: _screens),
             ),
           ),
-          floatingActionButton: _currentIndex != 4
+          floatingActionButton: _currentIndex == 0
               ? FloatingActionButton(
                   onPressed: () {
                     HapticFeedback.selectionClick();

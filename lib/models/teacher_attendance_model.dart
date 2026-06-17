@@ -51,10 +51,9 @@ class TeacherAttendanceModel {
     this.longitude,
     this.status = TeacherAttendanceStatus.active,
     DateTime? createdAt,
-  })  : totalDurationMinutes = totalDurationMinutes ??
-            (startTime != null && endTime != null
-                ? endTime.difference(startTime).inMinutes
-                : null),
+  })  : totalDurationMinutes = (startTime != null && endTime != null
+            ? endTime.difference(startTime).inMinutes
+            : totalDurationMinutes),
         createdAt = createdAt ?? DateTime.now();
 
   factory TeacherAttendanceModel.fromMap(Map<String, dynamic> map) {
@@ -65,8 +64,9 @@ class TeacherAttendanceModel {
     final end = map['end_time'] != null
         ? DateTime.parse(map['end_time'] as String)
         : null;
-    final duration = map['total_duration_minutes'] as int? ??
-        (start != null && end != null ? end.difference(start).inMinutes : null);
+    final duration = (start != null && end != null)
+        ? end.difference(start).inMinutes
+        : (map['total_duration_minutes'] as int?);
 
     return TeacherAttendanceModel(
       id:                   map['id'] as String?,
@@ -109,15 +109,39 @@ class TeacherAttendanceModel {
   bool get isActive    => status == TeacherAttendanceStatus.active;
   bool get isCompleted => status == TeacherAttendanceStatus.completed;
 
+  bool get isLate {
+    if (startTime == null) return false;
+    final localStart = startTime!.toLocal();
+    final limit = DateTime(
+      localStart.year,
+      localStart.month,
+      localStart.day,
+      10,
+      0,
+    );
+    return localStart.isAfter(limit);
+  }
+
   String get durationLabel {
-    final minutes = totalDurationMinutes ??
-        (startTime != null && endTime != null
-            ? endTime!.difference(startTime!).inMinutes
-            : null);
-    if (minutes == null) return '--';
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    return h > 0 ? '${h}h ${m}m' : '${m}m';
+    if (startTime == null || endTime == null) {
+      final minutes = totalDurationMinutes;
+      if (minutes == null) return '--';
+      final h = minutes ~/ 60;
+      final m = minutes % 60;
+      return h > 0 ? '${h}h ${m}m' : '${m}m';
+    }
+    final diff = endTime!.difference(startTime!);
+    final h = diff.inHours;
+    final m = diff.inMinutes % 60;
+    final s = diff.inSeconds % 60;
+
+    if (h > 0) {
+      return '${h}h ${m}m';
+    } else if (m > 0) {
+      return '${m}m ${s}s';
+    } else {
+      return '${s}s';
+    }
   }
 
   TeacherAttendanceModel copyWith({

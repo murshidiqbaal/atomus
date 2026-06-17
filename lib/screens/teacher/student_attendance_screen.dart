@@ -9,8 +9,10 @@ import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../blocs/teacher_session/teacher_session_cubit.dart';
 import '../../models/student_attendance_entry_model.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/attendance_date_validator.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
+
 
 class StudentAttendanceScreen extends StatefulWidget {
   final String subjectId;
@@ -48,6 +50,8 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
   late String? _selectedCourseName;
   late String? _selectedCampusId;
   late DateTime _selectedDate;
+  DateTime? _dbToday;
+  bool _isDateFuture = false;
 
   late AnimationController _successController;
   late Animation<double> _successScale;
@@ -63,6 +67,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
     _selectedCourseName = null; // resolved in initState from teacher data
     _selectedCampusId = widget.campusId;
     _selectedDate = DateTime.now();
+    _loadDbToday();
 
     // Resolve course name + lock the campus filter to the teacher's
     // assigned campus so only that campus's students are listed.
@@ -106,7 +111,24 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
     _loadData();
   }
 
+  Future<void> _loadDbToday() async {
+    final dbToday = await AttendanceDateValidator.getDatabaseToday();
+    if (mounted) {
+      setState(() {
+        _dbToday = dbToday;
+        _isDateFuture = AttendanceDateValidator.isFuture(_selectedDate, dbToday);
+      });
+    }
+  }
+
   Future<void> _loadData() async {
+    if (_dbToday == null) {
+      await _loadDbToday();
+    } else {
+      setState(() {
+        _isDateFuture = AttendanceDateValidator.isFuture(_selectedDate, _dbToday!);
+      });
+    }
     await context.read<StudentAttendanceCubit>().loadStudents(
       subjectId: _selectedSubjectId,
       batchId: _selectedBatchId,
@@ -203,6 +225,34 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
                 return Column(
                   children: [
                     _buildInlineFilters(context),
+                    if (_isDateFuture)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(LucideIcons.alertTriangle, size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Attendance cannot be marked for future dates.',
+                                  style: TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     _buildSummaryBar(state),
                     _buildSearchBar(),
                     _buildBulkActionsBar(context),
@@ -245,7 +295,8 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
                         teacherId != null &&
                         !isSaving &&
                         state.entries.isNotEmpty &&
-                        hasModified;
+                        hasModified &&
+                        !_isDateFuture;
 
                     String label;
                     if (isSaving) {
@@ -567,15 +618,23 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
         InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
-            final now = DateTime.now();
+            final dbToday = _dbToday ?? await AttendanceDateValidator.getDatabaseToday();
+            if (mounted && _dbToday == null) {
+              setState(() {
+                _dbToday = dbToday;
+              });
+            }
             final date = await showDatePicker(
               context: context,
-              initialDate: _selectedDate,
-              firstDate: DateTime(now.year - 1),
-              lastDate: now,
+              initialDate: _selectedDate.isAfter(dbToday) ? dbToday : _selectedDate,
+              firstDate: DateTime(dbToday.year - 1),
+              lastDate: dbToday,
             );
             if (date != null) {
-              setState(() => _selectedDate = date);
+              setState(() {
+                _selectedDate = date;
+                _isDateFuture = AttendanceDateValidator.isFuture(_selectedDate, dbToday);
+              });
               _loadData();
             }
           },
@@ -583,26 +642,32 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.04),
+              color: _isDateFuture
+                  ? AppColors.error.withOpacity(0.08)
+                  : AppColors.primary.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.15),
+                color: _isDateFuture
+                    ? AppColors.error
+                    : AppColors.primary.withValues(alpha: 0.15),
+                width: _isDateFuture ? 2.0 : 1.0,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   LucideIcons.calendar,
                   size: 14,
-                  color: AppColors.primary,
+                  color: _isDateFuture ? AppColors.error : AppColors.primary,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   DateFormat('d MMM').format(_selectedDate),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
+                    color: _isDateFuture ? AppColors.error : null,
                   ),
                 ),
               ],
