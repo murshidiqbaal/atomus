@@ -8,6 +8,7 @@ import '../../blocs/notification/notification_state.dart';
 import '../../models/notification_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/custom_card.dart';
+import '../../widgets/app_background.dart';
 import '../../widgets/glass_background.dart';
 
 class NotificationScreen extends StatelessWidget {
@@ -26,10 +27,11 @@ class NotificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: GlassBackground(
-        child: SafeArea(
+    return AppBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: GlassBackground(
+          child: SafeArea(
           child: Column(
             children: [
               // Header
@@ -168,6 +170,7 @@ class NotificationScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

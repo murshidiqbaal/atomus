@@ -120,4 +120,29 @@ class DailyReportCubit extends Cubit<DailyReportState> {
       );
     }
   }
+
+  /// Fetch all reports for a student (used in student-facing IReportsScreen)
+  Future<void> fetchReportsForCurrentStudent({
+    required String studentId,
+  }) async {
+    emit(state.copyWith(status: DailyReportStatus.loading));
+    try {
+      final reports = await _repo.fetchAllReportsForStudent(
+        studentId: studentId,
+      );
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.success,
+          studentReports: reports,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
+    }
+  }
 }

@@ -10,6 +10,7 @@ import '../../blocs/student/student_state.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/custom_card.dart';
 import '../../widgets/neu_box.dart';
+import 'progress_report_screen.dart';
 
 class MarksScreen extends StatefulWidget {
   const MarksScreen({super.key});
@@ -63,8 +64,24 @@ class _MarksScreenState extends State<MarksScreen> {
             );
           }
 
-          final regularExams = state.exams.where((e) => !e.isDaily).toList();
-          final dailyExams = state.exams.where((e) => e.isDaily).toList();
+          final regularExams = state.exams.where((e) => !e.isDaily).toList()
+            ..sort((a, b) {
+              final da = DateTime.tryParse(a.date);
+              final db = DateTime.tryParse(b.date);
+              if (da == null && db == null) return 0;
+              if (da == null) return 1;
+              if (db == null) return -1;
+              return db.compareTo(da); // descending
+            });
+          final dailyExams = state.exams.where((e) => e.isDaily).toList()
+            ..sort((a, b) {
+              final da = DateTime.tryParse(a.date);
+              final db = DateTime.tryParse(b.date);
+              if (da == null && db == null) return 0;
+              if (da == null) return 1;
+              if (db == null) return -1;
+              return db.compareTo(da); // descending
+            });
 
           final filteredDailyExams = _selectedDailyExamDate == null
               ? dailyExams
@@ -84,6 +101,80 @@ class _MarksScreenState extends State<MarksScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(24.0),
               children: [
+                // ── Progress Reports Banner ──────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: CustomCard(
+                    padding: const EdgeInsets.all(16.0),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () {
+                        if (state.studentInfo != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProgressReportScreen(
+                                studentInfo: state.studentInfo!,
+                                exams: state.exams,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Student information is loading...'),
+                            ),
+                          );
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          NeuBox(
+                            width: 50,
+                            height: 50,
+                            borderRadius: 14,
+                            child: const Icon(
+                              LucideIcons.fileSpreadsheet,
+                              color: AppColors.primary,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Progress Reports',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                const Text(
+                                  'View & download structured academic reports',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
                 // ── Regular Exams Section ──────────────────────────────────
                 if (regularExams.isNotEmpty) ...[
                   const Padding(

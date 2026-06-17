@@ -195,4 +195,31 @@ class DailyReportRepository {
       return [];
     }
   }
+
+  /// Fetch all daily reports for a specific student, joining with subjects table
+  Future<List<DailyReportModel>> fetchAllReportsForStudent({
+    required String studentId,
+  }) async {
+    try {
+      final rows = await _supabase
+          .from('student_daily_reports')
+          .select('''
+            *,
+            subjects (
+              name
+            )
+          ''')
+          .eq('student_id', studentId)
+          .order('date_str', ascending: false);
+
+      final reports = (rows as List).map((r) {
+        return DailyReportModel.fromMap(Map<String, dynamic>.from(r));
+      }).toList();
+
+      return reports;
+    } catch (e) {
+      print('DailyReportRepository [fetchAllReportsForStudent] Supabase error: $e');
+      return [];
+    }
+  }
 }

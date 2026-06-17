@@ -10,6 +10,7 @@ class DailyReportModel {
   final String teacherId;
   final String teacherName;
   final DateTime createdAt;
+  final String? subjectName;
 
   DailyReportModel({
     required this.id,
@@ -23,6 +24,7 @@ class DailyReportModel {
     required this.teacherId,
     required this.teacherName,
     required this.createdAt,
+    this.subjectName,
   });
 
   Map<String, dynamic> toMap() {
@@ -56,6 +58,7 @@ class DailyReportModel {
       createdAt: DateTime.parse(
         map['created_at'] as String? ?? DateTime.now().toIso8601String(),
       ),
+      subjectName: map['subjects']?['name']?.toString() ?? map['subject_name']?.toString(),
     );
   }
 }

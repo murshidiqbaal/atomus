@@ -2,31 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 
+import '../blocs/auth/auth_bloc.dart';
+import '../blocs/auth/auth_state.dart';
 import '../blocs/fee/fee_bloc.dart';
 import '../blocs/fee/fee_event.dart';
 import '../blocs/notification/notification_bloc.dart';
 import '../blocs/notification/notification_event.dart';
 import '../blocs/student/student_bloc.dart';
 import '../blocs/student/student_event.dart';
-import '../blocs/student/student_state.dart';
 import '../blocs/theme/theme_bloc.dart';
 import '../blocs/theme/theme_event.dart';
 import '../blocs/theme/theme_state.dart';
+import '../repositories/auth_repository.dart';
 import '../repositories/notification_repository.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
-import '../widgets/custom_card.dart';
 import '../widgets/neu_box.dart';
 import 'attendance/attendance_screen.dart';
 import 'fees/fees_screen.dart';
 import 'home/dashboard_screen.dart';
-import 'marks/marks_screen.dart';
-import 'profile/profile_screen.dart';
-import '../repositories/auth_repository.dart';
-import '../blocs/auth/auth_bloc.dart';
-import '../blocs/auth/auth_state.dart';
 import 'login_screen.dart';
+import 'marks/marks_screen.dart';
+import 'reports/ireports_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -71,7 +69,7 @@ class _MainLayoutState extends State<MainLayout> {
     MarksScreen(),
     AttendanceScreen(),
     FeesScreen(),
-    ProfileScreen(),
+    IReportsScreen(),
   ];
 
   @override
@@ -95,7 +93,7 @@ class _MainLayoutState extends State<MainLayout> {
           ),
           body: IndexedStack(index: _currentIndex, children: _screens),
           bottomNavigationBar: Container(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             decoration: const BoxDecoration(color: Colors.transparent),
             child: NeuBox(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -107,7 +105,7 @@ class _MainLayoutState extends State<MainLayout> {
                   _buildNavItem(LucideIcons.bookOpen, 'Marks', 1),
                   _buildNavItem(LucideIcons.calendar, 'Attendance', 2),
                   _buildNavItem(LucideIcons.creditCard, 'Fees', 3),
-                  _buildNavItem(LucideIcons.user, 'Profile', 4),
+                  _buildNavItem(LucideIcons.clipboardList, 'Reports', 4),
                 ],
               ),
             ),
@@ -142,7 +140,7 @@ class _MainLayoutState extends State<MainLayout> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'ATOMUS ADMIN',
+                      'ATOMUS',
                       style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w900,
@@ -154,25 +152,25 @@ class _MainLayoutState extends State<MainLayout> {
               ),
             ),
 
-            ListTile(
-              leading: const Icon(
-                Icons.person_add_alt_1_rounded,
-                color: AppColors.primary,
-              ),
-              title: const Text(
-                'Create New Parent',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showCreateParentDialog(context);
-              },
-            ),
+            // ListTile(
+            //   leading: const Icon(
+            //     Icons.person_add_alt_1_rounded,
+            //     color: AppColors.primary,
+            //   ),
+            //   title: const Text(
+            //     'Create New Parent',
+            //     style: TextStyle(fontWeight: FontWeight.w700),
+            //   ),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     _showCreateParentDialog(context);
+            //   },
+            // ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Divider(),
-            ),
+            // const Padding(
+            //   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            //   child: Divider(),
+            // ),
 
             // Appearance section
             Padding(
@@ -278,91 +276,90 @@ class _MainLayoutState extends State<MainLayout> {
             ),
 
             // Academic Performance section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'ACADEMIC PERFORMANCE',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-            ),
-            BlocBuilder<StudentBloc, StudentState>(
-              builder: (context, state) {
-                if (state.status == StudentStatus.loading ||
-                    state.studentInfo == null) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: LinearProgressIndicator(),
-                  );
-                }
+            // Padding(
+            //   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            //   child: Align(
+            //     alignment: Alignment.centerLeft,
+            //     child: Text(
+            //       'ACADEMIC PERFORMANCE',
+            //       style: TextStyle(
+            //         color: AppColors.textSecondary,
+            //         fontSize: 10,
+            //         fontWeight: FontWeight.w900,
+            //         letterSpacing: 1.5,
+            //       ),
+            //     ),
+            //   ),
+            // ),
+            // BlocBuilder<StudentBloc, StudentState>(
+            //   builder: (context, state) {
+            //     if (state.status == StudentStatus.loading ||
+            //         state.studentInfo == null) {
+            //       return const Padding(
+            //         padding: EdgeInsets.all(16),
+            //         child: LinearProgressIndicator(),
+            //       );
+            //     }
 
-                final performance = state.performance;
-                final attendancePct = performance != null
-                    ? performance.attendancePercentage / 100.0
-                    : state.studentInfo!.attendancePercentage / 100.0;
+            //     final performance = state.performance;
+            //     final attendancePct = performance != null
+            //         ? performance.attendancePercentage / 100.0
+            //         : state.studentInfo!.attendancePercentage / 100.0;
 
-                double totalObtained = 0;
-                double totalPossible = 0;
-                for (final exam in state.exams) {
-                  for (final subject in exam.subjects) {
-                    totalObtained += subject.marksObtained;
-                    totalPossible += subject.totalMarks;
-                  }
-                }
-                final marksPct = performance != null
-                    ? performance.marksPercentage / 100.0
-                    : (totalPossible > 0 ? totalObtained / totalPossible : 0.0);
+            //     double totalObtained = 0;
+            //     double totalPossible = 0;
+            //     for (final exam in state.exams) {
+            //       for (final subject in exam.subjects) {
+            //         totalObtained += subject.marksObtained;
+            //         totalPossible += subject.totalMarks;
+            //       }
+            //     }
+            //     final marksPct = performance != null
+            //         ? performance.marksPercentage / 100.0
+            //         : (totalPossible > 0 ? totalObtained / totalPossible : 0.0);
 
-                final overallPct = performance != null
-                    ? performance.academicPerformanceScore / 100.0
-                    : (state.exams.isEmpty
-                          ? attendancePct
-                          : marksPct * 0.7 + attendancePct * 0.3);
+            //     final overallPct = performance != null
+            //         ? performance.academicPerformanceScore / 100.0
+            //         : (state.exams.isEmpty
+            //               ? attendancePct
+            //               : marksPct * 0.7 + attendancePct * 0.3);
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: CustomCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildPerformanceBar(
-                          context,
-                          'Overall',
-                          overallPct,
-                          _performanceColor(overallPct),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildPerformanceBar(
-                          context,
-                          'Attendance',
-                          attendancePct,
-                          AppColors.success,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildPerformanceBar(
-                          context,
-                          'Marks',
-                          marksPct,
-                          AppColors.info,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-
+            //     return Padding(
+            //       padding: const EdgeInsets.symmetric(
+            //         horizontal: 16,
+            //         vertical: 4,
+            //       ),
+            //       child: CustomCard(
+            //         padding: const EdgeInsets.all(16),
+            //         child: Column(
+            //           crossAxisAlignment: CrossAxisAlignment.start,
+            //           children: [
+            //             _buildPerformanceBar(
+            //               context,
+            //               'Overall',
+            //               overallPct,
+            //               _performanceColor(overallPct),
+            //             ),
+            //             const SizedBox(height: 12),
+            //             _buildPerformanceBar(
+            //               context,
+            //               'Attendance',
+            //               attendancePct,
+            //               AppColors.success,
+            //             ),
+            //             const SizedBox(height: 12),
+            //             _buildPerformanceBar(
+            //               context,
+            //               'Marks',
+            //               marksPct,
+            //               AppColors.info,
+            //             ),
+            //           ],
+            //         ),
+            //       ),
+            //     );
+            //   },
+            // ),
             const Spacer(),
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -505,9 +502,7 @@ class _CreateParentDialogState extends State<_CreateParentDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Enter the parent email address to generate credentials.',
-          ),
+          const Text('Enter the parent email address to generate credentials.'),
           const SizedBox(height: 16),
           TextField(
             controller: _emailController,
@@ -567,9 +562,7 @@ class _CreateParentDialogState extends State<_CreateParentDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Share these credentials with the parent:',
-                ),
+                const Text('Share these credentials with the parent:'),
                 const SizedBox(height: 16),
                 SelectableText('Email: ${result['email']}'),
                 SelectableText('Password: ${result['password']}'),
@@ -594,9 +587,9 @@ class _CreateParentDialogState extends State<_CreateParentDialog> {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }

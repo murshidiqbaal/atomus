@@ -13,11 +13,9 @@ import '../../blocs/fee/fee_event.dart';
 import '../../blocs/fee/fee_state.dart';
 import '../../blocs/notification/notification_bloc.dart';
 import '../../blocs/notification/notification_event.dart';
+import '../../blocs/notification/notification_state.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_state.dart';
-import '../../blocs/theme/theme_bloc.dart';
-import '../../blocs/theme/theme_event.dart';
-import '../../blocs/theme/theme_state.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/announcement_popup.dart';
 import '../../widgets/custom_card.dart';
@@ -28,6 +26,9 @@ import '../../widgets/neu_box.dart';
 import '../../widgets/status_badge.dart';
 import '../course/course_detail_screen.dart';
 import '../progress/progress_screen.dart';
+import '../profile/profile_screen.dart';
+import '../notifications/notification_screen.dart';
+import '../../widgets/drive_profile_image.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -164,10 +165,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header — menu + notifications only (theme toggle moved to drawer)
+                          // Header — menu | bell | profile
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // Menu button
                               NeuBox(
                                 width: 50,
                                 height: 50,
@@ -182,29 +184,115 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                               ),
-                              BlocBuilder<ThemeBloc, ThemeState>(
-                                builder: (context, themeState) {
-                                  final isDark = themeState.themeMode == ThemeMode.dark;
-                                  return NeuBox(
-                                    width: 50,
-                                    height: 50,
-                                    borderRadius: 12,
-                                    padding: EdgeInsets.zero,
-                                    onTap: () {
-                                      context.read<ThemeBloc>().add(ToggleTheme());
+
+                              // Right-side actions: bell + profile
+                              Row(
+                                children: [
+                                  // Notification bell with unread badge
+                                  BlocBuilder<NotificationBloc, NotificationState>(
+                                    builder: (context, notifState) {
+                                      return GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const NotificationScreen(),
+                                            ),
+                                          );
+                                        },
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            NeuBox(
+                                              width: 50,
+                                              height: 50,
+                                              borderRadius: 12,
+                                              padding: EdgeInsets.zero,
+                                              child: Center(
+                                                child: Icon(
+                                                  notifState.unreadCount > 0
+                                                      ? Icons.notifications_rounded
+                                                      : Icons.notifications_none_rounded,
+                                                  color: notifState.unreadCount > 0
+                                                      ? AppColors.accent
+                                                      : AppColors.primary,
+                                                  size: 24,
+                                                ),
+                                              ),
+                                            ),
+                                            if (notifState.unreadCount > 0)
+                                              Positioned(
+                                                top: -4,
+                                                right: -4,
+                                                child: Container(
+                                                  constraints: const BoxConstraints(
+                                                    minWidth: 18,
+                                                    minHeight: 18,
+                                                  ),
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 5,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.error,
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: AppColors.error.withOpacity(0.4),
+                                                        blurRadius: 6,
+                                                        spreadRadius: 1,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Text(
+                                                    notifState.unreadCount > 99
+                                                        ? '99+'
+                                                        : '${notifState.unreadCount}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w900,
+                                                      height: 1.0,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      );
                                     },
-                                    child: Center(
-                                      child: Icon(
-                                        isDark
-                                            ? Icons.light_mode_rounded
-                                            : Icons.dark_mode_rounded,
-                                        color: isDark
-                                            ? AppColors.accent
-                                            : AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Profile avatar
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const ProfileScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: NeuBox(
+                                      width: 50,
+                                      height: 50,
+                                      borderRadius: 12,
+                                      padding: EdgeInsets.zero,
+                                      child: Center(
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: DriveProfileImage(
+                                            driveId: student.profilePhotoDriveId,
+                                            radius: 20,
+                                            initials: student.initials,
+                                            alt: '${student.fullName} profile photo',
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  );
-                                },
+                                  ),
+                                ],
                               ),
                             ],
                           ),
