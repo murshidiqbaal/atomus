@@ -8,11 +8,7 @@ class DriveImageHelper {
   static const String _placeholderAvatar =
       'https://ui-avatars.com/api/?background=1a1a2e&color=d4af37&bold=true&size=256';
 
-  static const String _placeholderBanner =
-      'https://via.placeholder.com/1200x400/1a1a2e/d4af37?text=Atomus';
 
-  static const String _placeholderCertificate =
-      'https://via.placeholder.com/800x600/1a1a2e/d4af37?text=Certificate';
 
   /// Returns true when [fileId] looks like a valid Drive ID
   /// (10–60 alphanumeric characters, hyphens and underscores allowed).
@@ -92,11 +88,7 @@ class DriveImageHelper {
     return _placeholderAvatar;
   }
 
-  /// Placeholder banner URL used for announcements / posters.
-  static String get bannerPlaceholder => _placeholderBanner;
 
-  /// Placeholder certificate URL.
-  static String get certificatePlaceholder => _placeholderCertificate;
 }
 
 String? getDriveImageUrl(String? fileId, {int width = 1000}) {

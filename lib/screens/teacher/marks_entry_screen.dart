@@ -809,12 +809,17 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                 ),
                 Builder(
                   builder: (ctx) {
-                    final teacher = ctx.read<TeacherDashboardCubit>().state.teacher;
+                    final teacher = ctx
+                        .read<TeacherDashboardCubit>()
+                        .state
+                        .teacher;
                     final String resolvedSubjectName;
                     if (exam.subjectId != null) {
                       resolvedSubjectName = exam.subjectName;
                     } else {
-                      final selectedSubjId = state.entries.isNotEmpty ? state.entries.first.subjectId : null;
+                      final selectedSubjId = state.entries.isNotEmpty
+                          ? state.entries.first.subjectId
+                          : null;
                       if (selectedSubjId != null && teacher != null) {
                         final match = teacher.subjects.firstWhere(
                           (s) => s.subjectId == selectedSubjId,
@@ -920,7 +925,9 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           await context.read<MarksCubit>().selectExam(
             exam,
             markDate: state.selectedMarkDate,
-            subjectId: state.entries.isNotEmpty ? state.entries.first.subjectId : null,
+            subjectId: state.entries.isNotEmpty
+                ? state.entries.first.subjectId
+                : null,
           );
         }
       },
@@ -1206,7 +1213,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     // Get unique subjects filtered by course selection
     final uniqueSubjects = <String, String>{};
     for (final s in teacher.subjects) {
-      if (_selectedFilterCourseId == null || s.courseId == _selectedFilterCourseId) {
+      if (_selectedFilterCourseId == null ||
+          s.courseId == _selectedFilterCourseId) {
         uniqueSubjects[s.subjectId] = s.subjectName;
       }
     }
@@ -1235,9 +1243,12 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
 
                 // Validate selected subject under the new course selection
                 if (_selectedFilterSubjectId != null) {
-                  final isValid = teacher.subjects.any((s) =>
-                      s.subjectId == _selectedFilterSubjectId &&
-                      (_selectedFilterCourseId == null || s.courseId == _selectedFilterCourseId));
+                  final isValid = teacher.subjects.any(
+                    (s) =>
+                        s.subjectId == _selectedFilterSubjectId &&
+                        (_selectedFilterCourseId == null ||
+                            s.courseId == _selectedFilterCourseId),
+                  );
                   if (!isValid) {
                     _selectedFilterSubjectId = null;
                   }
@@ -1517,10 +1528,12 @@ class _CreateEditExamBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<_CreateEditExamBottomSheet> createState() => _CreateEditExamBottomSheetState();
+  State<_CreateEditExamBottomSheet> createState() =>
+      _CreateEditExamBottomSheetState();
 }
 
-class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> {
+class _CreateEditExamBottomSheetState
+    extends State<_CreateEditExamBottomSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _marksCtrl;
@@ -1536,7 +1549,9 @@ class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> 
     super.initState();
     _nameCtrl = TextEditingController(text: widget.examToEdit?.name);
     _marksCtrl = TextEditingController(
-      text: widget.examToEdit != null ? widget.examToEdit!.totalMarks.toInt().toString() : '',
+      text: widget.examToEdit != null
+          ? widget.examToEdit!.totalMarks.toInt().toString()
+          : '',
     );
     _examDate = widget.examToEdit?.examDate ?? DateTime.now();
     _selCourseId = widget.initialCourseId;
@@ -1582,14 +1597,14 @@ class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(30),
-          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: Form(
           key: _formKey,
@@ -1620,7 +1635,7 @@ class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> 
                 const SizedBox(height: 16),
                 if (widget.courseMap.isNotEmpty) ...[
                   DropdownButtonFormField<String>(
-                    value: _selCourseId,
+                    initialValue: _selCourseId,
                     decoration: InputDecoration(
                       labelText: 'Course',
                       border: OutlineInputBorder(
@@ -1644,7 +1659,9 @@ class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> 
                   const SizedBox(height: 12),
                 ],
                 DropdownButtonFormField<String>(
-                  value: _selAssignmentId.isNotEmpty ? _selAssignmentId : null,
+                  initialValue: _selAssignmentId.isNotEmpty
+                      ? _selAssignmentId
+                      : null,
                   decoration: InputDecoration(
                     labelText: 'Subject / Batch Class',
                     border: OutlineInputBorder(
@@ -1654,9 +1671,7 @@ class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> 
                   items: _filteredAssignments.map((s) {
                     return DropdownMenuItem<String>(
                       value: s.id,
-                      child: Text(
-                        '${s.subjectName} · ${s.batchName ?? "All"}',
-                      ),
+                      child: Text('${s.subjectName} · ${s.batchName ?? "All"}'),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -1734,12 +1749,9 @@ class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> 
                             ),
                           ),
                           child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                DateFormat('d MMM yyyy').format(_examDate),
-                              ),
+                              Text(DateFormat('d MMM yyyy').format(_examDate)),
                               const Icon(LucideIcons.calendar, size: 16),
                             ],
                           ),
@@ -1825,5 +1837,4 @@ class _CreateEditExamBottomSheetState extends State<_CreateEditExamBottomSheet> 
       ),
     );
   }
-
 }

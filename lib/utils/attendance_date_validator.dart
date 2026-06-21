@@ -1,6 +1,7 @@
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../core/constants/supabase_constants.dart';
 
 class AttendanceDateValidator {
@@ -14,7 +15,9 @@ class AttendanceDateValidator {
         return HttpDate.parse(dateHeader);
       }
     } catch (e) {
-      print('AttendanceDateValidator: Error fetching database time via HTTP header: $e');
+      print(
+        'AttendanceDateValidator: Error fetching database time via HTTP header: $e',
+      );
     }
     // Fallback: return current device time in UTC
     return DateTime.now().toUtc();

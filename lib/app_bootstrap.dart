@@ -1,11 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/constants/supabase_constants.dart';
 import 'firebase_options.dart';
-import 'services/hive_profile_cache_service.dart';
 import 'services/fee_hive_service.dart';
+import 'services/hive_profile_cache_service.dart';
 import 'services/teacher_hive_service.dart';
 import 'services/teacher_profile_hive_service.dart';
 import 'utils/logger.dart';
@@ -35,8 +34,10 @@ class AppBootstrap {
   late final TeacherProfileHiveService _teacherProfileHiveService;
 
   TeacherHiveService get teacherHiveService => _teacherHiveService;
-  HiveProfileCacheService get hiveProfileCacheService => _hiveProfileCacheService;
-  TeacherProfileHiveService get teacherProfileHiveService => _teacherProfileHiveService;
+  HiveProfileCacheService get hiveProfileCacheService =>
+      _hiveProfileCacheService;
+  TeacherProfileHiveService get teacherProfileHiveService =>
+      _teacherProfileHiveService;
 
   Future<AppBootstrapResult> bootstrap() async {
     if (_initialized) {
@@ -54,9 +55,14 @@ class AppBootstrap {
       await HiveProfileCacheService.initializeHive();
       await TeacherProfileHiveService.initializeHive();
     } catch (e, stack) {
-      AppLogger.critical('AppBootstrap', 'Hive initialization failed', e, stack);
+      AppLogger.critical(
+        'AppBootstrap',
+        'Hive initialization failed',
+        e,
+        stack,
+      );
     }
-    
+
     // 2. Supabase initialization
     try {
       await Supabase.initialize(
@@ -64,14 +70,19 @@ class AppBootstrap {
         anonKey: SupabaseConstants.anonKey,
       );
     } catch (e, stack) {
-      AppLogger.critical('AppBootstrap', 'Supabase initialization failed', e, stack);
+      AppLogger.critical(
+        'AppBootstrap',
+        'Supabase initialization failed',
+        e,
+        stack,
+      );
     }
 
     // 3. Register adapters & Lazy/Concurrent Box Openings
     _teacherHiveService = TeacherHiveService();
     _hiveProfileCacheService = HiveProfileCacheService();
     _teacherProfileHiveService = TeacherProfileHiveService();
-    
+
     // Open Hive boxes asynchronously and concurrently to prevent blocking startup
     try {
       await Future.wait([
@@ -88,11 +99,19 @@ class AppBootstrap {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     } catch (e, stack) {
-      AppLogger.critical('AppBootstrap', 'Firebase initialization failed', e, stack);
+      AppLogger.critical(
+        'AppBootstrap',
+        'Firebase initialization failed',
+        e,
+        stack,
+      );
     }
 
     _initialized = true;
-    AppLogger.info('AppBootstrap', 'All core systems bootstrapped successfully.');
+    AppLogger.info(
+      'AppBootstrap',
+      'All core systems bootstrapped successfully.',
+    );
 
     return AppBootstrapResult(
       teacherHiveService: _teacherHiveService,

@@ -12,6 +12,8 @@ import '../../widgets/drive_network_image.dart';
 import '../../utils/drive_image_helper.dart';
 import '../../models/dummy_data.dart';
 import '../../repositories/fee_repository.dart';
+import 'package:http/http.dart' as http;
+import 'package:printing/printing.dart';
 
 class FeesScreen extends StatelessWidget {
   const FeesScreen({super.key});
@@ -333,6 +335,37 @@ class FeesScreen extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => _downloadQrCode(context, campus, driveId, url),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.download_rounded,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'DOWNLOAD',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -468,6 +501,35 @@ class FeesScreen extends StatelessWidget {
                         color: isDark ? AppColors.accent : AppColors.primary,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    NeuBox(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      borderRadius: 12,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _downloadQrCode(context, campus, driveId, url);
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.download_rounded,
+                            size: 16,
+                            color: isDark ? AppColors.accent : AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'DOWNLOAD QR',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: isDark ? AppColors.accent : AppColors.primary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -476,6 +538,53 @@ class FeesScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _downloadQrCode(
+    BuildContext context,
+    String campusName,
+    String? driveId,
+    String? url,
+  ) async {
+    final hasDriveId = driveId != null && driveId.isNotEmpty && DriveImageHelper.isValid(driveId);
+    final hasUrl = url != null && url.isNotEmpty;
+    if (!hasDriveId && !hasUrl) return;
+
+    final targetUrl = hasDriveId 
+        ? DriveImageHelper.resolve(driveId, highQuality: true) 
+        : url;
+
+    if (targetUrl == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Downloading QR Code image...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final response = await http.get(Uri.parse(targetUrl));
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        final filename = '${campusName.replaceAll(' ', '_')}_Payment_QR.png';
+        await Printing.sharePdf(
+          bytes: bytes,
+          filename: filename,
+        );
+      } else {
+        throw Exception('Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download QR Code: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   // ════════════════════════════════════════════════════════════════

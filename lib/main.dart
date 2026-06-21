@@ -9,6 +9,7 @@ import 'utils/logger.dart';
 
 import 'app_bootstrap.dart';
 import 'app_providers.dart';
+import 'services/password_recovery_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,9 +53,13 @@ class AtomusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Eagerly instantiate PasswordRecoveryService to listen for deep link auth events
+    context.read<PasswordRecoveryService>();
+
     return BlocBuilder<ThemeBloc, ThemeState>(
       builder: (context, themeState) {
         return MaterialApp(
+          navigatorKey: NavigatorService.navigatorKey,
           title: 'Atomus',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,

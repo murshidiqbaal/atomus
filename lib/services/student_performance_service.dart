@@ -143,16 +143,22 @@ class StudentPerformanceService {
 
       // 7. Resolve Subjects and calculate Subject-Wise Performance breakdowns
       final Map<String, String> subjectIdToName = {};
+      final List<String> courseSubjectIds = [];
 
-      // Resolve from subjects table
+      // Resolve from subjects table for the student's course
       try {
-        final subjectsList = await _supabase
-            .from('subjects')
-            .select('id, name');
+        var query = _supabase.from('subjects').select('id, name, course_id');
+        if (courseId != null) {
+          query = query.eq('course_id', courseId);
+        }
+        query = query.eq('is_active', true);
+
+        final subjectsList = await query;
         for (final s in subjectsList) {
           final sId = s['id'] as String;
           final sName = s['name'] as String;
           subjectIdToName[sId] = sName;
+          courseSubjectIds.add(sId);
         }
       } catch (e) {
         print('Error pre-fetching subjects table: $e');
@@ -180,14 +186,14 @@ class StudentPerformanceService {
         }
       }
 
-      final allSubjectIds = <String>{
-        ...attendanceBySubject.keys,
-        ...marksBySubject.keys,
-      };
+      // Filter and only show corresponding course subjects
+      final List<String> finalSubjectIds = courseSubjectIds.isNotEmpty
+          ? courseSubjectIds.toSet().toList()
+          : <String>{...attendanceBySubject.keys, ...marksBySubject.keys}.toList();
 
       final List<SubjectPerformance> subjectWiseList = [];
 
-      for (final subId in allSubjectIds) {
+      for (final subId in finalSubjectIds) {
         final subName =
             subjectIdToName[subId] ??
             'Subject (${subId.substring(0, min(8, subId.length))})';
@@ -215,19 +221,14 @@ class StudentPerformanceService {
           subMarksObtained += (m['marks_obtained'] as num?)?.toDouble() ?? 0.0;
           subTotalPossible += (m['total_marks'] as num?)?.toDouble() ?? 0.0;
         }
+        
+        // Subject proficiency = average marks by all exams
         final subMarksPct = subTotalPossible > 0
             ? (subMarksObtained / subTotalPossible) * 100.0
             : 0.0;
 
-        // Subject combined score
-        double subCombined = 0.0;
-        if (subTotalPossible > 0 && subAttendanceMarkedCount > 0) {
-          subCombined = (subMarksPct * 0.70) + (subAttendancePct * 0.30);
-        } else if (subTotalPossible > 0) {
-          subCombined = subMarksPct;
-        } else {
-          subCombined = subAttendancePct;
-        }
+        // Combined score is now set strictly to the average marks percentage
+        final double subCombined = subMarksPct;
 
         subjectWiseList.add(
           SubjectPerformance(
@@ -340,6 +341,12 @@ class StudentPerformanceService {
         progressStatus: progressStatus,
         performanceRank: performanceRank,
         subjectWisePerformance: subjectWiseList,
+        totalExams: examIds.length,
+        totalPeriods: totalPeriods,
+        presentPeriods: totalAttendanceWeightSum,
+        absentPeriods: absentCount,
+        latePeriods: lateCount,
+        leavePeriods: leaveCount,
       );
     } catch (e) {
       print('StudentPerformanceService error: $e');
@@ -472,14 +479,8 @@ class StudentPerformanceService {
           ? (subMarksObtained / subTotalPossible) * 100.0
           : 0.0;
 
-      double subCombined = 0.0;
-      if (subTotalPossible > 0 && subAttendanceMarkedCount > 0) {
-        subCombined = (subMarksPct * 0.70) + (subAttendancePct * 0.30);
-      } else if (subTotalPossible > 0) {
-        subCombined = subMarksPct;
-      } else {
-        subCombined = subAttendancePct;
-      }
+      // Subject combined score is exactly the average marks percentage
+      final double subCombined = subMarksPct;
 
       final subStatus = StudentPerformanceModel.getStatusLabel(subCombined);
       final subId = subjectNameToId[subjectName] ?? subjectName;
@@ -505,6 +506,12 @@ class StudentPerformanceService {
       progressStatus: overallStatus,
       performanceRank: 1,
       subjectWisePerformance: subjectWiseList,
+      totalExams: exams.length,
+      totalPeriods: attendance.length,
+      presentPeriods: totalAttendanceWeightSum,
+      absentPeriods: attendance.where((r) => r.status.trim().toLowerCase() == 'absent').length,
+      latePeriods: attendance.where((r) => r.status.trim().toLowerCase() == 'late').length,
+      leavePeriods: attendance.where((r) => r.status.trim().toLowerCase() == 'leave').length,
     );
   }
 }

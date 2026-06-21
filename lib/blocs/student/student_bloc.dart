@@ -109,13 +109,19 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
         subjectId: event.subjectId,
       );
 
-      // SNAPPY LOCAL COMPUTATION: For rapid UI filters (e.g. subject-specific calendar or date range filters),
-      // we use the local fallback calculation so user gets instantaneous updates without db roundtrip.
-      final performance =
-          StudentPerformanceService.calculatePerformanceLocalFallback(
-            attendance,
-            state.exams,
-          );
+      // Only recalculate performance locally when user is applying a
+      // subject/course filter (e.g. subject-specific calendar view).
+      // For general month navigation, keep the DB-calculated performance
+      // from LoadStudentData to avoid the "flash of wrong values" bug.
+      final bool isFilteredView =
+          event.subjectId != null || event.courseId != null;
+
+      final performance = isFilteredView
+          ? StudentPerformanceService.calculatePerformanceLocalFallback(
+              attendance,
+              state.exams,
+            )
+          : state.performance;
 
       emit(
         state.copyWith(

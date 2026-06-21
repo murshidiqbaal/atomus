@@ -176,7 +176,7 @@ class _IReportsScreenState extends State<IReportsScreen>
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       itemCount: 5,
-      itemBuilder: (_, __) => _buildSkeletonCard(),
+      itemBuilder: (_, _) => _buildSkeletonCard(),
     );
   }
 
@@ -206,7 +206,11 @@ class _IReportsScreenState extends State<IReportsScreen>
     );
   }
 
-  Widget _shimmer({required double width, double height = 12, double radius = 6}) {
+  Widget _shimmer({
+    required double width,
+    double height = 12,
+    double radius = 6,
+  }) {
     return Container(
       width: width,
       height: height,
@@ -237,17 +241,17 @@ class _IReportsScreenState extends State<IReportsScreen>
             const SizedBox(height: 16),
             Text(
               'Failed to load reports',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Text(
               message ?? 'Something went wrong. Please try again.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
             NeuBox(
@@ -289,9 +293,9 @@ class _IReportsScreenState extends State<IReportsScreen>
             const SizedBox(height: 20),
             Text(
               'No Reports Yet',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
@@ -336,7 +340,8 @@ class _IReportsScreenState extends State<IReportsScreen>
     final displayDate = date != null
         ? DateFormat('EEEE, d MMMM yyyy').format(date)
         : dateStr;
-    final isToday = date != null &&
+    final isToday =
+        date != null &&
         date.year == DateTime.now().year &&
         date.month == DateTime.now().month &&
         date.day == DateTime.now().day;
@@ -349,7 +354,10 @@ class _IReportsScreenState extends State<IReportsScreen>
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: isToday
                       ? AppColors.primary.withOpacity(0.1)
@@ -361,7 +369,9 @@ class _IReportsScreenState extends State<IReportsScreen>
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: isToday ? AppColors.primary : AppColors.textSecondary,
+                    color: isToday
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                     letterSpacing: 0.3,
                   ),
                 ),
@@ -421,10 +431,7 @@ class _IReportsScreenState extends State<IReportsScreen>
                     ],
                   ),
                 ),
-                _buildChip(
-                  report.behaviorRating,
-                  behaviorColor,
-                ),
+                _buildChip(report.behaviorRating, behaviorColor),
               ],
             ),
 
@@ -464,9 +471,7 @@ class _IReportsScreenState extends State<IReportsScreen>
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.primary.withOpacity(0.1),
-                  ),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.1)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,

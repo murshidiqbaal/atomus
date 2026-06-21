@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/neu_box.dart';
+import 'forgot_password_screen.dart';
 import 'main_layout.dart';
 import 'teacher/teacher_main_layout.dart';
 
@@ -211,7 +212,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
                       child: Text(
                         'Forgot Password?',
                         style: TextStyle(

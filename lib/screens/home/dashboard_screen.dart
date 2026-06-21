@@ -16,6 +16,7 @@ import '../../blocs/notification/notification_event.dart';
 import '../../blocs/notification/notification_state.dart';
 import '../../blocs/student/student_bloc.dart';
 import '../../blocs/student/student_state.dart';
+import '../../models/dummy_data.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/announcement_popup.dart';
 import '../../widgets/custom_card.dart';
@@ -25,10 +26,14 @@ import '../../widgets/marquee_widget.dart';
 import '../../widgets/neu_box.dart';
 import '../../widgets/status_badge.dart';
 import '../course/course_detail_screen.dart';
+import '../fees/fees_screen.dart';
 import '../progress/progress_screen.dart';
+import '../progress/average_marks_details_screen.dart';
+import '../progress/average_attendance_details_screen.dart';
 import '../profile/profile_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../../widgets/drive_profile_image.dart';
+import '../main_layout.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -267,12 +272,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   // Profile avatar
                                   GestureDetector(
                                     onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const ProfileScreen(),
-                                        ),
-                                      );
+                                      final mainLayoutState = context.findAncestorStateOfType<MainLayoutState>();
+                                      if (mainLayoutState != null) {
+                                        mainLayoutState.setIndex(5);
+                                      } else {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const ProfileScreen(),
+                                          ),
+                                        );
+                                      }
                                     },
                                     child: NeuBox(
                                       width: 50,
@@ -438,7 +448,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (_) => const ProgressScreen(),
+                                        builder: (_) => const AverageMarksDetailsScreen(),
                                       ),
                                     );
                                   },
@@ -505,6 +515,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(width: 20),
                               Expanded(
                                 child: CustomCard(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AverageAttendanceDetailsScreen(),
+                                      ),
+                                    );
+                                  },
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -718,10 +735,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 return const SizedBox();
                               }
 
-                              final firstFee = feeState.fees.first;
+                              final bool hasUnpaid = feeState.pendingCount > 0;
+                              
+                              String cardLabel;
+                              String cardAmount;
+                              String cardDetail;
+                              Color iconColor;
+                              IconData iconData;
+                              String buttonText;
+
+                              if (hasUnpaid) {
+                                final overdueList = feeState.overdueFees;
+                                final nextDue = feeState.nextDueFee;
+                                
+                                FeeRecord displayFee;
+                                if (overdueList.isNotEmpty) {
+                                  overdueList.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+                                  displayFee = overdueList.first;
+                                  cardLabel = 'OVERDUE BALANCE';
+                                  iconColor = AppColors.error;
+                                  iconData = Icons.warning_amber_rounded;
+                                  buttonText = 'SETTLE';
+                                } else if (nextDue != null) {
+                                  displayFee = nextDue;
+                                  cardLabel = 'UPCOMING DUE';
+                                  iconColor = AppColors.warning;
+                                  iconData = Icons.account_balance_wallet_outlined;
+                                  buttonText = 'PAY NOW';
+                                } else {
+                                  final unpaid = feeState.fees.where((f) => !f.isPaid).toList();
+                                  unpaid.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+                                  displayFee = unpaid.first;
+                                  cardLabel = 'PENDING BALANCE';
+                                  iconColor = AppColors.warning;
+                                  iconData = Icons.account_balance_wallet_outlined;
+                                  buttonText = 'PAY NOW';
+                                }
+                                
+                                final formattedDate = DateFormat('dd MMM yyyy').format(displayFee.dueDate);
+                                cardAmount = '\$${displayFee.amount.toStringAsFixed(2)}';
+                                cardDetail = 'Due: $formattedDate (${displayFee.title})';
+                              } else {
+                                final paidList = feeState.fees.where((f) => f.isPaid).toList();
+                                if (paidList.isNotEmpty) {
+                                  paidList.sort((a, b) {
+                                    final dateA = a.paymentDate ?? a.dueDate;
+                                    final dateB = b.paymentDate ?? b.dueDate;
+                                    return dateB.compareTo(dateA);
+                                  });
+                                  final lastPaid = paidList.first;
+                                  cardLabel = 'ALL FEES PAID';
+                                  cardAmount = '\$${lastPaid.amount.toStringAsFixed(2)}';
+                                  final payDate = lastPaid.paymentDate ?? lastPaid.dueDate;
+                                  final formattedDate = DateFormat('dd MMM yyyy').format(payDate);
+                                  cardDetail = 'Paid: $formattedDate (${lastPaid.title})';
+                                } else {
+                                  cardLabel = 'NO FEES';
+                                  cardAmount = '\$0.00';
+                                  cardDetail = 'No fees registered';
+                                }
+                                iconColor = AppColors.success;
+                                iconData = Icons.check_circle_outline_rounded;
+                                buttonText = 'DETAILS';
+                              }
 
                               return CustomCard(
                                 padding: const EdgeInsets.all(20),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const FeesScreen(),
+                                    ),
+                                  );
+                                },
                                 child: Row(
                                   children: [
                                     NeuBox(
@@ -730,9 +817,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       borderRadius: 12,
                                       isPressed: true,
                                       padding: EdgeInsets.zero,
-                                      child: const Icon(
-                                        Icons.account_balance_wallet_outlined,
-                                        color: AppColors.warning,
+                                      child: Icon(
+                                        iconData,
+                                        color: iconColor,
                                       ),
                                     ),
                                     const SizedBox(width: 20),
@@ -741,9 +828,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'OUTSTANDING BALANCE',
-                                            style: TextStyle(
+                                          Text(
+                                            cardLabel,
+                                            style: const TextStyle(
                                               color: AppColors.textSecondary,
                                               fontSize: 10,
                                               fontWeight: FontWeight.w800,
@@ -752,7 +839,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            '\$${firstFee.amount.toStringAsFixed(2)}',
+                                            cardAmount,
                                             style: TextStyle(
                                               fontWeight: FontWeight.w900,
                                               fontSize: 20,
@@ -761,11 +848,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               ).primaryColor,
                                             ),
                                           ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            cardDetail,
+                                            style: const TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ],
                                       ),
                                     ),
                                     GestureDetector(
-                                      onTap: () {},
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const FeesScreen(),
+                                          ),
+                                        );
+                                      },
                                       child: NeuBox(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 16,
@@ -773,9 +878,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ),
                                         borderRadius: 12,
                                         color: AppColors.accent,
-                                        child: const Text(
-                                          'SETTLE',
-                                          style: TextStyle(
+                                        child: Text(
+                                          buttonText,
+                                          style: const TextStyle(
                                             fontSize: 11,
                                             color: Colors.black,
                                             fontWeight: FontWeight.w900,

@@ -267,6 +267,9 @@ class Announcement {
   final String title;
   final String description;
 
+  /// Direct URL to the announcement image/poster.
+  final String? imageUrl;
+
   /// Google Drive file ID for the announcement image/poster.
   /// Use DriveImageHelper to generate the display URL.
   final String? imageDriveId;
@@ -285,6 +288,7 @@ class Announcement {
     required this.id,
     required this.title,
     required this.description,
+    this.imageUrl,
     this.imageDriveId,
     this.type = 'General Announcement',
     this.targetAudience = 'All',
@@ -298,13 +302,16 @@ class Announcement {
   });
 
   int get priority => type == 'Urgent' ? 10 : 0;
-  bool get hasImage => imageDriveId != null && imageDriveId!.isNotEmpty;
+  bool get hasImage =>
+      (imageDriveId != null && imageDriveId!.isNotEmpty) ||
+      (imageUrl != null && imageUrl!.isNotEmpty);
 
   factory Announcement.fromMap(Map<String, dynamic> map) {
     return Announcement(
       id: map['id'].toString(),
       title: map['title'] ?? '',
       description: map['description'] ?? '',
+      imageUrl: map['image_url']?.toString(),
       imageDriveId: map['image_drive_id']?.toString(),
       type: map['type'] ?? 'General Announcement',
       targetAudience: map['target_audience'] ?? 'All',
@@ -401,174 +408,4 @@ class Subject {
       isActive: map['is_active'] ?? true,
     );
   }
-}
-
-class DummyData {
-  static final List<Course> courses = [
-    Course(
-      id: '1',
-      name: 'Advanced Mathematics',
-      courseType: 'Regular',
-      classLevel: 'Class 12',
-      feeAmount: 150.0,
-      mode: 'Offline',
-      isActive: true,
-      durationMonths: 6,
-    ),
-    Course(
-      id: '2',
-      name: 'Quantum Physics',
-      courseType: 'Foundation',
-      classLevel: 'Graduation',
-      feeAmount: 200.0,
-      mode: 'Hybrid',
-      isActive: true,
-      durationMonths: 4,
-    ),
-    Course(
-      id: '3',
-      name: 'Organic Chemistry',
-      courseType: 'Crash Course',
-      classLevel: 'Class 12',
-      feeAmount: 120.0,
-      mode: 'Online',
-      isActive: true,
-      durationMonths: 2,
-    ),
-  ];
-
-  static final StudentInfo currentStudent = StudentInfo(
-    id: 'dummy-id-123',
-    fullName: 'Alexander Davis',
-    grade: 'Grade 10 - Science',
-    attendancePercentage: 85.0,
-  );
-
-  static final List<ExamSession> exams = [
-    ExamSession(
-      title: 'Mid-Term Examination',
-      date: 'Oct 15, 2026',
-      subjects: [
-        ExamMark(
-          subject: 'Mathematics',
-          marksObtained: 92,
-          totalMarks: 100,
-          grade: 'A',
-        ),
-        ExamMark(
-          subject: 'Physics',
-          marksObtained: 88,
-          totalMarks: 100,
-          grade: 'A',
-        ),
-        ExamMark(
-          subject: 'Chemistry',
-          marksObtained: 76,
-          totalMarks: 100,
-          grade: 'B+',
-        ),
-        ExamMark(
-          subject: 'English',
-          marksObtained: 95,
-          totalMarks: 100,
-          grade: 'A+',
-        ),
-      ],
-    ),
-    ExamSession(
-      title: 'Unit Test 1',
-      date: 'Aug 20, 2026',
-      subjects: [
-        ExamMark(
-          subject: 'Mathematics',
-          marksObtained: 45,
-          totalMarks: 50,
-          grade: 'A',
-        ),
-        ExamMark(
-          subject: 'Physics',
-          marksObtained: 42,
-          totalMarks: 50,
-          grade: 'A',
-        ),
-        ExamMark(
-          subject: 'Chemistry',
-          marksObtained: 38,
-          totalMarks: 50,
-          grade: 'B+',
-        ),
-        ExamMark(
-          subject: 'English',
-          marksObtained: 48,
-          totalMarks: 50,
-          grade: 'A+',
-        ),
-      ],
-    ),
-  ];
-
-  static List<AttendanceRecord> get recentAttendance {
-    final now = DateTime.now();
-    return List.generate(14, (index) {
-      final date = now.subtract(Duration(days: index));
-      // Randomly make some absent, but mostly present
-      final isPresent = index != 3 && index != 8;
-      return AttendanceRecord(
-        id: '',
-        studentId: '',
-        date: date,
-        status: isPresent ? 'Present' : 'Absent',
-      );
-    });
-  }
-
-  static final List<FeeRecord> fees = [
-    FeeRecord(
-      title: 'Term 2 Tuition Fee',
-      amount: 1500.00,
-      dueDate: DateTime.now().add(const Duration(days: 15)),
-      isPaid: false,
-    ),
-    FeeRecord(
-      title: 'Term 1 Tuition Fee',
-      amount: 1500.00,
-      dueDate: DateTime.now().subtract(const Duration(days: 75)),
-      isPaid: true,
-      receiptId: 'TXN-849201',
-    ),
-    FeeRecord(
-      title: 'Annual Library Fee',
-      amount: 250.00,
-      dueDate: DateTime.now().subtract(const Duration(days: 120)),
-      isPaid: true,
-      receiptId: 'TXN-738192',
-    ),
-  ];
-
-  static final List<Announcement> announcements = [
-    Announcement(
-      id: '1',
-      title: 'Annual Sports Day 2026',
-      description:
-          'The annual sports meet is scheduled for next Friday. All students are requested to participate in their respective house colors.',
-      startDate: DateTime.now().add(const Duration(days: 5)),
-      createdAt: DateTime.now(),
-    ),
-    Announcement(
-      id: '2',
-      title: 'Parent-Teacher Meeting',
-      description:
-          'Monthly PTM for discussing mid-term results will be held on Saturday from 9:00 AM to 1:00 PM.',
-      startDate: DateTime.now().add(const Duration(days: 2)),
-      createdAt: DateTime.now(),
-    ),
-    Announcement(
-      id: '3',
-      title: 'Winter Vacation Update',
-      description:
-          'Winter vacations will commence from Dec 20th. School will reopen on Jan 5th, 2027.',
-      startDate: DateTime.now().add(const Duration(days: 40)),
-      createdAt: DateTime.now(),
-    ),
-  ];
 }

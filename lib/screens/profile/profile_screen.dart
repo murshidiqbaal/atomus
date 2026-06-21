@@ -16,6 +16,7 @@ import '../../utils/id_card_pdf_generator.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/drive_profile_image.dart';
 import '../../widgets/neu_box.dart';
+import '../main_layout.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -119,8 +120,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              final mainLayoutState = context.findAncestorStateOfType<MainLayoutState>();
+              if (mainLayoutState != null) {
+                mainLayoutState.setIndex(0);
+              }
+            }
+          },
+        ),
         title: Text(_isEditing ? 'Edit Parent & Student Profiles' : 'Profile'),
         actions: [
           BlocBuilder<ProfileCubit, ProfileState>(

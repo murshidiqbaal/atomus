@@ -28,6 +28,7 @@ import 'services/profile_image_service.dart';
 import 'services/google_drive_profile_upload_service.dart';
 import 'services/drive_upload_service.dart';
 import 'services/geofence_service.dart';
+import 'services/password_recovery_service.dart';
 
 // Blocs & Cubits
 import 'blocs/theme/theme_bloc.dart';
@@ -79,6 +80,11 @@ class AppProviders extends StatelessWidget {
 
         // Core Repositories
         RepositoryProvider(create: (_) => AuthRepository()),
+        RepositoryProvider(
+          create: (ctx) => PasswordRecoveryService(
+            authRepository: ctx.read<AuthRepository>(),
+          )..initialize(),
+        ),
         RepositoryProvider(create: (_) => StudentRepository()),
         RepositoryProvider(create: (_) => FeeRepository()),
         RepositoryProvider(create: (_) => AnnouncementRepository()),

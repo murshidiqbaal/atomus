@@ -16,8 +16,7 @@ class CourseRepository {
       return data.map((item) => Course.fromMap(item)).toList();
     } catch (e) {
       print('Error fetching courses: $e');
-      // Return dummy data as fallback if supabase fails
-      return DummyData.courses;
+      return [];
     }
   }
 

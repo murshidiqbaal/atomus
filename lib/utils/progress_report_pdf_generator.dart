@@ -112,7 +112,9 @@ class ProgressReportPdfGenerator {
                 padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#F8FAFC'),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(8),
+                  ),
                   border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
                 ),
                 child: pw.Row(
@@ -151,13 +153,21 @@ class ProgressReportPdfGenerator {
 
               pw.Table(
                 border: pw.TableBorder.symmetric(
-                  inside: pw.BorderSide(color: PdfColor.fromHex('#E2E8F0'), width: 0.5),
-                  outside: pw.BorderSide(color: PdfColor.fromHex('#CBD5E1'), width: 1.0),
+                  inside: pw.BorderSide(
+                    color: PdfColor.fromHex('#E2E8F0'),
+                    width: 0.5,
+                  ),
+                  outside: pw.BorderSide(
+                    color: PdfColor.fromHex('#CBD5E1'),
+                    width: 1.0,
+                  ),
                 ),
                 columnWidths: {
                   for (var i = 0; i < headers.length; i++)
                     i: i == 0
-                        ? const pw.FlexColumnWidth(2.5) // Expand first column (Subject/Date/Exam)
+                        ? const pw.FlexColumnWidth(
+                            2.5,
+                          ) // Expand first column (Subject/Date/Exam)
                         : const pw.FlexColumnWidth(1.2),
                 },
                 children: [
@@ -168,7 +178,10 @@ class ProgressReportPdfGenerator {
                     ),
                     children: headers.map((header) {
                       return pw.Padding(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
                         child: pw.Text(
                           header,
                           style: pw.TextStyle(
@@ -187,11 +200,16 @@ class ProgressReportPdfGenerator {
                     final isEven = index % 2 == 0;
                     return pw.TableRow(
                       decoration: pw.BoxDecoration(
-                        color: isEven ? PdfColors.white : PdfColor.fromHex('#F8FAFC'),
+                        color: isEven
+                            ? PdfColors.white
+                            : PdfColor.fromHex('#F8FAFC'),
                       ),
                       children: row.map((cell) {
                         return pw.Padding(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
                           child: pw.Text(
                             cell,
                             style: const pw.TextStyle(fontSize: 8.5),
@@ -214,7 +232,9 @@ class ProgressReportPdfGenerator {
                     padding: const pw.EdgeInsets.all(12),
                     decoration: pw.BoxDecoration(
                       color: PdfColor.fromHex('#F8FAFC'),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      borderRadius: const pw.BorderRadius.all(
+                        pw.Radius.circular(8),
+                      ),
                       border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
                     ),
                     child: pw.Column(
@@ -222,9 +242,16 @@ class ProgressReportPdfGenerator {
                       children: [
                         _buildSummaryItem('Total Records', totalAssessments),
                         pw.SizedBox(height: 4),
-                        _buildSummaryItem('Average Percentage', overallPercentage),
+                        _buildSummaryItem(
+                          'Average Percentage',
+                          overallPercentage,
+                        ),
                         pw.SizedBox(height: 4),
-                        _buildSummaryItem('Overall Grade', overallGrade, isBold: true),
+                        _buildSummaryItem(
+                          'Overall Grade',
+                          overallGrade,
+                          isBold: true,
+                        ),
                       ],
                     ),
                   ),
@@ -237,8 +264,13 @@ class ProgressReportPdfGenerator {
                 width: double.infinity,
                 padding: const pw.EdgeInsets.all(8),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.grey300, style: pw.BorderStyle.dashed),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  border: pw.Border.all(
+                    color: PdfColors.grey300,
+                    style: pw.BorderStyle.dashed,
+                  ),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(6),
+                  ),
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -258,21 +290,35 @@ class ProgressReportPdfGenerator {
                 children: [
                   pw.Column(
                     children: [
-                      pw.Container(width: 140, height: 1, color: PdfColors.grey400),
+                      pw.Container(
+                        width: 140,
+                        height: 1,
+                        color: PdfColors.grey400,
+                      ),
                       pw.SizedBox(height: 4),
                       pw.Text(
                         'Class Teacher',
-                        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                        style: const pw.TextStyle(
+                          fontSize: 9,
+                          color: PdfColors.grey700,
+                        ),
                       ),
                     ],
                   ),
                   pw.Column(
                     children: [
-                      pw.Container(width: 140, height: 1, color: PdfColors.grey400),
+                      pw.Container(
+                        width: 140,
+                        height: 1,
+                        color: PdfColors.grey400,
+                      ),
                       pw.SizedBox(height: 4),
                       pw.Text(
                         'Principal / Director',
-                        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                        style: const pw.TextStyle(
+                          fontSize: 9,
+                          color: PdfColors.grey700,
+                        ),
                       ),
                     ],
                   ),
@@ -338,7 +384,11 @@ class ProgressReportPdfGenerator {
     );
   }
 
-  static pw.Widget _buildSummaryItem(String label, String value, {bool isBold = false}) {
+  static pw.Widget _buildSummaryItem(
+    String label,
+    String value, {
+    bool isBold = false,
+  }) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
@@ -395,7 +445,7 @@ class ProgressReportPdfGenerator {
     final cleanTitle = reportTitle.replaceAll(' ', '_');
     await Printing.sharePdf(
       bytes: bytes,
-      filename: 'Atomus_Report_${cleanName}_${cleanTitle}.pdf',
+      filename: 'Atomus_Report_${cleanName}_$cleanTitle.pdf',
     );
   }
 
@@ -431,7 +481,7 @@ class ProgressReportPdfGenerator {
     final cleanTitle = reportTitle.replaceAll(' ', '_');
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Atomus_Report_${cleanName}_${cleanTitle}',
+      name: 'Atomus_Report_${cleanName}_$cleanTitle',
     );
   }
 }

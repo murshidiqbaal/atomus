@@ -22,12 +22,18 @@ class SubjectPerformance {
 class StudentPerformanceModel {
   final double attendancePercentage; // 0.0 to 100.0
   final double marksPercentage; // 0.0 to 100.0
-  final double
-  academicPerformanceScore; // 0.0 to 100.0 (overall composite scoring)
-  final String
-  progressStatus; // 'Excellent', 'Good', 'Average', 'Needs Improvement', 'At Risk'
+  final double academicPerformanceScore; // 0.0 to 100.0 (overall composite scoring)
+  final String progressStatus; // 'Excellent', 'Good', 'Average', 'Needs Improvement', 'At Risk'
   final int performanceRank; // Class / Course / Batch rank
   final List<SubjectPerformance> subjectWisePerformance;
+
+  // Rich database properties
+  final int totalExams;
+  final int totalPeriods;
+  final double presentPeriods;
+  final int absentPeriods;
+  final int latePeriods;
+  final int leavePeriods;
 
   // Backward compatibility getter:
   double get academicPerformance => academicPerformanceScore;
@@ -40,6 +46,12 @@ class StudentPerformanceModel {
     required this.progressStatus,
     this.performanceRank = 1,
     required this.subjectWisePerformance,
+    this.totalExams = 0,
+    this.totalPeriods = 0,
+    this.presentPeriods = 0.0,
+    this.absentPeriods = 0,
+    this.latePeriods = 0,
+    this.leavePeriods = 0,
   }) : academicPerformanceScore =
            academicPerformanceScore ?? academicPerformance ?? 0.0;
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -212,5 +213,41 @@ class AuthRepository {
     } catch (e) {
       throw Exception('Could not create parent credentials.');
     }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'atomus://reset-password',
+      );
+    } on AuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to send password reset email.');
+    }
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(
+          password: newPassword,
+        ),
+      );
+    } on AuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Failed to update password.');
+    }
+  }
+
+  StreamSubscription<AuthState> listenPasswordRecovery(
+      void Function(AuthChangeEvent event, Session? session) callback) {
+    return _supabase.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        callback(data.event, data.session);
+      }
+    });
   }
 }

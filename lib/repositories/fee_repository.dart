@@ -83,9 +83,9 @@ class FeeRepository {
       final user = _supabase.auth.currentUser;
       if (user == null) {
         print(
-          'NOTICE [getFeeRecords]: No auth user session found. Returning dummy data fallback.',
+          'NOTICE [getFeeRecords]: No auth user session found.',
         );
-        return DummyData.fees;
+        return [];
       }
 
       final parent = await _parentIdentityService.resolveCurrentParent();
@@ -104,9 +104,9 @@ class FeeRepository {
 
       if (studentData == null) {
         print(
-          'NOTICE [getFeeRecords]: No student found linked to Parent ID $parentId. Returning dummy data.',
+          'NOTICE [getFeeRecords]: No student found linked to Parent ID $parentId.',
         );
-        return DummyData.fees;
+        return [];
       }
 
       final studentId = studentData['id'];
@@ -332,10 +332,9 @@ class FeeRepository {
         }
       }
 
-      // If nothing was parsed from the database tables, fallback to dummy data
       if (records.isEmpty) {
-        print('NOTICE [getFeeRecords]: DB query yielded 0 records. Using dummy data fallback.');
-        return DummyData.fees;
+        print('NOTICE [getFeeRecords]: DB query yielded 0 records.');
+        return [];
       }
 
       // Sort by due date (chronological so Term 1 is shown before Term 2, etc.)
@@ -405,8 +404,8 @@ class FeeRepository {
       return records;
 
     } catch (e) {
-      print('CRITICAL ERROR [getFeeRecords]: $e. Returning dummy data fallback.');
-      return DummyData.fees;
+      print('CRITICAL ERROR [getFeeRecords]: $e.');
+      return [];
     }
   }
 

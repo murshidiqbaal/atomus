@@ -8,6 +8,7 @@ import '../blocs/fee/fee_bloc.dart';
 import '../blocs/fee/fee_event.dart';
 import '../blocs/notification/notification_bloc.dart';
 import '../blocs/notification/notification_event.dart';
+import '../blocs/notification/notification_state.dart';
 import '../blocs/student/student_bloc.dart';
 import '../blocs/student/student_event.dart';
 import '../blocs/theme/theme_bloc.dart';
@@ -25,17 +26,24 @@ import 'home/dashboard_screen.dart';
 import 'login_screen.dart';
 import 'marks/marks_screen.dart';
 import 'reports/ireports_screen.dart';
+import 'profile/profile_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
 
   @override
-  State<MainLayout> createState() => _MainLayoutState();
+  State<MainLayout> createState() => MainLayoutState();
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  void setIndex(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   @override
   void initState() {
@@ -70,6 +78,7 @@ class _MainLayoutState extends State<MainLayout> {
     AttendanceScreen(),
     FeesScreen(),
     IReportsScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -92,23 +101,28 @@ class _MainLayoutState extends State<MainLayout> {
             child: _buildDrawer(context),
           ),
           body: IndexedStack(index: _currentIndex, children: _screens),
-          bottomNavigationBar: Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            decoration: const BoxDecoration(color: Colors.transparent),
-            child: NeuBox(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              borderRadius: 24,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(LucideIcons.home, 'Home', 0),
-                  _buildNavItem(LucideIcons.bookOpen, 'Marks', 1),
-                  _buildNavItem(LucideIcons.calendar, 'Attendance', 2),
-                  _buildNavItem(LucideIcons.creditCard, 'Fees', 3),
-                  _buildNavItem(LucideIcons.clipboardList, 'Reports', 4),
-                ],
-              ),
-            ),
+          bottomNavigationBar: BlocBuilder<NotificationBloc, NotificationState>(
+            builder: (context, notifState) {
+              final unread = notifState.unreadCount;
+              return Container(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                decoration: const BoxDecoration(color: Colors.transparent),
+                child: NeuBox(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  borderRadius: 24,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(LucideIcons.home, 'Home', 0, badgeCount: unread),
+                      _buildNavItem(LucideIcons.bookOpen, 'Marks', 1),
+                      _buildNavItem(LucideIcons.calendar, 'Attendance', 2),
+                      _buildNavItem(LucideIcons.creditCard, 'Fees', 3),
+                      _buildNavItem(LucideIcons.clipboardList, 'Reports', 4, badgeCount: unread),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -429,7 +443,7 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem(IconData icon, String label, int index, {int badgeCount = 0}) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
@@ -446,12 +460,53 @@ class _MainLayoutState extends State<MainLayout> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? AppColors.primary
-                  : AppColors.textSecondary.withOpacity(0.5),
-              size: 20,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withOpacity(0.5),
+                  size: 20,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -6,
+                    right: -10,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.error.withOpacity(0.4),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          height: 1.0,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
