@@ -16,6 +16,7 @@ import '../../utils/id_card_pdf_generator.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/drive_profile_image.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/shimmer.dart';
 import '../main_layout.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -161,7 +162,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
         listener: _listenForProfileMessages,
         builder: (context, state) {
           if (state.status == ProfileStatus.loading && state.snapshot == null) {
-            return const Center(child: CircularProgressIndicator());
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Hero Shimmer Card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.03)
+                          : Colors.black.withOpacity(0.01),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.05)
+                            : Colors.black.withOpacity(0.03),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Shimmer(width: 88, height: 88, borderRadius: 44),
+                            const SizedBox(width: 18),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Shimmer(width: 150, height: 18),
+                                  SizedBox(height: 8),
+                                  Shimmer(width: 120, height: 12),
+                                  SizedBox(height: 12),
+                                  Shimmer(width: 60, height: 16, borderRadius: 8),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(
+                            3,
+                            (_) => const Shimmer(width: 80, height: 24, borderRadius: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  
+                  // Section Skeletons
+                  const Shimmer(width: 100, height: 14),
+                  const SizedBox(height: 16),
+                  ...List.generate(
+                    4,
+                    (_) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Shimmer.cardSkeleton(height: 60, borderRadius: 16),
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
 
           if (state.snapshot == null) {

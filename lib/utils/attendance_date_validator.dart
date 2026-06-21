@@ -28,11 +28,28 @@ class AttendanceDateValidator {
     return utcTime.toLocal();
   }
 
-  /// Gets the local today date at midnight (local Year, Month, Day) from database time.
+  /// Returns "today" in the user's local timezone.
+  ///
+  /// We take the *later* of (device local date) and (server-converted local
+  /// date) so that around midnight the device clock — which is always IST —
+  /// wins and prevents false "future date" errors caused by the server's UTC
+  /// `Date` header lagging behind the local calendar day.
   static Future<DateTime> getDatabaseToday() async {
-    final utcTime = await getDatabaseUtcTime();
-    final localTime = convertToLocal(utcTime);
-    return DateTime(localTime.year, localTime.month, localTime.day);
+    final deviceNow = DateTime.now();
+    final deviceToday = DateTime(deviceNow.year, deviceNow.month, deviceNow.day);
+
+    try {
+      final utcTime = await getDatabaseUtcTime();
+      final localTime = convertToLocal(utcTime);
+      final serverToday = DateTime(localTime.year, localTime.month, localTime.day);
+
+      // Use whichever is later — this covers the midnight boundary where the
+      // device has already ticked over to the next calendar day but the HTTP
+      // Date header hasn't.
+      return serverToday.isAfter(deviceToday) ? serverToday : deviceToday;
+    } catch (_) {
+      return deviceToday;
+    }
   }
 
   /// Checks if [date] is today relative to [dbToday].

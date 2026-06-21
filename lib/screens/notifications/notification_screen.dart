@@ -1,20 +1,22 @@
+import 'package:atomus/services/notification_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../blocs/notification/notification_bloc.dart';
 import '../../blocs/notification/notification_event.dart';
 import '../../blocs/notification/notification_state.dart';
-import '../../models/notification_model.dart';
 import '../../models/dummy_data.dart' show Announcement;
+import '../../models/notification_model.dart';
 import '../../repositories/announcement_repository.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/custom_card.dart';
 import '../../widgets/app_background.dart';
-import '../../widgets/glass_background.dart';
+import '../../widgets/custom_card.dart';
 import '../../widgets/drive_network_image.dart';
+import '../../widgets/glass_background.dart';
 import '../../widgets/neu_box.dart' show NeuDivider;
+import '../../widgets/shimmer.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -26,6 +28,10 @@ class NotificationScreen extends StatefulWidget {
 class _NotificationScreenState extends State<NotificationScreen> {
   List<Announcement>? _activeAnnouncements;
   bool _isLoadingAnnouncements = true;
+
+  // Filter & Search states
+  String _selectedCategory = 'all';
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -66,8 +72,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
     await Future.wait([notifFuture, announcementsFuture]);
   }
 
+  // Date grouping helper
+  String _getDateGroupLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+
+    final notifDate = DateTime(date.year, date.month, date.day);
+
+    if (notifDate == today) {
+      return 'TODAY';
+    } else if (notifDate == yesterday) {
+      return 'YESTERDAY';
+    } else if (notifDate.isAfter(
+      startOfWeek.subtract(const Duration(days: 1)),
+    )) {
+      return 'THIS WEEK';
+    } else {
+      return 'OLDER';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AppBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -126,20 +156,129 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
                 ),
 
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.06)
+                          : Colors.black.withOpacity(0.03),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.black.withOpacity(0.05),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      style: TextStyle(
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        icon: Icon(
+                          Icons.search_rounded,
+                          color: isDark
+                              ? Colors.white54
+                              : AppColors.textSecondary,
+                          size: 20,
+                        ),
+                        hintText: 'Search notifications...',
+                        hintStyle: TextStyle(
+                          color: isDark
+                              ? Colors.white38
+                              : AppColors.textSecondary.withOpacity(0.6),
+                        ),
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val.trim();
+                        });
+                      },
+                    ),
+                  ),
+                ),
+
+                // Category Chips Selector
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SizedBox(
+                    height: 38,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        _buildCategoryChip('all', 'All'),
+                        _buildCategoryChip('attendance', 'Attendance'),
+                        _buildCategoryChip('marks', 'Marks'),
+                        _buildCategoryChip('fees', 'Fees'),
+                        _buildCategoryChip('reports', 'Reports'),
+                        _buildCategoryChip('announcements', 'Announcements'),
+                      ],
+                    ),
+                  ),
+                ),
+
                 // Body
                 Expanded(
                   child: BlocBuilder<NotificationBloc, NotificationState>(
                     builder: (context, state) {
                       if (state.status == NotificationStatus.loading) {
-                        return const Center(child: CircularProgressIndicator());
+                        return ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          children: List.generate(
+                            5,
+                            (_) => Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Shimmer.cardSkeleton(
+                                height: 80,
+                                borderRadius: 16,
+                              ),
+                            ),
+                          ),
+                        );
                       }
 
-                      // Group by type, excluding announcements to prevent duplication
+                      // Apply search + chip filtering
+                      final filteredList = state.notifications.where((n) {
+                        final matchesCategory =
+                            _selectedCategory == 'all' ||
+                            n.type.toLowerCase().startsWith(
+                              _selectedCategory.substring(0, 3),
+                            );
+
+                        final matchesSearch =
+                            n.title.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            ) ||
+                            n.message.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            );
+
+                        return matchesCategory && matchesSearch;
+                      }).toList();
+
+                      // Group notifications chronologically by date group
                       final groups = <String, List<NotificationModel>>{};
-                      for (final n in state.notifications) {
-                        if (n.type == 'announcements') continue;
-                        groups.putIfAbsent(n.type, () => []).add(n);
+                      for (final n in filteredList) {
+                        final label = _getDateGroupLabel(n.createdAt);
+                        groups.putIfAbsent(label, () => []).add(n);
                       }
+
+                      // Ordered groups
+                      final groupOrder = [
+                        'TODAY',
+                        'YESTERDAY',
+                        'THIS WEEK',
+                        'OLDER',
+                      ];
 
                       return RefreshIndicator(
                         color: AppColors.accent,
@@ -150,34 +289,33 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             children: [
-                              _buildAnnouncementsSection(),
-                              if (groups.isEmpty && (_activeAnnouncements == null || _activeAnnouncements!.isEmpty))
+                              if (_selectedCategory == 'all' ||
+                                  _selectedCategory == 'announcements')
+                                _buildAnnouncementsSection(),
+                              if (filteredList.isEmpty &&
+                                  (_selectedCategory != 'all' ||
+                                      _activeAnnouncements == null ||
+                                      _activeAnnouncements!.isEmpty))
                                 _buildEmptyNotificationsPlaceholder(constraints)
                               else ...[
-                                if (groups.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 20),
-                                    child: Center(
-                                      child: Text(
-                                        'No other notifications yet',
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary.withOpacity(0.7),
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  for (final entry in groups.entries) ...[
-                                    _buildGroupHeader(context, entry.key, entry.value),
+                                for (final groupLabel in groupOrder)
+                                  if (groups.containsKey(groupLabel)) ...[
+                                    _buildGroupHeader(groupLabel),
                                     const SizedBox(height: 8),
-                                    ...entry.value.map(
+                                    ...groups[groupLabel]!.map(
                                       (n) => _NotificationCard(
                                         notification: n,
-                                        onTap: () => context
-                                            .read<NotificationBloc>()
-                                            .add(MarkNotificationRead(n.id)),
+                                        onTap: () {
+                                          context.read<NotificationBloc>().add(
+                                            MarkNotificationRead(n.id),
+                                          );
+                                          // Navigate based on type
+                                          NotificationService.instance
+                                              .handleDeepLink(
+                                                n.type,
+                                                referenceId: n.referenceId,
+                                              );
+                                        },
                                       ),
                                     ),
                                     const SizedBox(height: 20),
@@ -198,18 +336,78 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
+  Widget _buildCategoryChip(String id, String label) {
+    final isSelected = _selectedCategory == id;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white60 : AppColors.textPrimary),
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+            fontSize: 12,
+          ),
+        ),
+        selected: isSelected,
+        selectedColor: AppColors.accent,
+        backgroundColor: isDark
+            ? Colors.white.withOpacity(0.08)
+            : Colors.black.withOpacity(0.04),
+        checkmarkColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.transparent),
+        ),
+        onSelected: (selected) {
+          if (selected) {
+            setState(() {
+              _selectedCategory = id;
+            });
+          }
+        },
+      ),
+    );
+  }
+
   Widget _buildAnnouncementsSection() {
     if (_isLoadingAnnouncements) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.accent),
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 12),
+            child: Shimmer(width: 140, height: 11),
+          ),
+          ...List.generate(
+            2,
+            (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Shimmer.cardSkeleton(height: 100, borderRadius: 16),
+            ),
+          ),
+        ],
       );
     }
     if (_activeAnnouncements == null || _activeAnnouncements!.isEmpty) {
       return const SizedBox();
     }
+
+    // Apply search filter if query is not empty
+    final list = _activeAnnouncements!
+        .where(
+          (a) =>
+              a.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              a.description.toLowerCase().contains(_searchQuery.toLowerCase()),
+        )
+        .toList();
+
+    if (list.isEmpty) return const SizedBox();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +424,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
           ),
         ),
-        ..._activeAnnouncements!.map((announcement) => _buildAnnouncementCard(announcement)),
+        ...list.map((announcement) => _buildAnnouncementCard(announcement)),
         const SizedBox(height: 16),
         const NeuDivider(),
         const SizedBox(height: 20),
@@ -294,7 +492,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: announcement.imageDriveId != null && announcement.imageDriveId!.isNotEmpty
+                child:
+                    announcement.imageDriveId != null &&
+                        announcement.imageDriveId!.isNotEmpty
                     ? DriveBannerImage(
                         driveId: announcement.imageDriveId!,
                         borderRadius: BorderRadius.circular(12),
@@ -304,10 +504,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         imageUrl: announcement.imageUrl!,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        placeholder: (context, url) => Container(
+                        placeholder: (context, url) => const Shimmer(
+                          width: double.infinity,
                           height: 150,
-                          color: isDark ? Colors.grey[800] : Colors.grey[200],
-                          child: const Center(child: CircularProgressIndicator(color: AppColors.accent)),
+                          borderRadius: 12,
                         ),
                         errorWidget: (context, url, error) => const SizedBox(),
                       ),
@@ -333,9 +533,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Widget _buildEmptyNotificationsPlaceholder(BoxConstraints constraints) {
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        minHeight: constraints.maxHeight * 0.6,
-      ),
+      constraints: BoxConstraints(minHeight: constraints.maxHeight * 0.6),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -347,7 +545,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'No notifications yet',
+              'No notifications found',
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -360,25 +558,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  Widget _buildGroupHeader(
-    BuildContext context,
-    String type,
-    List<NotificationModel> items,
-  ) {
-    final unread = items.where((n) => !n.isRead).length;
-    final label = switch (type) {
-      'attendance' => 'ATTENDANCE ALERTS',
-      'marks' => 'MARKS UPDATES',
-      'fees' => 'FEE REMINDERS',
-      'announcements' => 'ANNOUNCEMENTS',
-      'emergency' => 'EMERGENCY ALERTS',
-      _ => type.toUpperCase(),
-    };
-
+  Widget _buildGroupHeader(String groupLabel) {
     return Row(
       children: [
         Text(
-          label,
+          groupLabel,
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w900,
@@ -386,24 +570,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
             letterSpacing: 1.5,
           ),
         ),
-        if (unread > 0) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.error,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              '$unread',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -431,85 +597,119 @@ class _NotificationCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GestureDetector(
-        onTap: notification.isRead ? null : onTap,
+        onTap: onTap,
         child: AnimatedOpacity(
           opacity: notification.isRead ? 0.55 : 1.0,
           duration: const Duration(milliseconds: 300),
           child: CustomCard(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Icon badge
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: notification.color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    notification.icon,
-                    color: notification.color,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                // Content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Icon badge
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: notification.color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        notification.icon,
+                        color: notification.color,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    // Content
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              notification.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                                color: isDark
-                                    ? AppColors.textPrimaryDark
-                                    : AppColors.textPrimary,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  notification.title,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? AppColors.textPrimaryDark
+                                        : AppColors.textPrimary,
+                                  ),
+                                ),
                               ),
+                              if (!notification.isRead)
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  margin: const EdgeInsets.only(
+                                    top: 3,
+                                    left: 8,
+                                  ),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            notification.message,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondary,
+                              height: 1.4,
                             ),
                           ),
-                          if (!notification.isRead)
-                            Container(
-                              width: 8,
-                              height: 8,
-                              margin: const EdgeInsets.only(top: 3, left: 8),
-                              decoration: const BoxDecoration(
-                                color: AppColors.error,
-                                shape: BoxShape.circle,
-                              ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _formatTime(notification.createdAt),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.accent.withOpacity(0.7),
                             ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        notification.message,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondary,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _formatTime(notification.createdAt),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.accent.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                // Premium Google Drive Image Preview Support (Step 27)
+                if (notification.imageUrl != null &&
+                    notification.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: notification.imageUrl!.startsWith('http')
+                        ? CachedNetworkImage(
+                            imageUrl: notification.imageUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            placeholder: (context, url) => const Shimmer(
+                              width: double.infinity,
+                              height: 120,
+                              borderRadius: 12,
+                            ),
+                            errorWidget: (context, url, error) =>
+                                const SizedBox(),
+                          )
+                        : DriveNetworkImage(
+                            driveId: notification.imageUrl!,
+                            borderRadius: BorderRadius.circular(12),
+                            alt: notification.title,
+                          ),
+                  ),
+                ],
               ],
             ),
           ),

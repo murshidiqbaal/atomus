@@ -33,6 +33,7 @@ import '../progress/average_attendance_details_screen.dart';
 import '../profile/profile_screen.dart';
 import '../notifications/notification_screen.dart';
 import '../../widgets/drive_profile_image.dart';
+import '../../widgets/shimmer.dart';
 import '../main_layout.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -103,7 +104,157 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return BlocBuilder<StudentBloc, StudentState>(
         builder: (context, state) {
           if (state.status == StudentStatus.loading) {
-            return const Center(child: CircularProgressIndicator());
+            return GlassBackground(
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Shimmer
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Shimmer(width: 50, height: 50, borderRadius: 12),
+                          Row(
+                            children: const [
+                              Shimmer(width: 50, height: 50, borderRadius: 12),
+                              SizedBox(width: 12),
+                              Shimmer(width: 50, height: 50, borderRadius: 12),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Profile Card Shimmer (Large)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.03)
+                              : Colors.black.withOpacity(0.01),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.black.withOpacity(0.03),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Shimmer(width: 100, height: 100, borderRadius: 50),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Shimmer(width: 150, height: 18),
+                                  SizedBox(height: 12),
+                                  Shimmer(width: 80, height: 24, borderRadius: 12),
+                                  SizedBox(height: 12),
+                                  Shimmer(width: 120, height: 12),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Explore Courses Shimmer Header
+                      const Shimmer(width: 140, height: 16),
+                      const SizedBox(height: 20),
+
+                      // Explore Courses Shimmer Items
+                      SizedBox(
+                        height: 180,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: 3,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemBuilder: (context, index) {
+                            return Container(
+                              width: 280,
+                              margin: const EdgeInsets.only(right: 24),
+                              child: const Shimmer(width: 280, height: 180, borderRadius: 24),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Academic Insights Grid Shimmer
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.03)
+                                    : Colors.black.withOpacity(0.01),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white.withOpacity(0.05)
+                                      : Colors.black.withOpacity(0.03),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Shimmer(width: 32, height: 32, borderRadius: 8),
+                                  SizedBox(height: 24),
+                                  Shimmer(width: 60, height: 14),
+                                  SizedBox(height: 8),
+                                  Shimmer(width: 80, height: 36),
+                                  SizedBox(height: 12),
+                                  Shimmer(width: 70, height: 20, borderRadius: 10),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.03)
+                                    : Colors.black.withOpacity(0.01),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white.withOpacity(0.05)
+                                      : Colors.black.withOpacity(0.03),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Shimmer(width: 32, height: 32, borderRadius: 8),
+                                  SizedBox(height: 24),
+                                  Shimmer(width: 80, height: 14),
+                                  SizedBox(height: 8),
+                                  Shimmer(width: 80, height: 36),
+                                  SizedBox(height: 12),
+                                  Shimmer(width: 70, height: 20, borderRadius: 10),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
           }
           if (state.status == StudentStatus.failure) {
             return Center(child: Text('Error: ${state.errorMessage}'));
@@ -952,9 +1103,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         BlocBuilder<CourseBloc, CourseState>(
           builder: (context, state) {
             if (state.status == CourseStatus.loading) {
-              return const SizedBox(
+              return SizedBox(
                 height: 180,
-                child: Center(child: CircularProgressIndicator()),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 3,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: 280,
+                      margin: const EdgeInsets.only(right: 24),
+                      child: const Shimmer(
+                        width: 280,
+                        height: 180,
+                        borderRadius: 24,
+                      ),
+                    );
+                  },
+                ),
               );
             }
             if (state.courses.isEmpty) {

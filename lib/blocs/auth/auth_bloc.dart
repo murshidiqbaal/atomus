@@ -1,4 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -48,6 +50,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await Supabase.instance.client
+            .from('device_tokens')
+            .update({'is_active': false})
+            .eq('device_token', fcmToken);
+      }
+    } catch (_) {}
+
     await authRepository.logout();
     emit(const AuthState(status: AuthStatus.unauthenticated));
   }

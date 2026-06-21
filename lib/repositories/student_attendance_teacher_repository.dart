@@ -129,7 +129,7 @@ class StudentAttendanceTeacherRepository {
     final deviceTime = DateTime.now();
     final dbUtcTime = await AttendanceDateValidator.getDatabaseUtcTime();
     final convertedLocalDate = AttendanceDateValidator.convertToLocal(dbUtcTime);
-    final dbToday = DateTime(convertedLocalDate.year, convertedLocalDate.month, convertedLocalDate.day);
+    final dbToday = await AttendanceDateValidator.getDatabaseToday();
 
     AttendanceDateValidator.logValidation(
       deviceTime: deviceTime,

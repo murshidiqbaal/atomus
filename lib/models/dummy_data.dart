@@ -45,6 +45,14 @@ class StudentInfo {
   });
 
   factory StudentInfo.fromMap(Map<String, dynamic> map) {
+    final campusesRaw = map['campuses'];
+    Map<String, dynamic>? campusesMap;
+    if (campusesRaw is Map) {
+      campusesMap = Map<String, dynamic>.from(campusesRaw);
+    } else if (campusesRaw is List && campusesRaw.isNotEmpty) {
+      campusesMap = Map<String, dynamic>.from(campusesRaw.first);
+    }
+
     return StudentInfo(
       id: map['id'] ?? '',
       fullName: map['full_name'] ?? '',
@@ -61,9 +69,9 @@ class StudentInfo {
       profilePhotoDriveId: map['profile_photo_drive_id']?.toString(),
       courseId: map['course_id']?.toString(),
       campusId: map['campus_id']?.toString(),
-      campusName: map['campuses']?['name']?.toString() ?? map['campus_name']?.toString(),
+      campusName: campusesMap?['name']?.toString() ?? map['campus_name']?.toString(),
       paymentQrUrl: () {
-        final url = map['campuses']?['payment_qr_url']?.toString() ?? map['payment_qr_url']?.toString();
+        final url = campusesMap?['payment_qr_url']?.toString() ?? map['payment_qr_url']?.toString();
         if (url == null) return null;
         if (url.startsWith('/')) {
           return 'http://localhost:3000$url';
@@ -72,7 +80,7 @@ class StudentInfo {
         }
         return url;
       }(),
-      paymentQrDriveId: map['campuses']?['payment_qr_drive_id']?.toString() ?? map['payment_qr_drive_id']?.toString(),
+      paymentQrDriveId: campusesMap?['payment_qr_drive_id']?.toString() ?? map['payment_qr_drive_id']?.toString(),
     );
   }
 

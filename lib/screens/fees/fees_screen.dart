@@ -1,39 +1,54 @@
+import 'package:atomus/blocs/student/student_event.dart';
+import 'package:atomus/blocs/student/student_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import '../../theme/app_colors.dart';
+import 'package:printing/printing.dart';
+
 import '../../blocs/fee/fee_bloc.dart';
-import '../../blocs/fee/fee_state.dart';
 import '../../blocs/fee/fee_event.dart';
+import '../../blocs/fee/fee_state.dart';
 import '../../blocs/student/student_bloc.dart';
-import '../../widgets/neu_box.dart';
-import '../../widgets/glass_background.dart';
-import '../../widgets/drive_network_image.dart';
-import '../../utils/drive_image_helper.dart';
 import '../../models/dummy_data.dart';
 import '../../repositories/fee_repository.dart';
-import 'package:http/http.dart' as http;
-import 'package:printing/printing.dart';
+import '../../theme/app_colors.dart';
+import '../../utils/drive_image_helper.dart';
+import '../../widgets/drive_network_image.dart';
+import '../../widgets/glass_background.dart';
+import '../../widgets/neu_box.dart';
+import '../../widgets/shimmer.dart';
 
 class FeesScreen extends StatelessWidget {
   const FeesScreen({super.key});
 
   Future<void> _handleRefresh(BuildContext context) async {
     final feeBloc = context.read<FeeBloc>();
+    final studentBloc = context.read<StudentBloc>();
+
+    studentBloc.add(LoadStudentData());
     feeBloc.add(LoadFeeData());
-    await feeBloc.stream
-        .firstWhere((s) => s.status != FeeStatus.loading)
-        .timeout(const Duration(seconds: 6), onTimeout: () => feeBloc.state);
+
+    await Future.wait([
+      feeBloc.stream
+          .firstWhere((s) => s.status != FeeStatus.loading)
+          .timeout(const Duration(seconds: 6), onTimeout: () => feeBloc.state),
+      studentBloc.stream
+          .firstWhere((s) => s.status != StudentStatus.loading)
+          .timeout(
+            const Duration(seconds: 6),
+            onTimeout: () => studentBloc.state,
+          ),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final studentState = context.read<StudentBloc>().state;
     final studentInfo = studentState.studentInfo;
     final studentName = studentInfo?.fullName ?? 'Student';
-    final studentGrade =
-        studentInfo?.grade ?? 'Academic Program';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final studentGrade = studentInfo?.grade ?? 'Academic Program';
 
     return GlassBackground(
       child: Scaffold(
@@ -85,31 +100,40 @@ class FeesScreen extends StatelessWidget {
         body: BlocBuilder<FeeBloc, FeeState>(
           builder: (context, state) {
             if (state.status == FeeStatus.loading && state.fees.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: AppColors.primary,
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  // QR code card skeleton
+                  Shimmer.cardSkeleton(height: 120, borderRadius: 20),
+                  const SizedBox(height: 20),
+                  // Overview card skeleton
+                  Shimmer.cardSkeleton(height: 160, borderRadius: 24),
+                  const SizedBox(height: 20),
+                  // Quick stats row skeleton
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Shimmer.cardSkeleton(
+                          height: 90,
+                          borderRadius: 20,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Loading fee details...',
-                      style: TextStyle(
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Shimmer.cardSkeleton(
+                          height: 90,
+                          borderRadius: 20,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // Term skeletons
+                  Shimmer.cardSkeleton(height: 140, borderRadius: 24),
+                  const SizedBox(height: 20),
+                  Shimmer.cardSkeleton(height: 140, borderRadius: 24),
+                ],
               );
             }
 
@@ -118,9 +142,11 @@ class FeesScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.error_outline_rounded,
-                        size: 56,
-                        color: AppColors.error.withOpacity(0.7)),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 56,
+                      color: AppColors.error.withOpacity(0.7),
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Failed to load fee data',
@@ -163,7 +189,9 @@ class FeesScreen extends StatelessWidget {
 
             return RefreshIndicator(
               color: AppColors.accent,
-              backgroundColor: isDark ? AppColors.neuBaseDark : AppColors.neuBase,
+              backgroundColor: isDark
+                  ? AppColors.neuBaseDark
+                  : AppColors.neuBase,
               onRefresh: () => _handleRefresh(context),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(
@@ -199,32 +227,44 @@ class FeesScreen extends StatelessWidget {
 
                   // ─── Term-wise Fee Cards ───────────────────────────
                   _buildSectionHeader(
-                      'Term-wise Breakdown', Icons.view_timeline_rounded, isDark),
+                    'Term-wise Breakdown',
+                    Icons.view_timeline_rounded,
+                    isDark,
+                  ),
                   const SizedBox(height: 12),
                   ...state.fees.asMap().entries.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildTermCard(
-                            context,
-                            entry.value,
-                            entry.key,
-                            studentName,
-                            studentGrade,
-                            isDark,
-                          ),
-                        ),
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildTermCard(
+                        context,
+                        entry.value,
+                        entry.key,
+                        studentName,
+                        studentGrade,
+                        isDark,
                       ),
+                    ),
+                  ),
 
                   // ─── Payment History ───────────────────────────────
                   if (state.paymentHistory.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _buildSectionHeader(
-                        'Payment History', Icons.history_rounded, isDark),
+                      'Payment History',
+                      Icons.history_rounded,
+                      isDark,
+                    ),
                     const SizedBox(height: 12),
-                    ...state.paymentHistory.take(5).map(
+                    ...state.paymentHistory
+                        .take(5)
+                        .map(
                           (txn) => Padding(
                             padding: const EdgeInsets.only(bottom: 8),
-                            child: _buildPaymentHistoryTile(context, txn, isDark),
+                            child: _buildPaymentHistoryTile(
+                              context,
+                              txn,
+                              isDark,
+                            ),
                           ),
                         ),
                   ],
@@ -243,12 +283,18 @@ class FeesScreen extends StatelessWidget {
   //  CAMPUS PAYMENT QR CARD — Scan & Pay with zoom capability
   // ════════════════════════════════════════════════════════════════
   Widget _buildCampusQrCard(
-      BuildContext context, StudentInfo student, bool isDark) {
+    BuildContext context,
+    StudentInfo student,
+    bool isDark,
+  ) {
     final driveId = student.paymentQrDriveId;
     final url = student.paymentQrUrl;
     final campus = student.campusName ?? 'Campus';
 
-    final hasDriveId = driveId != null && driveId.isNotEmpty && DriveImageHelper.isValid(driveId);
+    final hasDriveId =
+        driveId != null &&
+        driveId.isNotEmpty &&
+        DriveImageHelper.isValid(driveId);
     final hasUrl = url != null && url.isNotEmpty;
 
     if (!hasDriveId && !hasUrl) return const SizedBox.shrink();
@@ -337,9 +383,13 @@ class FeesScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     GestureDetector(
-                      onTap: () => _downloadQrCode(context, campus, driveId, url),
+                      onTap: () =>
+                          _downloadQrCode(context, campus, driveId, url),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(10),
@@ -371,7 +421,8 @@ class FeesScreen extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               GestureDetector(
-                onTap: () => _showFullscreenQr(context, campus, driveId, url, isDark),
+                onTap: () =>
+                    _showFullscreenQr(context, campus, driveId, url, isDark),
                 child: NeuBox(
                   borderRadius: 16,
                   padding: const EdgeInsets.all(8),
@@ -388,11 +439,12 @@ class FeesScreen extends StatelessWidget {
                         : Image.network(
                             url!,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => const Icon(
-                              Icons.broken_image_rounded,
-                              color: Colors.grey,
-                              size: 40,
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.broken_image_rounded,
+                                  color: Colors.grey,
+                                  size: 40,
+                                ),
                           ),
                   ),
                 ),
@@ -404,12 +456,21 @@ class FeesScreen extends StatelessWidget {
     );
   }
 
-  void _showFullscreenQr(BuildContext context, String campus, String? driveId, String? url, bool isDark) {
+  void _showFullscreenQr(
+    BuildContext context,
+    String campus,
+    String? driveId,
+    String? url,
+    bool isDark,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
-        final hasDriveId = driveId != null && driveId.isNotEmpty && DriveImageHelper.isValid(driveId);
+        final hasDriveId =
+            driveId != null &&
+            driveId.isNotEmpty &&
+            DriveImageHelper.isValid(driveId);
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(24),
@@ -445,7 +506,9 @@ class FeesScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
                         letterSpacing: 1.0,
                       ),
                       textAlign: TextAlign.center,
@@ -456,7 +519,9 @@ class FeesScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -482,13 +547,14 @@ class FeesScreen extends StatelessWidget {
                             : Image.network(
                                 url!,
                                 fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Center(
-                                  child: Icon(
-                                    Icons.broken_image_rounded,
-                                    color: Colors.grey,
-                                    size: 64,
-                                  ),
-                                ),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(
+                                      child: Icon(
+                                        Icons.broken_image_rounded,
+                                        color: Colors.grey,
+                                        size: 64,
+                                      ),
+                                    ),
                               ),
                       ),
                     ),
@@ -503,7 +569,10 @@ class FeesScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     NeuBox(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                       borderRadius: 12,
                       onTap: () {
                         Navigator.pop(context);
@@ -515,7 +584,9 @@ class FeesScreen extends StatelessWidget {
                           Icon(
                             Icons.download_rounded,
                             size: 16,
-                            color: isDark ? AppColors.accent : AppColors.primary,
+                            color: isDark
+                                ? AppColors.accent
+                                : AppColors.primary,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -523,7 +594,9 @@ class FeesScreen extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
-                              color: isDark ? AppColors.accent : AppColors.primary,
+                              color: isDark
+                                  ? AppColors.accent
+                                  : AppColors.primary,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -546,12 +619,15 @@ class FeesScreen extends StatelessWidget {
     String? driveId,
     String? url,
   ) async {
-    final hasDriveId = driveId != null && driveId.isNotEmpty && DriveImageHelper.isValid(driveId);
+    final hasDriveId =
+        driveId != null &&
+        driveId.isNotEmpty &&
+        DriveImageHelper.isValid(driveId);
     final hasUrl = url != null && url.isNotEmpty;
     if (!hasDriveId && !hasUrl) return;
 
-    final targetUrl = hasDriveId 
-        ? DriveImageHelper.resolve(driveId, highQuality: true) 
+    final targetUrl = hasDriveId
+        ? DriveImageHelper.resolve(driveId, highQuality: true)
         : url;
 
     if (targetUrl == null) return;
@@ -568,10 +644,7 @@ class FeesScreen extends StatelessWidget {
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
         final filename = '${campusName.replaceAll(' ', '_')}_Payment_QR.png';
-        await Printing.sharePdf(
-          bytes: bytes,
-          filename: filename,
-        );
+        await Printing.sharePdf(bytes: bytes, filename: filename);
       } else {
         throw Exception('Status code: ${response.statusCode}');
       }
@@ -590,8 +663,7 @@ class FeesScreen extends StatelessWidget {
   // ════════════════════════════════════════════════════════════════
   //  OVERVIEW CARD — Total Fee, Paid, Pending with progress arc
   // ════════════════════════════════════════════════════════════════
-  Widget _buildOverviewCard(
-      BuildContext context, FeeState state, bool isDark) {
+  Widget _buildOverviewCard(BuildContext context, FeeState state, bool isDark) {
     final progress = state.paymentProgress;
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
@@ -649,8 +721,10 @@ class FeesScreen extends StatelessWidget {
               ),
               // Progress percentage
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _progressColor(progress).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -688,9 +762,7 @@ class FeesScreen extends StatelessWidget {
               _buildAmountChip(
                 'Total',
                 currencyFmt.format(state.totalFee),
-                isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimary,
+                isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
                 isDark,
               ),
               _buildAmountChip(
@@ -715,13 +787,18 @@ class FeesScreen extends StatelessWidget {
                 color: AppColors.success.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: AppColors.success.withOpacity(0.2), width: 1),
+                  color: AppColors.success.withOpacity(0.2),
+                  width: 1,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.discount_rounded,
-                      size: 16, color: AppColors.success),
+                  Icon(
+                    Icons.discount_rounded,
+                    size: 16,
+                    color: AppColors.success,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'Discount Applied: ${currencyFmt.format(state.discountAmount)}',
@@ -741,7 +818,11 @@ class FeesScreen extends StatelessWidget {
   }
 
   Widget _buildAmountChip(
-      String label, String amount, Color color, bool isDark) {
+    String label,
+    String amount,
+    Color color,
+    bool isDark,
+  ) {
     return Expanded(
       child: Column(
         children: [
@@ -773,8 +854,7 @@ class FeesScreen extends StatelessWidget {
   // ════════════════════════════════════════════════════════════════
   //  QUICK STATS — Small icon-labeled stat boxes
   // ════════════════════════════════════════════════════════════════
-  Widget _buildQuickStats(
-      BuildContext context, FeeState state, bool isDark) {
+  Widget _buildQuickStats(BuildContext context, FeeState state, bool isDark) {
     return Row(
       children: [
         _buildStatBox(
@@ -858,8 +938,7 @@ class FeesScreen extends StatelessWidget {
   // ════════════════════════════════════════════════════════════════
   //  OVERDUE ALERT
   // ════════════════════════════════════════════════════════════════
-  Widget _buildOverdueAlert(
-      BuildContext context, FeeState state, bool isDark) {
+  Widget _buildOverdueAlert(BuildContext context, FeeState state, bool isDark) {
     final count = state.overdueFees.length;
     final totalOverdue = state.overdueFees.fold<double>(
       0,
@@ -887,8 +966,11 @@ class FeesScreen extends StatelessWidget {
               color: AppColors.error.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.warning_amber_rounded,
-                color: AppColors.error, size: 22),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.error,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -924,14 +1006,17 @@ class FeesScreen extends StatelessWidget {
   //  NEXT PAYMENT DUE CARD
   // ════════════════════════════════════════════════════════════════
   Widget _buildNextPaymentCard(
-      BuildContext context, FeeRecord fee, bool isDark) {
+    BuildContext context,
+    FeeRecord fee,
+    bool isDark,
+  ) {
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
     final daysUntil = fee.dueDate.difference(DateTime.now()).inDays;
     final dueText = daysUntil == 0
         ? 'Due Today'
         : daysUntil == 1
-            ? 'Due Tomorrow'
-            : 'Due in $daysUntil days';
+        ? 'Due Tomorrow'
+        : 'Due in $daysUntil days';
 
     return NeuBox(
       borderRadius: 20,
@@ -952,8 +1037,11 @@ class FeesScreen extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(Icons.event_note_rounded,
-                color: AppColors.primary, size: 24),
+            child: Icon(
+              Icons.event_note_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -989,8 +1077,8 @@ class FeesScreen extends StatelessWidget {
                     color: daysUntil <= 3
                         ? AppColors.warning
                         : (isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondary),
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondary),
                   ),
                 ),
               ],
@@ -1039,8 +1127,11 @@ class FeesScreen extends StatelessWidget {
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dueDay =
-        DateTime(fee.dueDate.year, fee.dueDate.month, fee.dueDate.day);
+    final dueDay = DateTime(
+      fee.dueDate.year,
+      fee.dueDate.month,
+      fee.dueDate.day,
+    );
     final daysToDue = dueDay.difference(today).inDays;
 
     // Status derived purely from this term's own state -- do NOT mark a
@@ -1081,7 +1172,9 @@ class FeesScreen extends StatelessWidget {
       dueLabel = 'Due ${DateFormat('MMM dd, yyyy').format(fee.dueDate)}';
     }
     final paid = fee.amountPaid ?? 0.0;
-    final termProgress = fee.amount > 0 ? (paid / fee.amount).clamp(0.0, 1.0) : 0.0;
+    final termProgress = fee.amount > 0
+        ? (paid / fee.amount).clamp(0.0, 1.0)
+        : 0.0;
 
     return NeuBox(
       borderRadius: 18,
@@ -1089,7 +1182,12 @@ class FeesScreen extends StatelessWidget {
       onTap: () {
         if (fee.isPaid) {
           _showReceiptBottomSheet(
-              context, fee, studentName, studentGrade, isDark);
+            context,
+            fee,
+            studentName,
+            studentGrade,
+            isDark,
+          );
         } else {
           final studentState = context.read<StudentBloc>().state;
           final studentInfo = studentState.studentInfo;
@@ -1097,7 +1195,13 @@ class FeesScreen extends StatelessWidget {
           final paymentQrDriveId = studentInfo?.paymentQrDriveId;
           final studentId = studentInfo?.id ?? '';
           _showPaymentBottomSheet(
-              context, fee, studentId, paymentQrUrl, paymentQrDriveId, isDark);
+            context,
+            fee,
+            studentId,
+            paymentQrUrl,
+            paymentQrDriveId,
+            isDark,
+          );
         }
       },
       child: Column(
@@ -1107,8 +1211,9 @@ class FeesScreen extends StatelessWidget {
             height: 4,
             decoration: BoxDecoration(
               color: statusColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(18),
+              ),
             ),
           ),
           Padding(
@@ -1127,8 +1232,11 @@ class FeesScreen extends StatelessWidget {
                       ),
                       child: Center(
                         child: isPaid
-                            ? Icon(Icons.check_rounded,
-                                color: statusColor, size: 22)
+                            ? Icon(
+                                Icons.check_rounded,
+                                color: statusColor,
+                                size: 22,
+                              )
                             : Text(
                                 '${index + 1}',
                                 style: TextStyle(
@@ -1163,10 +1271,10 @@ class FeesScreen extends StatelessWidget {
                               color: isPaid
                                   ? AppColors.success
                                   : (isOverdue || isDueToday)
-                                      ? AppColors.error
-                                      : (isDark
-                                          ? AppColors.textSecondaryDark
-                                          : AppColors.textSecondary),
+                                  ? AppColors.error
+                                  : (isDark
+                                        ? AppColors.textSecondaryDark
+                                        : AppColors.textSecondary),
                             ),
                           ),
                         ],
@@ -1175,7 +1283,9 @@ class FeesScreen extends StatelessWidget {
                     // Status badge
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -1229,10 +1339,11 @@ class FeesScreen extends StatelessWidget {
                               ),
                               if (fee.isPaid) ...[
                                 const SizedBox(width: 8),
-                                Icon(Icons.receipt_rounded,
-                                    size: 16,
-                                    color:
-                                        AppColors.success.withOpacity(0.7)),
+                                Icon(
+                                  Icons.receipt_rounded,
+                                  size: 16,
+                                  color: AppColors.success.withOpacity(0.7),
+                                ),
                                 const SizedBox(width: 3),
                                 Text(
                                   'Tap for receipt',
@@ -1275,8 +1386,7 @@ class FeesScreen extends StatelessWidget {
                       backgroundColor: isDark
                           ? Colors.white.withOpacity(0.06)
                           : AppColors.neuDark.withOpacity(0.2),
-                      valueColor:
-                          AlwaysStoppedAnimation(AppColors.warning),
+                      valueColor: AlwaysStoppedAnimation(AppColors.warning),
                     ),
                   ),
                 ],
@@ -1286,11 +1396,13 @@ class FeesScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded,
-                          size: 12,
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondary),
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 12,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         'Paid on ${DateFormat('MMM dd, yyyy').format(fee.paymentDate!)}',
@@ -1328,7 +1440,10 @@ class FeesScreen extends StatelessWidget {
   //  PAYMENT HISTORY TILE
   // ════════════════════════════════════════════════════════════════
   Widget _buildPaymentHistoryTile(
-      BuildContext context, Map<String, dynamic> txn, bool isDark) {
+    BuildContext context,
+    Map<String, dynamic> txn,
+    bool isDark,
+  ) {
     final amount = (txn['amount'] ?? 0).toDouble();
     final dateStr = txn['payment_date']?.toString();
     final date = dateStr != null
@@ -1336,7 +1451,8 @@ class FeesScreen extends StatelessWidget {
         : DateTime.now();
     final method = txn['payment_method']?.toString() ?? 'Online';
     final status = txn['status']?.toString() ?? 'Success';
-    final refId = txn['transaction_id']?.toString() ?? txn['id']?.toString() ?? '';
+    final refId =
+        txn['transaction_id']?.toString() ?? txn['id']?.toString() ?? '';
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
     return NeuBox(
@@ -1350,8 +1466,11 @@ class FeesScreen extends StatelessWidget {
               color: AppColors.success.withOpacity(isDark ? 0.15 : 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.payment_rounded,
-                size: 18, color: AppColors.success),
+            child: Icon(
+              Icons.payment_rounded,
+              size: 18,
+              color: AppColors.success,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1386,10 +1505,11 @@ class FeesScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: status.toLowerCase() == 'success' || status.toLowerCase() == 'completed'
+                  color:
+                      status.toLowerCase() == 'success' ||
+                          status.toLowerCase() == 'completed'
                       ? AppColors.success.withOpacity(0.12)
                       : AppColors.warning.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
@@ -1399,7 +1519,9 @@ class FeesScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w900,
-                    color: status.toLowerCase() == 'success' || status.toLowerCase() == 'completed'
+                    color:
+                        status.toLowerCase() == 'success' ||
+                            status.toLowerCase() == 'completed'
                         ? AppColors.success
                         : AppColors.warning,
                     letterSpacing: 0.5,
@@ -1409,9 +1531,7 @@ class FeesScreen extends StatelessWidget {
               if (refId.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
-                  refId.length > 12
-                      ? '${refId.substring(0, 12)}…'
-                      : refId,
+                  refId.length > 12 ? '${refId.substring(0, 12)}…' : refId,
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w600,
@@ -1456,8 +1576,9 @@ class FeesScreen extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  (isDark ? AppColors.accent : AppColors.primary)
-                      .withOpacity(0.3),
+                  (isDark ? AppColors.accent : AppColors.primary).withOpacity(
+                    0.3,
+                  ),
                   Colors.transparent,
                 ],
               ),
@@ -1481,8 +1602,9 @@ class FeesScreen extends StatelessWidget {
     final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
     final paymentDateStr = fee.paymentDate != null
         ? DateFormat('MMMM d, yyyy – hh:mm a').format(fee.paymentDate!)
-        : DateFormat('MMMM d, yyyy')
-            .format(DateTime.now().subtract(const Duration(days: 1)));
+        : DateFormat(
+            'MMMM d, yyyy',
+          ).format(DateTime.now().subtract(const Duration(days: 1)));
 
     showModalBottomSheet(
       context: context,
@@ -1491,11 +1613,8 @@ class FeesScreen extends StatelessWidget {
       builder: (context) {
         return Container(
           decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF151521)
-                : Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(28)),
+            color: isDark ? const Color(0xFF151521) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
@@ -1577,9 +1696,7 @@ class FeesScreen extends StatelessWidget {
               // Receipt details
               Container(
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F0F18)
-                      : Colors.grey.shade50,
+                  color: isDark ? const Color(0xFF0F0F18) : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: isDark
@@ -1609,8 +1726,7 @@ class FeesScreen extends StatelessWidget {
                           30,
                           (i) => Expanded(
                             child: Container(
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 2),
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
                               height: 1,
                               color: isDark
                                   ? Colors.white10
@@ -1649,8 +1765,7 @@ class FeesScreen extends StatelessWidget {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text(
-                                'Receipt link copied!'),
+                            content: const Text('Receipt link copied!'),
                             backgroundColor: AppColors.success,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
@@ -1679,9 +1794,7 @@ class FeesScreen extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: BorderSide(
-                          color: isDark
-                              ? Colors.white24
-                              : Colors.grey.shade300,
+                          color: isDark ? Colors.white24 : Colors.grey.shade300,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -1734,8 +1847,8 @@ class FeesScreen extends StatelessWidget {
             value,
             textAlign: TextAlign.end,
             style: TextStyle(
-              color: valueColor ??
-                  (isDark ? Colors.white : AppColors.textPrimary),
+              color:
+                  valueColor ?? (isDark ? Colors.white : AppColors.textPrimary),
               fontSize: 12,
               fontWeight: isBold ? FontWeight.w900 : FontWeight.w700,
             ),
@@ -1834,7 +1947,10 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
         left: 24,
         right: 24,
         top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
+        bottom:
+            MediaQuery.of(context).viewInsets.bottom +
+            MediaQuery.of(context).padding.bottom +
+            24,
       ),
       child: SingleChildScrollView(
         child: Form(
@@ -1846,7 +1962,9 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: widget.isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                  color: widget.isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -1883,14 +2001,19 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
               ),
               const SizedBox(height: 20),
 
-              if ((widget.paymentQrDriveId != null && widget.paymentQrDriveId!.isNotEmpty && DriveImageHelper.isValid(widget.paymentQrDriveId!)) ||
-                  (widget.paymentQrUrl != null && widget.paymentQrUrl!.isNotEmpty)) ...[
+              if ((widget.paymentQrDriveId != null &&
+                      widget.paymentQrDriveId!.isNotEmpty &&
+                      DriveImageHelper.isValid(widget.paymentQrDriveId!)) ||
+                  (widget.paymentQrUrl != null &&
+                      widget.paymentQrUrl!.isNotEmpty)) ...[
                 Text(
                   'Scan the QR code below to make payment',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: widget.isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                    color: widget.isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -1901,14 +2024,19 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: widget.isDark ? Colors.white10 : Colors.grey.shade200,
+                      color: widget.isDark
+                          ? Colors.white10
+                          : Colors.grey.shade200,
                     ),
                   ),
                   width: 220,
                   height: 220,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: (widget.paymentQrDriveId != null && widget.paymentQrDriveId!.isNotEmpty && DriveImageHelper.isValid(widget.paymentQrDriveId!))
+                    child:
+                        (widget.paymentQrDriveId != null &&
+                            widget.paymentQrDriveId!.isNotEmpty &&
+                            DriveImageHelper.isValid(widget.paymentQrDriveId!))
                         ? DriveNetworkImage(
                             driveId: widget.paymentQrDriveId!,
                             fit: BoxFit.contain,
@@ -1919,14 +2047,10 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                             fit: BoxFit.contain,
                             loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  color: AppColors.primary,
-                                  value: loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                                ),
+                              return const Shimmer(
+                                width: double.infinity,
+                                height: double.infinity,
+                                borderRadius: 12,
                               );
                             },
                             errorBuilder: (context, error, stackTrace) {
@@ -1953,7 +2077,11 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 24),
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.warning,
+                        size: 24,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -1961,7 +2089,9 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: widget.isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                            color: widget.isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -1977,13 +2107,13 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                 decoration: InputDecoration(
                   labelText: 'UPI Transaction ID / Ref Number',
                   labelStyle: TextStyle(
-                    color: widget.isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                    color: widget.isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                   hintText: 'Enter 12-digit transaction ID',
-                  hintStyle: TextStyle(
-                    color: Colors.grey.shade500,
-                  ),
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
                   prefixIcon: Icon(
                     Icons.receipt_rounded,
                     color: widget.isDark ? AppColors.accent : AppColors.primary,
@@ -1991,13 +2121,17 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: widget.isDark ? Colors.white24 : Colors.grey.shade300,
+                      color: widget.isDark
+                          ? Colors.white24
+                          : Colors.grey.shade300,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: widget.isDark ? AppColors.accent : AppColors.primary,
+                      color: widget.isDark
+                          ? AppColors.accent
+                          : AppColors.primary,
                       width: 2,
                     ),
                   ),
@@ -2045,7 +2179,9 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: const Text('Payment proof submitted successfully!'),
+                                        content: const Text(
+                                          'Payment proof submitted successfully!',
+                                        ),
                                         backgroundColor: AppColors.success,
                                         behavior: SnackBarBehavior.floating,
                                       ),
@@ -2091,11 +2227,15 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: BorderSide(
-                          color: widget.isDark ? Colors.white24 : Colors.grey.shade300,
+                          color: widget.isDark
+                              ? Colors.white24
+                              : Colors.grey.shade300,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -2104,7 +2244,9 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                       child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: widget.isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                          color: widget.isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

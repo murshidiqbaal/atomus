@@ -2,8 +2,9 @@
  * Supabase Edge Function: send-fcm-notification
  *
  * Called by the PostgreSQL trigger via pg_net (or invoked directly).
- * Reads the notification row, fetches the parent's FCM token from the parents
- * table, and sends a push notification via FCM HTTP v1 API.
+ * Looks up the recipient's FCM token from the device_tokens table
+ * (with fallback to parents/teachers legacy columns) and sends a
+ * push notification via FCM HTTP v1 API.
  *
  * Environment variables required (set in Supabase Dashboard > Edge Functions > Secrets):
  *   FIREBASE_PROJECT_ID   - Your Firebase project ID
@@ -22,11 +23,15 @@ const corsHeaders = {
 
 interface NotificationPayload {
   notification_id: string;
-  parent_id: string;
-  student_id: string;
+  /** receiver_id is the primary lookup key (parent, teacher, or admin UUID) */
+  receiver_id: string;
+  /** Optional — kept for backwards compatibility with older triggers */
+  parent_id?: string;
+  student_id?: string;
   title: string;
   message: string;
   type: string;
+  receiver_type?: string;
 }
 
 async function getAccessToken(serviceKey: string): Promise<string> {
@@ -115,6 +120,40 @@ async function sendFcmMessage(
   }
 }
 
+/**
+ * Look up FCM token for a user. Tries device_tokens first,
+ * then falls back to legacy parents/teachers table columns.
+ */
+async function getFcmToken(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  receiverType?: string,
+): Promise<string | null> {
+  // 1. Try the device_tokens table (preferred — supports all user types)
+  const { data: tokenRow } = await admin
+    .from("device_tokens")
+    .select("device_token")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .order("last_used", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (tokenRow?.device_token) {
+    return tokenRow.device_token;
+  }
+
+  // 2. Fallback to legacy columns
+  const table = receiverType === "teacher" ? "teachers" : "parents";
+  const { data: legacyRow } = await admin
+    .from(table)
+    .select("fcm_token")
+    .eq("id", userId)
+    .maybeSingle();
+
+  return legacyRow?.fcm_token ?? null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -130,22 +169,26 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get the parent's FCM token
-    const { data: parent, error } = await admin
-      .from("parents")
-      .select("fcm_token")
-      .eq("id", payload.parent_id)
-      .maybeSingle();
-
-    if (error || !parent?.fcm_token) {
+    // Resolve the target user ID — prefer receiver_id, fall back to parent_id
+    const targetUserId = payload.receiver_id || payload.parent_id;
+    if (!targetUserId) {
       return new Response(
-        JSON.stringify({ error: "No FCM token for parent" }),
+        JSON.stringify({ error: "No receiver_id or parent_id provided" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Look up FCM token
+    const fcmToken = await getFcmToken(admin, targetUserId, payload.receiver_type);
+    if (!fcmToken) {
+      return new Response(
+        JSON.stringify({ error: "No FCM token found for user" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     // Get FCM OAuth2 access token
-    const accessToken = await getAccessToken(firebaseServiceKey);
+    const jwtToken = await getAccessToken(firebaseServiceKey);
 
     // Exchange JWT for actual access token
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -153,20 +196,21 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion: accessToken,
+        assertion: jwtToken,
       }),
     });
     const { access_token } = await tokenRes.json();
 
     await sendFcmMessage(
       firebaseProjectId,
-      parent.fcm_token,
+      fcmToken,
       payload.title,
       payload.message,
       {
         type: payload.type,
         notification_id: payload.notification_id,
-        student_id: payload.student_id,
+        student_id: payload.student_id ?? "",
+        receiver_id: targetUserId,
       },
       access_token,
     );

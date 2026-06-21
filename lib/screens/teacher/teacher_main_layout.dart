@@ -18,6 +18,8 @@ import 'teacher_profile_screen.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../login_screen.dart';
+import '../../repositories/notification_repository.dart';
+import '../../services/notification_service.dart';
 
 class TeacherMainLayout extends StatefulWidget {
   const TeacherMainLayout({super.key});
@@ -59,8 +61,20 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
     // This guarantees the full provider tree (AppProviders) is mounted and accessible.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startAutoSync();
+      _initNotifications();
       _navBarController.forward();
     });
+  }
+
+  Future<void> _initNotifications() async {
+    if (!mounted) return;
+    try {
+      final repo = context.read<NotificationRepository>();
+      await NotificationService.instance.initialize(repo);
+      debugPrint('TeacherMainLayout: Push Notifications initialized.');
+    } catch (e) {
+      debugPrint('TeacherMainLayout: Failed to initialize notifications: $e');
+    }
   }
 
   /// Starts the AutoSyncManager after the widget tree is fully mounted.

@@ -10,6 +10,7 @@ import '../../blocs/student/student_state.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/custom_card.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/shimmer.dart';
 import 'progress_report_screen.dart';
 
 class MarksScreen extends StatefulWidget {
@@ -41,7 +42,18 @@ class _MarksScreenState extends State<MarksScreen> {
       body: BlocBuilder<StudentBloc, StudentState>(
         builder: (context, state) {
           if (state.status == StudentStatus.loading) {
-            return const Center(child: CircularProgressIndicator());
+            return ListView(
+              padding: const EdgeInsets.all(24.0),
+              children: [
+                Shimmer.cardSkeleton(height: 80),
+                const SizedBox(height: 16),
+                Shimmer.cardSkeleton(height: 120),
+                const SizedBox(height: 16),
+                Shimmer.cardSkeleton(height: 120),
+                const SizedBox(height: 16),
+                Shimmer.cardSkeleton(height: 120),
+              ],
+            );
           }
           if (state.exams.isEmpty) {
             return RefreshIndicator(

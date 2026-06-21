@@ -12,6 +12,7 @@ import '../../blocs/student/student_state.dart';
 import '../../models/dummy_data.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/custom_card.dart';
+import '../../widgets/shimmer.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -259,9 +260,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     const SizedBox(height: 16),
 
                     if (state.status == StudentStatus.loading)
-                      const Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Center(child: CircularProgressIndicator()),
+                      Column(
+                        children: [
+                          Row(
+                            children: const [
+                              Expanded(child: Shimmer(width: double.infinity, height: 60, borderRadius: 16)),
+                              SizedBox(width: 10),
+                              Expanded(child: Shimmer(width: double.infinity, height: 60, borderRadius: 16)),
+                              SizedBox(width: 10),
+                              Expanded(child: Shimmer(width: double.infinity, height: 60, borderRadius: 16)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          const Shimmer(width: double.infinity, height: 300, borderRadius: 20),
+                        ],
                       )
                     else ...[
                       // Summary chips
