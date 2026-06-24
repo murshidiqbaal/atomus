@@ -33,8 +33,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
     required ValueChanged<String?> onChanged,
   }) {
     final List<String> monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     String formatMonthKey(String key) {
@@ -115,9 +125,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
         final parts = dateStr.split('-');
         if (parts.length == 3) {
           if (parts[0].length == 4) {
-            return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+            return DateTime(
+              int.parse(parts[0]),
+              int.parse(parts[1]),
+              int.parse(parts[2]),
+            );
           } else {
-            return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+            return DateTime(
+              int.parse(parts[2]),
+              int.parse(parts[1]),
+              int.parse(parts[0]),
+            );
           }
         }
       } catch (_) {}
@@ -144,7 +162,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     color: AppColors.primary.withOpacity(0.25),
                     blurRadius: 6,
                     offset: const Offset(0, 3),
-                  )
+                  ),
                 ]
               : null,
         ),
@@ -217,7 +235,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
               final Set<String> availableMonths = {};
               for (final session in state.exams) {
                 final date = _parseDate(session.date);
-                final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+                final monthKey =
+                    '${date.year}-${date.month.toString().padLeft(2, '0')}';
                 availableMonths.add(monthKey);
               }
               sortedAvailableMonths.addAll(availableMonths.toList()..sort());
@@ -230,7 +249,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
               }
 
               final sortedExams = List<ExamSession>.from(state.exams)
-                ..sort((a, b) => _parseDate(a.date).compareTo(_parseDate(b.date)));
+                ..sort(
+                  (a, b) => _parseDate(a.date).compareTo(_parseDate(b.date)),
+                );
 
               if (_isMonthly) {
                 // Group exams by month
@@ -247,8 +268,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   if (sessionTotal > 0) {
                     final pct = sessionObtained / sessionTotal;
                     final date = _parseDate(session.date);
-                    final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-                    
+                    final monthKey =
+                        '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
                     if (!monthlyPercentages.containsKey(monthKey)) {
                       monthlyPercentages[monthKey] = [];
                       monthKeys.add(monthKey);
@@ -259,24 +281,38 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
                 // Filter keys by range
                 final List<String> filteredMonthKeys = monthKeys.where((key) {
-                  if (_startMonth != null && key.compareTo(_startMonth!) < 0) return false;
-                  if (_endMonth != null && key.compareTo(_endMonth!) > 0) return false;
+                  if (_startMonth != null && key.compareTo(_startMonth!) < 0) {
+                    return false;
+                  }
+                  if (_endMonth != null && key.compareTo(_endMonth!) > 0) {
+                    return false;
+                  }
                   return true;
                 }).toList();
 
                 final List<String> monthNames = [
-                  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-                  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'
+                  'JAN',
+                  'FEB',
+                  'MAR',
+                  'APR',
+                  'MAY',
+                  'JUN',
+                  'JUL',
+                  'AUG',
+                  'SEP',
+                  'OCT',
+                  'NOV',
+                  'DEC',
                 ];
 
                 for (final key in filteredMonthKeys) {
                   final parts = key.split('-');
                   final monthIndex = int.parse(parts[1]) - 1;
                   final year = parts[0].substring(2);
-                  
+
                   final pcts = monthlyPercentages[key]!;
                   final avgPct = pcts.reduce((a, b) => a + b) / pcts.length;
-                  
+
                   chartDataPoints.add(avgPct);
                   chartLabels.add('${monthNames[monthIndex]} \'$year');
                 }
@@ -460,7 +496,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                               )
                             : Column(
                                 children: [
-                                  if (_isMonthly && sortedAvailableMonths.length > 1) ...[
+                                  if (_isMonthly &&
+                                      sortedAvailableMonths.length > 1) ...[
                                     Row(
                                       children: [
                                         Expanded(
@@ -472,7 +509,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                               if (val != null) {
                                                 setState(() {
                                                   _startMonth = val;
-                                                  if (_endMonth != null && val.compareTo(_endMonth!) > 0) {
+                                                  if (_endMonth != null &&
+                                                      val.compareTo(
+                                                            _endMonth!,
+                                                          ) >
+                                                          0) {
                                                     _endMonth = val;
                                                   }
                                                 });
@@ -490,7 +531,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                               if (val != null) {
                                                 setState(() {
                                                   _endMonth = val;
-                                                  if (_startMonth != null && val.compareTo(_startMonth!) < 0) {
+                                                  if (_startMonth != null &&
+                                                      val.compareTo(
+                                                            _startMonth!,
+                                                          ) <
+                                                          0) {
                                                     _startMonth = val;
                                                   }
                                                 });
@@ -604,11 +649,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                   '${performance?.latePeriods ?? state.attendance.where((r) => r.status == 'Late').length}',
                                   AppColors.warning,
                                 ),
-                                _buildStatDetailItem(
-                                  'Leave',
-                                  '${performance?.leavePeriods ?? state.attendance.where((r) => r.status == 'Leave').length}',
-                                  AppColors.accent,
-                                ),
+                                // _buildStatDetailItem(
+                                //   'Leave',
+                                //   '${performance?.leavePeriods ?? state.attendance.where((r) => r.status == 'Leave').length}',
+                                //   AppColors.accent,
+                                // ),
                               ],
                             ),
                           ],

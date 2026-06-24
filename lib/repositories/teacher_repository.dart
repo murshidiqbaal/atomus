@@ -33,6 +33,17 @@ class TeacherRepository {
             final row = rows.first;
             final campusMap = row['campuses'] as Map<String, dynamic>?;
             final teacher = TeacherModel.fromMap(row, campusData: campusMap);
+
+            // Link auth_user_id if missing or mismatched
+            if (row['auth_user_id'] == null || row['auth_user_id'] != uid) {
+              try {
+                await _supabase
+                    .from('teachers')
+                    .update({'auth_user_id': uid})
+                    .eq('id', teacher.id);
+              } catch (_) {}
+            }
+
             final withAssignments = await _attachAssignments(teacher);
             await _hive.saveTeacherProfile(row);
             return withAssignments;

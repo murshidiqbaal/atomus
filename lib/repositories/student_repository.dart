@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/dummy_data.dart';
 import '../services/parent_identity_service.dart';
+import '../services/student_performance_service.dart';
 
 class StudentRepository {
   final _supabase = Supabase.instance.client;
@@ -104,7 +105,7 @@ class StudentRepository {
                 .trim();
         final isDaily = examData['is_daily'] as bool? ?? false;
         final markDate = item['mark_date'] as String? ?? '';
-        
+
         // For daily exams, scope the key to include the mark date so we don't merge different days' marks
         final examKey = isDaily
             ? '${examName.toLowerCase()}_$markDate'
@@ -183,7 +184,36 @@ class StudentRepository {
       final response = await query.order('attendance_date', ascending: false);
 
       final List<dynamic> data = response as List<dynamic>;
-      return data.map((item) => AttendanceRecord.fromMap(item)).toList();
+      final List<AttendanceRecord> records = data
+          .map((item) => AttendanceRecord.fromMap(item))
+          .toList();
+
+      // Deduplicate student attendance records to handle NULL subject_id index limitations in PostgreSQL.
+      final Map<String, AttendanceRecord> uniqueRecords = {};
+      for (final record in records) {
+        final dateKey =
+            '${record.date.year}-${record.date.month.toString().padLeft(2, '0')}-${record.date.day.toString().padLeft(2, '0')}';
+        final periodKey = record.periodNumber?.toString() ?? 'null';
+        final subjectKey = record.subjectId ?? 'null';
+        final key = '${dateKey}_${periodKey}_$subjectKey';
+
+        if (!uniqueRecords.containsKey(key)) {
+          uniqueRecords[key] = record;
+        } else {
+          final existing = uniqueRecords[key]!;
+          final recordWeight = StudentPerformanceService.getAttendanceWeight(
+            record.status,
+          );
+          final existingWeight = StudentPerformanceService.getAttendanceWeight(
+            existing.status,
+          );
+          if (recordWeight > existingWeight) {
+            uniqueRecords[key] = record;
+          }
+        }
+      }
+
+      return uniqueRecords.values.toList();
     } catch (e) {
       print('Error fetching attendance: $e');
       // Fallback to empty list or handle as needed

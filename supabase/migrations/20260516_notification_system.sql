@@ -78,7 +78,7 @@ BEGIN
   -- Calls the Supabase Edge Function asynchronously via pg_net.
   -- Replace <PROJECT_REF> with your Supabase project reference.
   PERFORM net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-fcm-notification',
+    url     := 'https://txtvvlxaurqovghtngzm.supabase.co/functions/v1/send-fcm-notification',
     headers := jsonb_build_object(
                  'Content-Type',  'application/json',
                  'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)

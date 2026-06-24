@@ -15,7 +15,12 @@ import '../../widgets/custom_card.dart';
 import '../../widgets/shimmer.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  const AttendanceScreen({super.key});
+  final bool isPlainWhiteBackground;
+
+  const AttendanceScreen({
+    super.key,
+    this.isPlainWhiteBackground = false,
+  });
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -91,7 +96,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: widget.isPlainWhiteBackground ? Colors.white : Colors.transparent,
       appBar: AppBar(title: const Text('Attendance')),
       body: BlocListener<StudentBloc, StudentState>(
         listenWhen: (previous, current) =>

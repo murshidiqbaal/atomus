@@ -5,7 +5,6 @@ import '../services/security_validation_service.dart';
 import '../services/teacher_hive_service.dart';
 import '../utils/attendance_date_validator.dart';
 
-
 class StudentAttendanceTeacherRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
   final TeacherHiveService _hive;
@@ -128,7 +127,9 @@ class StudentAttendanceTeacherRepository {
     final first = entries.first;
     final deviceTime = DateTime.now();
     final dbUtcTime = await AttendanceDateValidator.getDatabaseUtcTime();
-    final convertedLocalDate = AttendanceDateValidator.convertToLocal(dbUtcTime);
+    final convertedLocalDate = AttendanceDateValidator.convertToLocal(
+      dbUtcTime,
+    );
     final dbToday = await AttendanceDateValidator.getDatabaseToday();
 
     AttendanceDateValidator.logValidation(
@@ -178,7 +179,9 @@ class StudentAttendanceTeacherRepository {
           'the insert. Refresh and try again.',
         );
       }
-      return (result as List).map((r) => Map<String, dynamic>.from(r as Map)).toList();
+      return (result as List)
+          .map((r) => Map<String, dynamic>.from(r as Map))
+          .toList();
     } catch (e) {
       if (e is PostgrestException) {
         final errStr = e.toString();
@@ -230,7 +233,7 @@ class StudentAttendanceTeacherRepository {
       'Present': 0,
       'Absent': 0,
       'Late': 0,
-      'Leave': 0,
+      // 'Leave': 0,
     };
     for (final e in entries) {
       final key = e.status.value;

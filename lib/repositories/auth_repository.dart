@@ -58,6 +58,20 @@ class AuthRepository {
       // 1. Check teachers table first
       final teacherRole = await _resolveTeacher();
       if (teacherRole != null) {
+        final teacherId = teacherRole['id'] as String;
+        final currentAuthId = teacherRole['auth_user_id'] as String?;
+        final user = _supabase.auth.currentUser;
+        if (user != null && (currentAuthId == null || currentAuthId != user.id)) {
+          try {
+            await _supabase
+                .from('teachers')
+                .update({'auth_user_id': user.id})
+                .eq('id', teacherId);
+          } catch (e) {
+            print('Error linking auth_user_id to teacher: $e');
+          }
+        }
+
         await _setLoggedIn(true);
         await _saveRole(LoginUserRole.teacher);
         return LoginUserRole.teacher;
@@ -105,7 +119,7 @@ class AuthRepository {
         try {
           final rows = await _supabase
               .from('teachers')
-              .select('id, full_name, email')
+              .select('id, full_name, email, auth_user_id')
               .eq(col, val)
               .limit(1);
           if (rows.isNotEmpty) return rows.first;

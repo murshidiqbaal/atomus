@@ -72,15 +72,29 @@ class StudentInfo {
       campusName: campusesMap?['name']?.toString() ?? map['campus_name']?.toString(),
       paymentQrUrl: () {
         final url = campusesMap?['payment_qr_url']?.toString() ?? map['payment_qr_url']?.toString();
-        if (url == null) return null;
-        if (url.startsWith('/')) {
-          return 'http://localhost:3000$url';
-        } else if (url.startsWith('uploads/')) {
-          return 'http://localhost:3000/$url';
+        if (url == null || url.isEmpty) return null;
+        // Only keep full absolute URLs (https://...) — discard relative
+        // server paths like /uploads/... which only work on localhost.
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          return url;
         }
-        return url;
+        return null;
       }(),
-      paymentQrDriveId: campusesMap?['payment_qr_drive_id']?.toString() ?? map['payment_qr_drive_id']?.toString(),
+      paymentQrDriveId: () {
+        // 1. Direct Drive ID from the campus record
+        final driveId = campusesMap?['payment_qr_drive_id']?.toString()
+            ?? map['payment_qr_drive_id']?.toString();
+        if (driveId != null && driveId.isNotEmpty && RegExp(r'^[A-Za-z0-9_\-]{10,60}$').hasMatch(driveId)) {
+          return driveId;
+        }
+        // 2. Try to extract a Drive ID from the URL (e.g. /api/media?id=DRIVE_ID)
+        final url = campusesMap?['payment_qr_url']?.toString() ?? map['payment_qr_url']?.toString();
+        if (url != null && url.contains('id=')) {
+          final idMatch = RegExp(r'[?&]id=([A-Za-z0-9_\-]{10,60})').firstMatch(url);
+          if (idMatch != null) return idMatch.group(1);
+        }
+        return null;
+      }(),
     );
   }
 

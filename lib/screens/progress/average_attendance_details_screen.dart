@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../blocs/student/student_bloc.dart';
-import '../../blocs/student/student_state.dart';
 import '../../blocs/student/student_event.dart';
+import '../../blocs/student/student_state.dart';
 import '../../models/dummy_data.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
@@ -25,7 +25,7 @@ class AverageAttendanceDetailsScreen extends StatefulWidget {
 
 class _AverageAttendanceDetailsScreenState
     extends State<AverageAttendanceDetailsScreen> {
-  String _selectedFilter = 'All'; // 'All', 'Present', 'Absent', 'Late/Leave'
+  String _selectedFilter = 'All'; // 'All', 'Present', 'Absent', 'Late'
 
   @override
   void initState() {
@@ -151,7 +151,7 @@ class _AverageAttendanceDetailsScreenState
             int totalPresent = 0;
             int totalAbsent = 0;
             int totalLate = 0;
-            int totalLeave = 0;
+            // int totalLeave = 0;
 
             for (int i = 0; i < sortedRecords.length; i++) {
               final rec = sortedRecords[i];
@@ -164,9 +164,9 @@ class _AverageAttendanceDetailsScreenState
                 presentCount++; // Late counts towards attendance presence
               } else if (rec.status == 'Absent') {
                 totalAbsent++;
-              } else if (rec.status == 'Leave') {
-                totalLeave++; // Leave is neutral or non-penalized, but not strictly 'present'
-              }
+              } // } else if (rec.status == 'Leave') {
+              //   totalLeave++; // Leave is neutral or non-penalized, but not strictly 'present'
+              // }
 
               // Compute rolling cumulative presence rate (Present + Late vs Total)
               final double cumulativeRate = (presentCount / (i + 1)) * 100;
@@ -199,8 +199,9 @@ class _AverageAttendanceDetailsScreenState
             final displayRecords = sortedRecords.reversed.where((rec) {
               if (_selectedFilter == 'Present') return rec.status == 'Present';
               if (_selectedFilter == 'Absent') return rec.status == 'Absent';
-              if (_selectedFilter == 'Late/Leave')
+              if (_selectedFilter == 'Late/Leave') {
                 return rec.status == 'Late' || rec.status == 'Leave';
+              }
               return true;
             }).toList();
 
@@ -284,7 +285,8 @@ class _AverageAttendanceDetailsScreenState
                               _buildStatItem(
                                 'PRESENT',
                                 performance != null
-                                    ? performance.presentPeriods.toStringAsFixed(0)
+                                    ? performance.presentPeriods
+                                          .toStringAsFixed(0)
                                     : '$totalPresent',
                                 AppColors.success,
                               ),
@@ -302,13 +304,13 @@ class _AverageAttendanceDetailsScreenState
                                     : '$totalLate',
                                 AppColors.warning,
                               ),
-                              _buildStatItem(
-                                'LEAVE',
-                                performance != null
-                                    ? '${performance.leavePeriods}'
-                                    : '$totalLeave',
-                                AppColors.info,
-                              ),
+                              // _buildStatItem(
+                              //   'LEAVE',
+                              //   performance != null
+                              //       ? '${performance.leavePeriods}'
+                              //       : '$totalLeave',
+                              //   AppColors.info,
+                              // ),
                             ],
                           ),
                         ],

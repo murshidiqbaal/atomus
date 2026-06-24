@@ -127,10 +127,20 @@ class _SplashScreenState extends State<SplashScreen>
     super.didChangeDependencies();
     if (!_imagePrecached) {
       precacheImage(
-        const AssetImage('assets/app_icon/appicon.png'),
+        const AssetImage('assets/app_icon/appicon.webp'),
         context,
       );
       _imagePrecached = true;
+
+      // If the AuthBloc has already resolved the auth state (e.g. from local cache/storage)
+      // before this widget is mounted, trigger the handoff navigation immediately.
+      final authState = context.read<AuthBloc>().state;
+      if (authState.status == AuthStatus.authenticated ||
+          authState.status == AuthStatus.unauthenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _handoff(authState);
+        });
+      }
     }
   }
 
@@ -278,7 +288,7 @@ class _AnimatedMark extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.all(padIcon),
                   child: Image.asset(
-                    'assets/app_icon/appicon.png',
+                    'assets/app_icon/appicon.webp',
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
                   ),

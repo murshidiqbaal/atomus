@@ -1,5 +1,7 @@
 import 'dart:math';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/dummy_data.dart';
 import '../models/student_performance_model.dart';
 
@@ -66,13 +68,39 @@ class StudentPerformanceService {
       }
 
       // 3. Process Attendance
+      // Deduplicate student attendance records to handle NULL subject_id index limitations in PostgreSQL.
+      final Map<String, Map<String, dynamic>> uniqueAttendanceMap = {};
+      for (final r in attendanceRecords) {
+        final record = Map<String, dynamic>.from(r as Map);
+        final dateVal = record['attendance_date'] ?? '';
+        final periodVal = record['period_number'] ?? 'null';
+        final subjectVal = record['subject_id'] ?? 'null';
+        final key = '${dateVal}_${periodVal}_$subjectVal';
+
+        if (!uniqueAttendanceMap.containsKey(key)) {
+          uniqueAttendanceMap[key] = record;
+        } else {
+          final existing = uniqueAttendanceMap[key]!;
+          final recordWeight = getAttendanceWeight(
+            record['status'] as String? ?? '',
+          );
+          final existingWeight = getAttendanceWeight(
+            existing['status'] as String? ?? '',
+          );
+          if (recordWeight > existingWeight) {
+            uniqueAttendanceMap[key] = record;
+          }
+        }
+      }
+      final dedupedAttendanceRecords = uniqueAttendanceMap.values.toList();
+
       double totalAttendanceWeightSum = 0.0;
       int totalPeriods = 0;
       int absentCount = 0;
       int lateCount = 0;
       int leaveCount = 0;
 
-      for (final record in attendanceRecords) {
+      for (final record in dedupedAttendanceRecords) {
         final status = record['status'] as String? ?? '';
         final weight = getAttendanceWeight(status);
         if (weight >= 0.0) {
@@ -189,7 +217,10 @@ class StudentPerformanceService {
       // Filter and only show corresponding course subjects
       final List<String> finalSubjectIds = courseSubjectIds.isNotEmpty
           ? courseSubjectIds.toSet().toList()
-          : <String>{...attendanceBySubject.keys, ...marksBySubject.keys}.toList();
+          : <String>{
+              ...attendanceBySubject.keys,
+              ...marksBySubject.keys,
+            }.toList();
 
       final List<SubjectPerformance> subjectWiseList = [];
 
@@ -221,7 +252,7 @@ class StudentPerformanceService {
           subMarksObtained += (m['marks_obtained'] as num?)?.toDouble() ?? 0.0;
           subTotalPossible += (m['total_marks'] as num?)?.toDouble() ?? 0.0;
         }
-        
+
         // Subject proficiency = average marks by all exams
         final subMarksPct = subTotalPossible > 0
             ? (subMarksObtained / subTotalPossible) * 100.0
@@ -509,9 +540,15 @@ class StudentPerformanceService {
       totalExams: exams.length,
       totalPeriods: attendance.length,
       presentPeriods: totalAttendanceWeightSum,
-      absentPeriods: attendance.where((r) => r.status.trim().toLowerCase() == 'absent').length,
-      latePeriods: attendance.where((r) => r.status.trim().toLowerCase() == 'late').length,
-      leavePeriods: attendance.where((r) => r.status.trim().toLowerCase() == 'leave').length,
+      absentPeriods: attendance
+          .where((r) => r.status.trim().toLowerCase() == 'absent')
+          .length,
+      latePeriods: attendance
+          .where((r) => r.status.trim().toLowerCase() == 'late')
+          .length,
+      leavePeriods: attendance
+          .where((r) => r.status.trim().toLowerCase() == 'leave')
+          .length,
     );
   }
 }

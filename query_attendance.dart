@@ -15,7 +15,7 @@ void main() async {
     print('Total records in attendance table: ${response.length}');
     for (var r in response) {
       print(
-        '  - Date: ${r['attendance_date']}, Status: ${r['status']}, Period: ${r['period_number']}, Subject ID: ${r['subject_id']}',
+        '  - ID: ${r['id']}, Date: ${r['attendance_date']}, Status: ${r['status']}, Period: ${r['period_number']}, Subject ID: ${r['subject_id']}, Created: ${r['created_at']}',
       );
     }
   } catch (e) {

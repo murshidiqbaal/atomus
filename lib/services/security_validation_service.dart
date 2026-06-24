@@ -101,7 +101,9 @@ class SecurityValidationService {
       if (rows.isNotEmpty) {
         subjectAssigned = true;
         for (final row in rows) {
-          if (row['batch_id'] == bId) batchAssigned = true;
+          if (row['batch_id'] == null || row['batch_id'] == bId) {
+            batchAssigned = true;
+          }
         }
       }
     } catch (_) {

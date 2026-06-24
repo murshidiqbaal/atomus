@@ -1,18 +1,19 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../repositories/notification_repository.dart';
-import '../services/password_recovery_service.dart' show NavigatorService;
 import '../screens/attendance/attendance_screen.dart';
-import '../screens/marks/marks_screen.dart';
 import '../screens/fees/fees_screen.dart';
-import '../screens/profile/profile_screen.dart';
+import '../screens/marks/marks_screen.dart';
 import '../screens/notifications/notification_screen.dart';
+import '../screens/profile/profile_screen.dart';
 import '../screens/reports/ireports_screen.dart';
+import '../services/password_recovery_service.dart' show NavigatorService;
 
 /// Top-level handler — required to be outside any class.
 /// Called when the app is in background/terminated and a data message arrives.
@@ -28,26 +29,33 @@ class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
 
   // Attendance alert channel (high importance so it shows as a heads-up)
   static const AndroidNotificationChannel _attendanceChannel =
       AndroidNotificationChannel(
-    'atomus_attendance',
-    'Attendance Alerts',
-    description: 'Alerts when a student is marked absent',
-    importance: Importance.max,
-    playSound: true,
-  );
+        'atomus_attendance',
+        'Attendance Alerts',
+        description: 'Alerts when a student is marked absent',
+        importance: Importance.max,
+        playSound: true,
+      );
 
   static const AndroidNotificationChannel _generalChannel =
       AndroidNotificationChannel(
-    'atomus_general',
-    'General Notifications',
-    description: 'Marks, fees and announcement updates',
-    importance: Importance.high,
-  );
+        'atomus_general',
+        'General Notifications',
+        description: 'Marks, fees and announcement updates',
+        importance: Importance.high,
+      );
 
   Future<void> initialize(NotificationRepository repository) async {
+    if (_isInitialized) {
+      await registerDevice(repository);
+      return;
+    }
+    _isInitialized = true;
+
     // Register the background handler before anything else.
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -76,7 +84,8 @@ class NotificationService {
     // Create Android notification channels.
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.createNotificationChannel(_attendanceChannel);
     await androidPlugin?.createNotificationChannel(_generalChannel);
 
@@ -107,8 +116,12 @@ class NotificationService {
       final token = await _fcm.getToken();
       if (token == null) return;
 
-      String platform = Platform.isAndroid ? 'android' : (Platform.isIOS ? 'ios' : 'web');
-      String deviceName = Platform.isAndroid ? 'Android Device' : (Platform.isIOS ? 'iOS Device' : 'Unknown');
+      String platform = Platform.isAndroid
+          ? 'android'
+          : (Platform.isIOS ? 'ios' : 'web');
+      String deviceName = Platform.isAndroid
+          ? 'Android Device'
+          : (Platform.isIOS ? 'iOS Device' : 'Unknown');
       String deviceModel = Platform.localHostname;
       String appVersion = '1.0.0';
 
@@ -119,7 +132,7 @@ class NotificationService {
 
       // Get user type role
       final role = await repository.getRole();
-      
+
       // Explicit registration with device metadata
       await repository.registerDeviceToken(
         token: token,
@@ -165,7 +178,7 @@ class NotificationService {
     Widget? targetScreen;
     switch (type.toLowerCase()) {
       case 'attendance':
-        targetScreen = const AttendanceScreen();
+        targetScreen = const AttendanceScreen(isPlainWhiteBackground: true);
         break;
       case 'marks':
       case 'exam':
@@ -191,11 +204,9 @@ class NotificationService {
         break;
     }
 
-    if (targetScreen != null) {
-      NavigatorService.navigatorKey.currentState?.push(
-        MaterialPageRoute(builder: (_) => targetScreen!),
-      );
-    }
+    NavigatorService.navigatorKey.currentState?.push(
+      MaterialPageRoute(builder: (_) => targetScreen!),
+    );
   }
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
@@ -204,8 +215,12 @@ class NotificationService {
 
     final type = message.data['type'] ?? 'general';
     final refId = message.data['reference_id'] ?? '';
-    final channelId = type == 'attendance' ? _attendanceChannel.id : _generalChannel.id;
-    final channelName = type == 'attendance' ? _attendanceChannel.name : _generalChannel.name;
+    final channelId = type == 'attendance'
+        ? _attendanceChannel.id
+        : _generalChannel.id;
+    final channelName = type == 'attendance'
+        ? _attendanceChannel.name
+        : _generalChannel.name;
 
     final androidDetails = AndroidNotificationDetails(
       channelId,

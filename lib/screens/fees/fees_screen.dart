@@ -246,29 +246,28 @@ class FeesScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // ─── Payment History ───────────────────────────────
-                  if (state.paymentHistory.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _buildSectionHeader(
-                      'Payment History',
-                      Icons.history_rounded,
-                      isDark,
-                    ),
-                    const SizedBox(height: 12),
-                    ...state.paymentHistory
-                        .take(5)
-                        .map(
-                          (txn) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _buildPaymentHistoryTile(
-                              context,
-                              txn,
-                              isDark,
-                            ),
-                          ),
-                        ),
-                  ],
-
+                  // // ─── Payment History ───────────────────────────────
+                  // if (state.paymentHistory.isNotEmpty) ...[
+                  //   const SizedBox(height: 16),
+                  //   _buildSectionHeader(
+                  //     'Payment History',
+                  //     Icons.history_rounded,
+                  //     isDark,
+                  //   ),
+                  //   const SizedBox(height: 12),
+                  //   ...state.paymentHistory
+                  //       .take(5)
+                  //       .map(
+                  //         (txn) => Padding(
+                  //           padding: const EdgeInsets.only(bottom: 8),
+                  //           child: _buildPaymentHistoryTile(
+                  //             context,
+                  //             txn,
+                  //             isDark,
+                  //           ),
+                  //         ),
+                  //       ),
+                  // ],
                   const SizedBox(height: 32),
                 ],
               ),
@@ -1439,114 +1438,114 @@ class FeesScreen extends StatelessWidget {
   // ════════════════════════════════════════════════════════════════
   //  PAYMENT HISTORY TILE
   // ════════════════════════════════════════════════════════════════
-  Widget _buildPaymentHistoryTile(
-    BuildContext context,
-    Map<String, dynamic> txn,
-    bool isDark,
-  ) {
-    final amount = (txn['amount'] ?? 0).toDouble();
-    final dateStr = txn['payment_date']?.toString();
-    final date = dateStr != null
-        ? DateTime.tryParse(dateStr) ?? DateTime.now()
-        : DateTime.now();
-    final method = txn['payment_method']?.toString() ?? 'Online';
-    final status = txn['status']?.toString() ?? 'Success';
-    final refId =
-        txn['transaction_id']?.toString() ?? txn['id']?.toString() ?? '';
-    final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+  // Widget _buildPaymentHistoryTile(
+  //   BuildContext context,
+  //   Map<String, dynamic> txn,
+  //   bool isDark,
+  // ) {
+  //   final amount = (txn['amount'] ?? 0).toDouble();
+  //   final dateStr = txn['payment_date']?.toString();
+  //   final date = dateStr != null
+  //       ? DateTime.tryParse(dateStr) ?? DateTime.now()
+  //       : DateTime.now();
+  //   final method = txn['payment_method']?.toString() ?? 'Online';
+  //   final status = txn['status']?.toString() ?? 'Success';
+  //   final refId =
+  //       txn['transaction_id']?.toString() ?? txn['id']?.toString() ?? '';
+  //   final currencyFmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
-    return NeuBox(
-      borderRadius: 14,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(isDark ? 0.15 : 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.payment_rounded,
-              size: 18,
-              color: AppColors.success,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  currencyFmt.format(amount),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${DateFormat('MMM dd, yyyy').format(date)} • $method',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color:
-                      status.toLowerCase() == 'success' ||
-                          status.toLowerCase() == 'completed'
-                      ? AppColors.success.withOpacity(0.12)
-                      : AppColors.warning.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    color:
-                        status.toLowerCase() == 'success' ||
-                            status.toLowerCase() == 'completed'
-                        ? AppColors.success
-                        : AppColors.warning,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              if (refId.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  refId.length > 12 ? '${refId.substring(0, 12)}…' : refId,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.textSecondaryDark.withOpacity(0.6)
-                        : AppColors.textSecondary.withOpacity(0.6),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  //   return NeuBox(
+  //     borderRadius: 14,
+  //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  //     child: Row(
+  //       children: [
+  //         Container(
+  //           padding: const EdgeInsets.all(8),
+  //           decoration: BoxDecoration(
+  //             color: AppColors.success.withOpacity(isDark ? 0.15 : 0.1),
+  //             borderRadius: BorderRadius.circular(10),
+  //           ),
+  //           child: Icon(
+  //             Icons.payment_rounded,
+  //             size: 18,
+  //             color: AppColors.success,
+  //           ),
+  //         ),
+  //         const SizedBox(width: 12),
+  //         Expanded(
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Text(
+  //                 currencyFmt.format(amount),
+  //                 style: TextStyle(
+  //                   fontWeight: FontWeight.w800,
+  //                   fontSize: 14,
+  //                   color: isDark
+  //                       ? AppColors.textPrimaryDark
+  //                       : AppColors.textPrimary,
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 2),
+  //               Text(
+  //                 '${DateFormat('MMM dd, yyyy').format(date)} • $method',
+  //                 style: TextStyle(
+  //                   fontSize: 11,
+  //                   fontWeight: FontWeight.w600,
+  //                   color: isDark
+  //                       ? AppColors.textSecondaryDark
+  //                       : AppColors.textSecondary,
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //         Column(
+  //           crossAxisAlignment: CrossAxisAlignment.end,
+  //           children: [
+  //             Container(
+  //               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  //               decoration: BoxDecoration(
+  //                 color:
+  //                     status.toLowerCase() == 'success' ||
+  //                         status.toLowerCase() == 'completed'
+  //                     ? AppColors.success.withOpacity(0.12)
+  //                     : AppColors.warning.withOpacity(0.12),
+  //                 borderRadius: BorderRadius.circular(8),
+  //               ),
+  //               child: Text(
+  //                 status.toUpperCase(),
+  //                 style: TextStyle(
+  //                   fontSize: 9,
+  //                   fontWeight: FontWeight.w900,
+  //                   color:
+  //                       status.toLowerCase() == 'success' ||
+  //                           status.toLowerCase() == 'completed'
+  //                       ? AppColors.success
+  //                       : AppColors.warning,
+  //                   letterSpacing: 0.5,
+  //                 ),
+  //               ),
+  //             ),
+  //             if (refId.isNotEmpty) ...[
+  //               const SizedBox(height: 4),
+  //               Text(
+  //                 refId.length > 12 ? '${refId.substring(0, 12)}…' : refId,
+  //                 style: TextStyle(
+  //                   fontSize: 9,
+  //                   fontWeight: FontWeight.w600,
+  //                   color: isDark
+  //                       ? AppColors.textSecondaryDark.withOpacity(0.6)
+  //                       : AppColors.textSecondary.withOpacity(0.6),
+  //                 ),
+  //               ),
+  //             ],
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   // ════════════════════════════════════════════════════════════════
   //  SECTION HEADER

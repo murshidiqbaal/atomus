@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
+
 import '../theme/app_colors.dart';
-import 'neu_box.dart';
 
 class StockChart extends StatefulWidget {
   final List<double> dataPoints; // Values as percentages (0.0 to 100.0)
@@ -59,11 +58,20 @@ class _StockChartState extends State<StockChart> {
           children: [
             // Dotted Background Grid & Line Chart
             GestureDetector(
-              onPanStart: (details) => _updateSelectedIndex(details.localPosition, widthBetweenPoints),
-              onPanUpdate: (details) => _updateSelectedIndex(details.localPosition, widthBetweenPoints),
+              onPanStart: (details) => _updateSelectedIndex(
+                details.localPosition,
+                widthBetweenPoints,
+              ),
+              onPanUpdate: (details) => _updateSelectedIndex(
+                details.localPosition,
+                widthBetweenPoints,
+              ),
               onPanEnd: (_) => _clearSelectedIndex(),
               onPanCancel: () => _clearSelectedIndex(),
-              onTapDown: (details) => _updateSelectedIndex(details.localPosition, widthBetweenPoints),
+              onTapDown: (details) => _updateSelectedIndex(
+                details.localPosition,
+                widthBetweenPoints,
+              ),
               onTapUp: (_) => _clearSelectedIndex(),
               child: SizedBox(
                 height: widget.height,
@@ -80,7 +88,8 @@ class _StockChartState extends State<StockChart> {
             ),
 
             // Tooltip UI
-            if (_selectedIndex != null && _selectedIndex! < widget.dataPoints.length) ...[
+            if (_selectedIndex != null &&
+                _selectedIndex! < widget.dataPoints.length) ...[
               Positioned(
                 left: (_selectedIndex! * widthBetweenPoints - 75).clamp(
                   0.0,
@@ -246,7 +255,9 @@ class _StockChartPainter extends CustomPainter {
 
     // ─── 1. Draw Grid Lines ──────────────────────────────────────────────────
     final gridPaint = Paint()
-      ..color = isDarkMode ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04)
+      ..color = isDarkMode
+          ? Colors.white.withOpacity(0.06)
+          : Colors.black.withOpacity(0.04)
       ..strokeWidth = 1.0;
 
     // Draw horizontal guidelines (25%, 50%, 75%, 100%)
@@ -289,10 +300,7 @@ class _StockChartPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          trendColor.withOpacity(0.25),
-          trendColor.withOpacity(0.0),
-        ],
+        colors: [trendColor.withOpacity(0.25), trendColor.withOpacity(0.0)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(areaPath, areaPaint);
@@ -338,7 +346,12 @@ class _StockChartPainter extends CustomPainter {
       final crosshairPaint = Paint()
         ..color = trendColor.withOpacity(0.5)
         ..strokeWidth = 1.2;
-      _drawVerticalDashedLine(canvas, selectedPoint.dx, size.height, crosshairPaint);
+      _drawVerticalDashedLine(
+        canvas,
+        selectedPoint.dx,
+        size.height,
+        crosshairPaint,
+      );
 
       // Selected point pulse/glow circles
       final Paint pulsePaint = Paint()
@@ -381,7 +394,12 @@ class _StockChartPainter extends CustomPainter {
     }
   }
 
-  void _drawVerticalDashedLine(Canvas canvas, double x, double height, Paint paint) {
+  void _drawVerticalDashedLine(
+    Canvas canvas,
+    double x,
+    double height,
+    Paint paint,
+  ) {
     double startY = 0;
     const double dashHeight = 5;
     const double dashSpace = 4;

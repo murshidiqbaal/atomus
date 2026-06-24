@@ -6,14 +6,12 @@ import '../blocs/auth/auth_bloc.dart';
 import '../blocs/auth/auth_event.dart';
 import '../blocs/auth/auth_state.dart';
 import '../theme/app_colors.dart';
+import '../utils/logger.dart';
 import '../widgets/app_background.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/neu_box.dart';
-import 'forgot_password_screen.dart';
 import 'main_layout.dart';
 import 'teacher/teacher_main_layout.dart';
-
-import '../utils/logger.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -209,28 +207,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 16),
 
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ForgotPasswordScreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Forgot Password?',
-                        style: TextStyle(
-                          color: AppColors.primary.withOpacity(0.7),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-
+                  // Align(
+                  //   alignment: Alignment.centerRight,
+                  //   child: TextButton(
+                  //     onPressed: () {
+                  //       Navigator.of(context).push(
+                  //         MaterialPageRoute(
+                  //           builder: (_) => const ForgotPasswordScreen(),
+                  //         ),
+                  //       );
+                  //     },
+                  //     child: Text(
+                  //       'Forgot Password?',
+                  //       style: TextStyle(
+                  //         color: AppColors.primary.withOpacity(0.7),
+                  //         fontWeight: FontWeight.w700,
+                  //         fontSize: 13,
+                  //         letterSpacing: 0.5,
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                   const SizedBox(height: 40),
 
                   BlocBuilder<AuthBloc, AuthState>(
@@ -321,10 +318,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             mode: LaunchMode.externalApplication,
                           );
                         } else {
-                          AppLogger.warning('LoginScreen', 'Could not launch URL: $uri');
+                          AppLogger.warning(
+                            'LoginScreen',
+                            'Could not launch URL: $uri',
+                          );
                         }
                       } catch (e) {
-                        AppLogger.error('LoginScreen', 'Error launching URL: $uri', e);
+                        AppLogger.error(
+                          'LoginScreen',
+                          'Error launching URL: $uri',
+                          e,
+                        );
                       }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

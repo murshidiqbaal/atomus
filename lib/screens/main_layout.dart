@@ -104,6 +104,12 @@ class MainLayoutState extends State<MainLayout> {
           bottomNavigationBar: BlocBuilder<NotificationBloc, NotificationState>(
             builder: (context, notifState) {
               final unread = notifState.unreadCount;
+              final unreadAttendance = notifState.notifications
+                  .where((n) => !n.isRead && n.type == 'attendance')
+                  .length;
+              final unreadReports = notifState.notifications
+                  .where((n) => !n.isRead && (n.type == 'reports' || n.type == 'report_card'))
+                  .length;
               return Container(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 decoration: const BoxDecoration(color: Colors.transparent),
@@ -115,9 +121,9 @@ class MainLayoutState extends State<MainLayout> {
                     children: [
                       _buildNavItem(LucideIcons.home, 'Home', 0, badgeCount: unread),
                       _buildNavItem(LucideIcons.bookOpen, 'Marks', 1),
-                      _buildNavItem(LucideIcons.calendar, 'Attendance', 2),
+                      _buildNavItem(LucideIcons.calendar, 'Attendance', 2, badgeCount: unreadAttendance),
                       _buildNavItem(LucideIcons.creditCard, 'Fees', 3),
-                      _buildNavItem(LucideIcons.clipboardList, 'Reports', 4, badgeCount: unread),
+                      _buildNavItem(LucideIcons.clipboardList, 'Reports', 4, badgeCount: unreadReports),
                     ],
                   ),
                 ),
