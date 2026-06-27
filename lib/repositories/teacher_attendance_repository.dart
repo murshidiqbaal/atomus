@@ -18,16 +18,25 @@ class TeacherAttendanceRepository {
     required String? batchId,
     required double? latitude,
     required double? longitude,
+    required String sessionType,
   }) async {
     final now   = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
+    // Time-based session guards
+    if (sessionType == 'forenoon' && now.hour >= 13) {
+      throw Exception('Cannot mark attendance for forenoon at this time.');
+    }
+    if (sessionType == 'afternoon' && now.hour < 13) {
+      throw Exception('Cannot mark attendance for afternoon at this time.');
+    }
+
     // Guard: block if an active session already exists in DB
-    final existing = await fetchTodayActiveSession(teacherId);
+    final existing = await fetchTodayActiveSession(teacherId, sessionType);
     if (existing != null) return existing;
 
     // Guard: block if a completed session already exists in DB
-    final completed = await fetchTodayCompletedSession(teacherId);
+    final completed = await fetchTodayCompletedSession(teacherId, sessionType);
     if (completed != null) return completed;
 
     final record = TeacherAttendanceModel(
@@ -41,6 +50,7 @@ class TeacherAttendanceRepository {
       latitude:       latitude,
       longitude:      longitude,
       status:         TeacherAttendanceStatus.active,
+      sessionType:    sessionType,
     );
 
     try {
@@ -64,6 +74,12 @@ class TeacherAttendanceRepository {
   Future<TeacherAttendanceModel> endSession(TeacherAttendanceModel active) async {
     final now      = DateTime.now();
     final duration = now.difference(active.startTime!).inMinutes;
+
+    // Guard: only can punch out if duration is greater than 1 hour (60 minutes)
+    if (duration <= 60) {
+      throw Exception('You can only punch out after 1 hour from punch-in.');
+    }
+
     final updated  = active.copyWith(
       endTime:              now,
       status:               TeacherAttendanceStatus.completed,
@@ -133,22 +149,45 @@ class TeacherAttendanceRepository {
   }
 
   // Fetch today's active session; falls back to Hive when offline.
-  Future<TeacherAttendanceModel?> fetchTodayActiveSession(String teacherId) async {
+  Future<TeacherAttendanceModel?> fetchTodayActiveSession(String teacherId, [String? sessionType]) async {
     try {
       final today = DateTime.now().toIso8601String().split('T').first;
-      final rows  = await _supabase
+      var query = _supabase
           .from('teacher_attendance')
           .select('*, subjects(name)')
           .eq('teacher_id', teacherId)
           .eq('attendance_date', today)
-          .eq('attendance_status', 'Active')
-          .limit(1);
+          .eq('attendance_status', 'Active');
+
+      if (sessionType != null) {
+        query = query.eq('session_type', sessionType);
+      }
+      
+      final rows = await query.limit(1);
 
       if (rows.isEmpty) {
         await _hive.clearActiveSession();
         return null;
       }
       final session = TeacherAttendanceModel.fromMap(rows.first);
+
+      // Auto-punch-out rule: if duration exceeds 4 hours, auto complete it
+      if (session.startTime != null) {
+        final elapsed = DateTime.now().difference(session.startTime!).inMinutes;
+        if (elapsed > 240) {
+          final autoEndTime = session.startTime!.add(const Duration(hours: 4));
+          await _supabase
+              .from('teacher_attendance')
+              .update({
+                'end_time': autoEndTime.toIso8601String(),
+                'attendance_status': TeacherAttendanceStatus.completed.value,
+              })
+              .eq('id', session.id!);
+          await _hive.clearActiveSession();
+          return null; // Active session automatically completed
+        }
+      }
+
       await _hive.saveActiveSession(Map<String, dynamic>.from(rows.first));
       return session;
     } catch (_) {
@@ -156,7 +195,19 @@ class TeacherAttendanceRepository {
       final cached = _hive.getActiveSession();
       if (cached == null) return null;
       try {
-        return TeacherAttendanceModel.fromMap(cached);
+        final model = TeacherAttendanceModel.fromMap(cached);
+        if (sessionType != null && model.sessionType != sessionType) {
+          return null;
+        }
+        if (model.startTime != null) {
+          final elapsed = DateTime.now().difference(model.startTime!).inMinutes;
+          if (elapsed > 240) {
+            await _hive.clearActiveSession();
+            return null;
+          }
+          return model;
+        }
+        return null;
       } catch (_) {
         return null;
       }
@@ -164,7 +215,8 @@ class TeacherAttendanceRepository {
   }
 
   // Fetch today's most recent completed session.
-  Future<TeacherAttendanceModel?> fetchTodayCompletedSession(String teacherId) async {
+  Future<TeacherAttendanceModel?> fetchTodayCompletedSession(String teacherId, [String? sessionType]) async {
+    final type = sessionType ?? (DateTime.now().hour >= 12 ? 'afternoon' : 'forenoon');
     try {
       final today = DateTime.now().toIso8601String().split('T').first;
       final rows  = await _supabase
@@ -173,6 +225,7 @@ class TeacherAttendanceRepository {
           .eq('teacher_id', teacherId)
           .eq('attendance_date', today)
           .eq('attendance_status', 'Completed')
+          .eq('session_type', type)
           .order('end_time', ascending: false)
           .limit(1);
 

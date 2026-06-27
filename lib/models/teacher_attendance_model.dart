@@ -34,6 +34,7 @@ class TeacherAttendanceModel {
   final double? longitude;
   final TeacherAttendanceStatus status;
   final DateTime createdAt;
+  final String sessionType;
 
   TeacherAttendanceModel({
     this.id,
@@ -51,6 +52,7 @@ class TeacherAttendanceModel {
     this.longitude,
     this.status = TeacherAttendanceStatus.active,
     DateTime? createdAt,
+    this.sessionType = 'forenoon',
   })  : totalDurationMinutes = (startTime != null && endTime != null
             ? endTime.difference(startTime).inMinutes
             : totalDurationMinutes),
@@ -87,6 +89,7 @@ class TeacherAttendanceModel {
       createdAt:            map['created_at'] != null
                               ? DateTime.parse(map['created_at'] as String)
                               : DateTime.now(),
+      sessionType:          map['session_type'] as String? ?? 'forenoon',
     );
   }
 
@@ -103,6 +106,7 @@ class TeacherAttendanceModel {
       if (latitude  != null) 'latitude':   latitude,
       if (longitude != null) 'longitude':  longitude,
       'attendance_status': status.value,
+      'session_type':     sessionType,
     };
   }
 
@@ -149,6 +153,7 @@ class TeacherAttendanceModel {
     DateTime? endTime,
     TeacherAttendanceStatus? status,
     int? totalDurationMinutes,
+    String? sessionType,
   }) {
     return TeacherAttendanceModel(
       id:                   id ?? this.id,
@@ -166,6 +171,7 @@ class TeacherAttendanceModel {
       longitude:            longitude,
       status:               status ?? this.status,
       createdAt:            createdAt,
+      sessionType:          sessionType ?? this.sessionType,
     );
   }
 }

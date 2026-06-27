@@ -10,12 +10,15 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
       : _repo = repository,
         super(const TeacherAttendanceState());
 
-  Future<void> loadTodaySession(String teacherId) async {
-    emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading));
+  Future<void> loadTodaySession(String teacherId, {String? sessionType}) async {
+    final type = sessionType ?? state.sessionType;
+    emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading, sessionType: type));
     try {
       final session   = await _repo.fetchTodayActiveSession(teacherId);
+      final resolvedType = session != null ? session.sessionType : type;
+
       final completed = session == null
-          ? await _repo.fetchTodayCompletedSession(teacherId)
+          ? await _repo.fetchTodayCompletedSession(teacherId, resolvedType)
           : null;
       final pct       = await _repo.fetchMonthlyAttendancePercentage(teacherId);
       emit(state.copyWith(
@@ -25,6 +28,7 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
         clearSession:      session == null,
         clearCompleted:    completed == null,
         monthlyPercentage: pct,
+        sessionType:       resolvedType,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -42,6 +46,7 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
     required String? batchId,
     required double? latitude,
     required double? longitude,
+    required String sessionType,
   }) async {
     emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading));
     try {
@@ -53,6 +58,7 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
         batchId:   batchId,
         latitude:  latitude,
         longitude: longitude,
+        sessionType: sessionType,
       );
       emit(state.copyWith(
         status:           TeacherAttendanceLoadStatus.success,
@@ -84,7 +90,7 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
     } catch (e) {
       emit(state.copyWith(
         status:       TeacherAttendanceLoadStatus.failure,
-        errorMessage: e.toString(),
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
       ));
     }
   }

@@ -63,6 +63,101 @@ class DailyReportCubit extends Cubit<DailyReportState> {
     }
   }
 
+  /// Load daily class report and batch students
+  Future<void> loadDailyClassReport({
+    required String courseId,
+    required String batchId,
+    required String subjectId,
+    required DateTime date,
+    required String sessionType,
+    String? campusId,
+  }) async {
+    emit(state.copyWith(status: DailyReportStatus.loading, clearLoadedClassReport: true));
+    try {
+      final studentList = await _repo.fetchStudentsForCourses(
+        courseIds: [courseId],
+        campusId: campusId,
+      );
+
+      final classReport = await _repo.fetchDailyClassReport(
+        courseId: courseId,
+        batchId: batchId,
+        subjectId: subjectId,
+        date: date,
+        sessionType: sessionType,
+      );
+
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.success,
+          students: studentList,
+          loadedClassReport: classReport,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
+    }
+  }
+
+  /// Save daily class report and bulk student reports
+  Future<void> saveDailyClassReport({
+    required String courseId,
+    required String batchId,
+    required String subjectId,
+    required DateTime date,
+    required String sessionType,
+    required String teacherId,
+    required String topicsCovered,
+    String? homework,
+    String? generalRemarks,
+    required List<Map<String, dynamic>> studentReports,
+  }) async {
+    emit(state.copyWith(status: DailyReportStatus.saving));
+    try {
+      await _repo.saveDailyClassReport(
+        courseId: courseId,
+        batchId: batchId,
+        subjectId: subjectId,
+        date: date,
+        sessionType: sessionType,
+        teacherId: teacherId,
+        topicsCovered: topicsCovered,
+        homework: homework,
+        generalRemarks: generalRemarks,
+        studentReports: studentReports,
+      );
+
+      // Reload report details after saving
+      final classReport = await _repo.fetchDailyClassReport(
+        courseId: courseId,
+        batchId: batchId,
+        subjectId: subjectId,
+        date: date,
+        sessionType: sessionType,
+      );
+
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.success,
+          loadedClassReport: classReport,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
+      rethrow;
+    }
+  }
+
   /// Save daily report
   Future<void> saveReport(DailyReportModel report) async {
     emit(state.copyWith(status: DailyReportStatus.saving));

@@ -395,6 +395,164 @@ class _IReportsScreenState extends State<IReportsScreen>
   }
 
   Widget _buildReportCard(DailyReportModel report) {
+    final isNewReport = report.topicsCovered != null;
+
+    if (isNewReport) {
+      final isNeedsImp = report.status == 'need_improvement';
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: CustomCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Row: Session & Date
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      (report.sessionType ?? 'FORENOON').toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'by ${report.teacherName}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+
+              // Topics Covered Section
+              const Text(
+                'Topics Covered Today',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                report.topicsCovered ?? '',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                  height: 1.4,
+                ),
+              ),
+
+              // Homework Section
+              if (report.homework != null && report.homework!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Homework Given Today',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  report.homework!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+
+              // General Remarks Section
+              if (report.generalRemarks != null && report.generalRemarks!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'General Remarks',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  report.generalRemarks!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+
+              // Needs Improvement Yellow Warning Card
+              if (isNeedsImp && report.comment != null && report.comment!.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(LucideIcons.alertTriangle, size: 18, color: Colors.orange),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Academic Attention Required',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Teacher Comments: ${report.comment}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textPrimary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     final behaviorColor = _behaviorColor(report.behaviorRating);
     final engagementColor = _engagementColor(report.studyEngagement);
 

@@ -11,6 +11,7 @@ import '../../models/exam_marks_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/shimmer.dart';
 
 class MarksEntryScreen extends StatefulWidget {
   const MarksEntryScreen({super.key});
@@ -115,7 +116,11 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                 builder: (ctx, state) {
                   if (state.status == MarksLoadStatus.loading &&
                       state.selectedExam == null) {
-                    return const Center(child: CircularProgressIndicator());
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: 4,
+                      itemBuilder: (_, __) => Shimmer.cardSkeleton(height: 110),
+                    );
                   }
 
                   if (state.selectedExam != null) {

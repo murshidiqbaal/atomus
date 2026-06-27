@@ -13,6 +13,7 @@ import '../../models/teacher_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/drive_network_image.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/shimmer.dart';
 import 'teacher_settings_screen.dart';
 
 class TeacherProfileScreen extends StatefulWidget {
@@ -150,7 +151,45 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
 
             if (state.status == TeacherProfileStatus.loading &&
                 teacher == null) {
-              return const Center(child: CircularProgressIndicator());
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 24),
+                    const Center(
+                      child: Shimmer(width: 120, height: 120, borderRadius: 60),
+                    ),
+                    const SizedBox(height: 24),
+                    const Center(
+                      child: Shimmer(width: 180, height: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    const Center(
+                      child: Shimmer(width: 120, height: 14),
+                    ),
+                    const SizedBox(height: 48),
+                    ...List.generate(5, (_) => Padding(
+                      padding: const EdgeInsets.only(bottom: 24.0),
+                      child: Row(
+                        children: [
+                          const Shimmer(width: 40, height: 40, borderRadius: 20),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Shimmer(width: 100, height: 10),
+                                SizedBox(height: 8),
+                                Shimmer(width: 200, height: 14),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
+              );
             }
 
             if (teacher == null) {

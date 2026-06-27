@@ -33,10 +33,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
   String? _filterCourseId;
   String? _filterSubjectId;
+  late String _sessionType;
+  Timer? _elapsedTimer;
 
   @override
   void initState() {
     super.initState();
+    _sessionType = DateTime.now().hour >= 13 ? 'afternoon' : 'forenoon';
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
@@ -45,7 +48,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     if (teacher == null) return;
 
     final cubit = context.read<TeacherAttendanceCubit>();
-    await cubit.loadTodaySession(teacher.id);
+    await cubit.loadTodaySession(teacher.id, sessionType: _sessionType);
     await cubit.loadHistory(teacher.id, month: _selectedMonth);
     if (!mounted) return;
 
@@ -60,9 +63,24 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     });
   }
 
+  void _startElapsedTimer() {
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _stopElapsedTimer() {
+    _elapsedTimer?.cancel();
+    _elapsedTimer = null;
+  }
+
   @override
   void dispose() {
     _geofencePoll?.cancel();
+    _elapsedTimer?.cancel();
     super.dispose();
   }
 
@@ -145,7 +163,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   onRefresh: () async {
                     if (teacher == null) return;
                     final cubit = ctx.read<TeacherAttendanceCubit>();
-                    await cubit.loadTodaySession(teacher.id);
+                    await cubit.loadTodaySession(teacher.id, sessionType: _sessionType);
                     await cubit.loadHistory(teacher.id, month: _selectedMonth);
                     _verifyLocation(silent: true);
                   },
@@ -158,6 +176,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     child: Column(
                       children: [
                         _buildGeofenceBanner(teacher),
+                        const SizedBox(height: 12),
+                        _buildSessionSelector(attState),
                         const SizedBox(height: 12),
                         _buildPunchCard(ctx, attState, teacher),
                         const SizedBox(height: 18),
@@ -184,6 +204,16 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   void _attendanceListener(BuildContext ctx, TeacherAttendanceState state) {
     if (state.status == TeacherAttendanceLoadStatus.success) {
       ctx.read<TeacherDashboardCubit>().load();
+      if (mounted) {
+        setState(() {
+          _sessionType = state.sessionType;
+        });
+      }
+      if (state.hasActiveSession) {
+        _startElapsedTimer();
+      } else {
+        _stopElapsedTimer();
+      }
     }
     if (state.status == TeacherAttendanceLoadStatus.failure) {
       ScaffoldMessenger.of(ctx).showSnackBar(
@@ -334,6 +364,84 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     );
   }
 
+  Widget _buildSessionSelector(TeacherAttendanceState state) {
+    final isForenoon = _sessionType == 'forenoon';
+    return Row(
+      children: [
+        Expanded(
+          child: _sessionButton(
+            label: 'FORENOON',
+            selected: isForenoon,
+            onTap: () {
+              if (_sessionType != 'forenoon') {
+                setState(() {
+                  _sessionType = 'forenoon';
+                });
+                final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+                if (teacher != null) {
+                  context.read<TeacherAttendanceCubit>().loadTodaySession(teacher.id, sessionType: 'forenoon');
+                }
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _sessionButton(
+            label: 'AFTERNOON',
+            selected: !isForenoon,
+            onTap: () {
+              if (_sessionType != 'afternoon') {
+                setState(() {
+                  _sessionType = 'afternoon';
+                });
+                final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+                if (teacher != null) {
+                  context.read<TeacherAttendanceCubit>().loadTodaySession(teacher.id, sessionType: 'afternoon');
+                }
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sessionButton({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary
+              : AppColors.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? AppColors.primary
+                : AppColors.primary.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.textSecondary,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ----------------------------------------------------------------
 
   Widget _buildPunchCard(
@@ -341,6 +449,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     TeacherAttendanceState attState,
     dynamic teacher,
   ) {
+    if (attState.hasActiveSession && _elapsedTimer == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startElapsedTimer());
+    } else if (!attState.hasActiveSession && _elapsedTimer != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _stopElapsedTimer());
+    }
+
     final isLoading = attState.status == TeacherAttendanceLoadStatus.loading;
     final now = DateTime.now();
 
@@ -383,7 +497,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         final noCampus = teacher == null || !teacher.hasCampusCoordinates;
         final insideCampus = noCampus || geo.status == GeofenceStatus.inside;
         final hasFilters = _filterCourseId != null && _filterSubjectId != null;
-        final canPunch = insideCampus && hasFilters;
+        final nowTime = DateTime.now();
+        final isTimeAllowed = (_sessionType == 'forenoon' && nowTime.hour < 13) ||
+                              (_sessionType == 'afternoon' && nowTime.hour >= 13);
+        final canPunch = insideCampus && hasFilters && isTimeAllowed;
 
         String? disabledHint;
         String label = 'PUNCH IN';
@@ -399,6 +516,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           icon = LucideIcons.filter;
           color = AppColors.textSecondary;
           disabledHint = 'Pick a course and a subject before punching in.';
+        } else if (!isTimeAllowed) {
+          label = _sessionType == 'forenoon' ? 'FORENOON NOT ALLOWED' : 'AFTERNOON NOT ALLOWED';
+          icon = LucideIcons.lock;
+          color = AppColors.textSecondary;
+          disabledHint = _sessionType == 'forenoon'
+              ? 'Cannot mark attendance for forenoon at this time.'
+              : 'Cannot mark attendance for afternoon at this time.';
         }
 
         return CustomCard(
@@ -644,7 +768,27 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       builder: (geoCtx, geo) {
         final teacher = context.read<TeacherDashboardCubit>().state.teacher;
         final noCampus = teacher == null || !teacher.hasCampusCoordinates;
-        final canPunchOut = noCampus || geo.status == GeofenceStatus.inside;
+        
+        final elapsedDuration = session.startTime != null
+            ? DateTime.now().difference(session.startTime!)
+            : Duration.zero;
+        final isDurationMet = elapsedDuration.inHours >= 1;
+
+        // Auto-refresh: if more than 4 hours has passed, trigger load to auto-punchout
+        if (elapsedDuration.inMinutes > 240) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !isLoading) {
+              ctx.read<TeacherAttendanceCubit>().loadTodaySession(teacher!.id, sessionType: _sessionType);
+            }
+          });
+        }
+
+        final canPunchOut = (noCampus || geo.status == GeofenceStatus.inside) && isDurationMet;
+
+        final hh = elapsedDuration.inHours.toString().padLeft(2, '0');
+        final mm = (elapsedDuration.inMinutes % 60).toString().padLeft(2, '0');
+        final ss = (elapsedDuration.inSeconds % 60).toString().padLeft(2, '0');
+        final elapsedStr = '$hh:$mm:$ss';
 
         return CustomCard(
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
@@ -661,29 +805,104 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               const SizedBox(height: 16),
               _buildFilters(teacher, isDisabled: true, activeSession: session),
               const SizedBox(height: 16),
+              
+              // Large timer display
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      elapsedStr,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'ELAPSED TIME',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
               Center(
                 child: Text(
                   'Punched in at ${session.startTime != null ? DateFormat('hh:mm a').format(session.startTime!) : '--'}',
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
+                     fontSize: 13,
+                     fontWeight: FontWeight.w600,
+                     color: AppColors.textSecondary,
                   ),
                 ),
               ),
               const SizedBox(height: 18),
-              _buildBigPunchButton(
-                label: canPunchOut ? 'PUNCH OUT' : 'OUTSIDE CAMPUS',
-                icon: canPunchOut ? LucideIcons.square : LucideIcons.lock,
-                color: canPunchOut ? AppColors.error : AppColors.textSecondary,
-                isLoading: isLoading,
-                disabledHint: canPunchOut
-                    ? null
-                    : 'You must be inside the campus radius to punch out.',
-                onPressed: (canPunchOut && !isLoading)
-                    ? () => _confirmEndSession(ctx)
-                    : null,
-              ),
+              
+              if (!isDurationMet) ...[
+                // Countdown representation
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.lock, color: AppColors.warning, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'PUNCH-OUT LOCKED',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.warning,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Minimum session duration is 1 hour. Available in ${(const Duration(hours: 1) - elapsedDuration).inMinutes}m ${(const Duration(hours: 1) - elapsedDuration).inSeconds % 60}s.',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Punch out button
+                _buildBigPunchButton(
+                  label: canPunchOut ? 'PUNCH OUT' : 'OUTSIDE CAMPUS',
+                  icon: canPunchOut ? LucideIcons.square : LucideIcons.lock,
+                  color: canPunchOut ? AppColors.error : AppColors.textSecondary,
+                  isLoading: isLoading,
+                  disabledHint: canPunchOut
+                      ? null
+                      : 'You must be inside the campus radius to punch out.',
+                  onPressed: (canPunchOut && !isLoading)
+                      ? () => _confirmEndSession(ctx)
+                      : null,
+                ),
+              ],
             ],
           ),
         );
@@ -1427,6 +1646,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       batchId: batchId,
       latitude: geo.position?.latitude,
       longitude: geo.position?.longitude,
+      sessionType: _sessionType,
     );
   }
 

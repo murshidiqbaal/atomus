@@ -10,6 +10,7 @@ class TeacherAttendanceState extends Equatable {
   final List<TeacherAttendanceModel> history;
   final double monthlyPercentage;
   final String? errorMessage;
+  final String sessionType; // 'forenoon' or 'afternoon'
 
   const TeacherAttendanceState({
     this.status = TeacherAttendanceLoadStatus.initial,
@@ -18,6 +19,7 @@ class TeacherAttendanceState extends Equatable {
     this.history = const [],
     this.monthlyPercentage = 0,
     this.errorMessage,
+    this.sessionType = 'forenoon',
   });
 
   bool get hasActiveSession => activeSession != null && activeSession!.isActive;
@@ -31,6 +33,7 @@ class TeacherAttendanceState extends Equatable {
     List<TeacherAttendanceModel>? history,
     double? monthlyPercentage,
     String? errorMessage,
+    String? sessionType,
   }) {
     return TeacherAttendanceState(
       status:            status             ?? this.status,
@@ -39,10 +42,11 @@ class TeacherAttendanceState extends Equatable {
       history:           history            ?? this.history,
       monthlyPercentage: monthlyPercentage  ?? this.monthlyPercentage,
       errorMessage:      errorMessage       ?? this.errorMessage,
+      sessionType:      sessionType        ?? this.sessionType,
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, activeSession, completedSession, history, monthlyPercentage, errorMessage];
+      [status, activeSession, completedSession, history, monthlyPercentage, errorMessage, sessionType];
 }

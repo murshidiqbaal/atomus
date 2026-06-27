@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../blocs/daily_report/daily_report_cubit.dart';
 import '../../blocs/daily_report/daily_report_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
-import '../../blocs/teacher_session/teacher_session_cubit.dart';
-import '../../models/daily_report_model.dart';
+import '../../models/teacher_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
+import '../../widgets/custom_card.dart';
 import '../../widgets/neu_box.dart';
-import '../../widgets/drive_network_image.dart';
 
 class TeacherReportsScreen extends StatefulWidget {
   const TeacherReportsScreen({super.key});
@@ -22,60 +20,264 @@ class TeacherReportsScreen extends StatefulWidget {
 }
 
 class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _searchQuery = '';
-
   String? _selectedCourseId;
   String? _selectedCourseName;
+  String? _selectedAssignmentId;
   String? _selectedSubjectId;
   String? _selectedSubjectName;
   String? _selectedBatchId;
   String? _selectedBatchName;
   String? _selectedCampusId;
   DateTime _selectedDate = DateTime.now();
+  String _sessionType = 'forenoon'; // 'forenoon' | 'afternoon'
+
+  // Text inputs controllers
+  final TextEditingController _topicsCtrl = TextEditingController();
+  final TextEditingController _homeworkCtrl = TextEditingController();
+  final TextEditingController _remarksCtrl = TextEditingController();
+
+  // Search input controller
+  final TextEditingController _studentSearchCtrl = TextEditingController();
+  String _studentSearchQuery = '';
+
+  // Student workflow lists
+  List<Map<String, dynamic>> _normalStudents = [];
+  List<Map<String, dynamic>> _needsImprovementStudents = [];
+
+  // Persistent comment controllers per student ID to avoid focus loss
+  final Map<String, TextEditingController> _commentCtrls = {};
 
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final teacher = context.read<TeacherDashboardCubit>().state.teacher;
       if (teacher == null) return;
 
       setState(() {
         _selectedCampusId = teacher.campusId;
-        _selectedCourseId = null; // Default to showing all courses
-        _selectedSubjectId = null; // Default to showing all subjects
-        _selectedBatchId = null;
       });
-      _loadData();
     });
   }
 
   void _loadData() {
-    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
-    if (teacher == null) return;
-
-    // Extract all course IDs assigned to the teacher
-    final assignedCourseIds = teacher.subjects
-        .map((s) => s.courseId)
-        .whereType<String>()
-        .toSet()
-        .union(teacher.courses.map((c) => c.courseId).toSet())
-        .toList();
-
-    context.read<DailyReportCubit>().loadStudentsAndReports(
-          batchId: _selectedBatchId,
-          subjectId: _selectedSubjectId,
+    if (_selectedCourseId == null || _selectedSubjectId == null) return;
+    context.read<DailyReportCubit>().loadDailyClassReport(
+          courseId: _selectedCourseId!,
+          batchId: _selectedBatchId ?? '',
+          subjectId: _selectedSubjectId!,
           date: _selectedDate,
-          courseIds: _selectedCourseId != null ? [_selectedCourseId!] : assignedCourseIds,
+          sessionType: _sessionType,
           campusId: _selectedCampusId,
         );
   }
 
+  void _populateFromLoadedState(DailyReportState state) {
+    setState(() {
+      final report = state.loadedClassReport;
+      if (report != null) {
+        _topicsCtrl.text = report['topics_covered'] as String? ?? '';
+        _homeworkCtrl.text = report['homework'] as String? ?? '';
+        _remarksCtrl.text = report['general_remarks'] as String? ?? '';
+
+        final reportSubjectId = report['subject_id'] as String?;
+        final reportBatchId = report['batch_id'] as String?;
+        final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+        if (teacher != null && reportSubjectId != null && reportBatchId != null) {
+          final match = teacher.subjects.firstWhere(
+            (s) => s.subjectId == reportSubjectId && s.batchId == reportBatchId,
+            orElse: () => const TeacherSubjectAssignment(id: '', subjectId: '', subjectName: ''),
+          );
+          if (match.id.isNotEmpty) {
+            _selectedAssignmentId = match.id;
+          }
+        }
+
+        final childReports = (report['daily_student_reports'] as List? ?? [])
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+
+        final needsImprovementIds = childReports
+            .where((cr) => cr['status'] == 'need_improvement')
+            .map((cr) => cr['student_id'] as String)
+            .toSet();
+
+        final commentsMap = {
+          for (var cr in childReports)
+            if (cr['status'] == 'need_improvement' && cr['comment'] != null)
+              cr['student_id'] as String: cr['comment'] as String
+        };
+
+        _needsImprovementStudents = [];
+        _normalStudents = [];
+
+        for (final student in state.students) {
+          final studentId = student['id'] as String;
+          if (needsImprovementIds.contains(studentId)) {
+            final commentText = commentsMap[studentId] ?? '';
+            final matchingReport = childReports.firstWhere(
+              (cr) => cr['student_id'] == studentId,
+              orElse: () => const <String, dynamic>{},
+            );
+            _needsImprovementStudents.add({
+              ...student,
+              'comment': commentText,
+              'behavior_rating': matchingReport['behavior_rating'] ?? 'Needs Imp.',
+              'study_engagement': matchingReport['study_engagement'] ?? 'Active',
+              'homework_status': matchingReport['homework_status'] ?? 'Completed',
+            });
+            _commentCtrls.putIfAbsent(studentId, () => TextEditingController());
+            _commentCtrls[studentId]!.text = commentText;
+          } else {
+            _normalStudents.add(student);
+          }
+        }
+      } else {
+        _topicsCtrl.clear();
+        _homeworkCtrl.clear();
+        _remarksCtrl.clear();
+        _needsImprovementStudents = [];
+        _normalStudents = List<Map<String, dynamic>>.from(state.students);
+        for (final ctrl in _commentCtrls.values) {
+          ctrl.dispose();
+        }
+        _commentCtrls.clear();
+      }
+    });
+  }
+
+  void _moveStudentToNeedsImprovement(Map<String, dynamic> student) {
+    setState(() {
+      _normalStudents.removeWhere((s) => s['id'] == student['id']);
+      final studentId = student['id'] as String;
+      
+      _commentCtrls.putIfAbsent(studentId, () => TextEditingController());
+      _commentCtrls[studentId]!.text = '';
+
+      _needsImprovementStudents.add({
+        ...student,
+        'comment': '',
+        'behavior_rating': 'Needs Imp.',
+        'study_engagement': 'Active',
+        'homework_status': 'Completed',
+      });
+      _studentSearchCtrl.clear();
+      _studentSearchQuery = '';
+    });
+  }
+
+  void _moveStudentToNormal(Map<String, dynamic> student) {
+    setState(() {
+      _needsImprovementStudents.removeWhere((s) => s['id'] == student['id']);
+      final studentId = student['id'] as String;
+      
+      if (_commentCtrls.containsKey(studentId)) {
+        _commentCtrls[studentId]!.text = '';
+      }
+
+      final cleanStudent = Map<String, dynamic>.from(student)..remove('comment');
+      _normalStudents.add(cleanStudent);
+      _normalStudents.sort((a, b) {
+        final rA = a['roll_number'] as String? ?? '';
+        final rB = b['roll_number'] as String? ?? '';
+        return rA.compareTo(rB);
+      });
+    });
+  }
+
+  void _saveReport() {
+    final topics = _topicsCtrl.text.trim();
+    if (topics.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Topics Covered Today is required.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_normalStudents.isEmpty && _needsImprovementStudents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No students found in this batch.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    for (final student in _needsImprovementStudents) {
+      final studentId = student['id'] as String;
+      final commentText = (_commentCtrls[studentId]?.text ?? '').trim();
+      if (commentText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please enter a comment for ${student['full_name']}.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    if (teacher == null) return;
+
+    final List<Map<String, dynamic>> studentReports = [];
+    for (final s in _normalStudents) {
+      studentReports.add({
+        'student_id': s['id'],
+        'status': 'normal',
+        'comment': null,
+        'behavior_rating': 'Excellent',
+        'study_engagement': 'Active',
+        'homework_status': 'Completed',
+      });
+    }
+    for (final s in _needsImprovementStudents) {
+      final studentId = s['id'] as String;
+      final commentText = (_commentCtrls[studentId]?.text ?? '').trim();
+      studentReports.add({
+        'student_id': studentId,
+        'status': 'need_improvement',
+        'comment': commentText,
+        'behavior_rating': s['behavior_rating'] ?? 'Needs Imp.',
+        'study_engagement': s['study_engagement'] ?? 'Active',
+        'homework_status': s['homework_status'] ?? 'Completed',
+      });
+    }
+
+    context.read<DailyReportCubit>().saveDailyClassReport(
+      courseId: _selectedCourseId!,
+      batchId: _selectedBatchId ?? '',
+      subjectId: _selectedSubjectId!,
+      date: _selectedDate,
+      sessionType: _sessionType,
+      teacherId: teacher.id,
+      topicsCovered: topics,
+      homework: _homeworkCtrl.text.trim().isEmpty ? null : _homeworkCtrl.text.trim(),
+      generalRemarks: _remarksCtrl.text.trim().isEmpty ? null : _remarksCtrl.text.trim(),
+      studentReports: studentReports,
+    ).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Daily class report saved successfully!'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    });
+  }
+
   @override
   void dispose() {
-    _searchCtrl.dispose();
+    _topicsCtrl.dispose();
+    _homeworkCtrl.dispose();
+    _remarksCtrl.dispose();
+    _studentSearchCtrl.dispose();
+    for (final ctrl in _commentCtrls.values) {
+      ctrl.dispose();
+    }
     super.dispose();
   }
 
@@ -88,7 +290,7 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: const Text(
-            'Daily Reports',
+            'Daily Class Report',
             style: TextStyle(
               fontWeight: FontWeight.w900,
               fontSize: 16,
@@ -99,6 +301,9 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
         ),
         body: BlocConsumer<DailyReportCubit, DailyReportState>(
           listener: (context, state) {
+            if (state.status == DailyReportStatus.success) {
+              _populateFromLoadedState(state);
+            }
             if (state.status == DailyReportStatus.failure) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -113,40 +318,41 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
             }
           },
           builder: (context, state) {
-            final filteredStudents = _filterStudents(state.students);
+            final hasSelection = _selectedCourseId != null && _selectedSubjectId != null;
 
             return Column(
               children: [
-                _buildFilters(context),
-                _buildSearchBar(),
+                _buildWorkspaceSelectors(),
                 Expanded(
-                  child: state.status == DailyReportStatus.loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : RefreshIndicator(
-                          onRefresh: () async => _loadData(),
-                          child: filteredStudents.isEmpty
-                              ? _buildEmptyState()
-                              : ListView.builder(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  padding: const EdgeInsets.all(16),
-                                  itemCount: filteredStudents.length,
-                                  itemBuilder: (context, index) {
-                                    final student = filteredStudents[index];
-                                    final studentId = student['id'] as String;
-                                    final report = state.reports[studentId];
-
-                                    return _StudentReportCard(
-                                      student: student,
-                                      report: report,
-                                      onTap: () => _openReportSetupSheet(
-                                        context,
-                                        student,
-                                        report,
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
+                  child: !hasSelection
+                      ? _buildInitialEmptyState()
+                      : state.status == DailyReportStatus.loading
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildSessionStatsCard(),
+                                  const SizedBox(height: 16),
+                                  _buildSearchAndAddCard(),
+                                  const SizedBox(height: 16),
+                                  _buildNeedsImprovementCard(),
+                                  const SizedBox(height: 16),
+                                  _buildTopicsCard(),
+                                  const SizedBox(height: 16),
+                                  _buildHomeworkCard(),
+                                  const SizedBox(height: 16),
+                                  _buildRemarksCard(),
+                                  const SizedBox(height: 24),
+                                  _buildSaveButton(state),
+                                ],
+                              ),
+                            ),
                 ),
               ],
             );
@@ -156,14 +362,13 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
     );
   }
 
-  Widget _buildFilters(BuildContext context) {
+  Widget _buildWorkspaceSelectors() {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null) return const SizedBox.shrink();
 
     final allCourses = teacher.courses;
     final allSubjects = teacher.subjects;
 
-    // Deduplicate courses
     final courseMap = <String, String>{};
     for (final c in allCourses) {
       courseMap[c.courseId] = c.courseName;
@@ -177,188 +382,297 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
 
     final filteredSubjects = _selectedCourseId != null
         ? allSubjects.where((s) => s.courseId == _selectedCourseId).toList()
-        : allSubjects;
+        : <TeacherSubjectAssignment>[];
 
-    final currentSubjectKey = _selectedSubjectId != null && _selectedBatchId != null
-        ? '${_selectedSubjectId}_$_selectedBatchId'
-        : null;
-
-    final subjectStillValid = currentSubjectKey == null || filteredSubjects.any(
-      (s) => '${s.subjectId}_${s.batchId ?? ''}' == currentSubjectKey,
-    );
-
-    if (!subjectStillValid) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _selectedSubjectId = null;
-          _selectedSubjectName = null;
-          _selectedBatchId = null;
-          _selectedBatchName = null;
-        });
-        _loadData();
-      });
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.4),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.textSecondary.withOpacity(0.1),
+          ),
+        ),
+      ),
+      child: Column(
         children: [
-          Expanded(
-            flex: 4,
-            child: _buildFilterDropdown<String?>(
-              label: 'COURSE',
-              value: _selectedCourseId,
-              hint: 'All Courses',
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text(
-                    'All Courses',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                ...courseEntries.map(
-                  (e) => DropdownMenuItem<String?>(
-                    value: e.key,
-                    child: Text(
-                      e.value,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              Expanded(
+                child: _buildSelectorDropdown<String?>(
+                  label: 'COURSE',
+                  value: courseEntries.any((e) => e.key == _selectedCourseId)
+                      ? _selectedCourseId
+                      : null,
+                  hint: 'Select Course',
+                  items: courseEntries.map(
+                    (e) => DropdownMenuItem<String?>(
+                      value: e.key,
+                      child: Text(
+                        e.value,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ),
+                  ).toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      _selectedCourseId = val;
+                      _selectedCourseName = val != null ? courseMap[val] : null;
+                      _selectedAssignmentId = null;
+                      _selectedSubjectId = null;
+                      _selectedSubjectName = null;
+                      _selectedBatchId = null;
+                      _selectedBatchName = null;
+                      _normalStudents = [];
+                      _needsImprovementStudents = [];
+                    });
+                  },
                 ),
-              ],
-              onChanged: (val) {
-                setState(() {
-                  _selectedCourseId = val;
-                  _selectedCourseName = val != null ? courseMap[val] : null;
-                  // Reset subject filter when course changes
-                  _selectedSubjectId = null;
-                  _selectedSubjectName = null;
-                  _selectedBatchId = null;
-                  _selectedBatchName = null;
-                });
-                _loadData();
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 5,
-            child: _buildFilterDropdown<String?>(
-              label: 'SUBJECT',
-              value: currentSubjectKey,
-              hint: 'All Subjects',
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text(
-                    'All Subjects',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                ...filteredSubjects.map(
-                  (s) => DropdownMenuItem<String?>(
-                    value: '${s.subjectId}_${s.batchId ?? ''}',
-                    child: Text(
-                      '${s.subjectName}${s.batchName != null ? " · ${s.batchName}" : ""}',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildSelectorDropdown<String?>(
+                  label: 'SUBJECT',
+                  value: filteredSubjects.any((s) => s.id == _selectedAssignmentId)
+                      ? _selectedAssignmentId
+                      : null,
+                  hint: 'Select Subject',
+                  items: filteredSubjects.map(
+                    (s) => DropdownMenuItem<String?>(
+                      value: s.id,
+                      child: Text(
+                        '${s.subjectName}${s.batchName != null ? " · ${s.batchName}" : ""}',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ),
+                  ).toList(),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    final match = filteredSubjects.firstWhere((x) => x.id == val);
+                    setState(() {
+                      _selectedAssignmentId = val;
+                      _selectedSubjectId = match.subjectId;
+                      _selectedSubjectName = match.subjectName;
+                      _selectedBatchId = match.batchId;
+                      _selectedBatchName = match.batchName;
+                    });
+                    _loadData();
+                  },
                 ),
-              ],
-              onChanged: (val) {
-                if (val == null) {
-                  setState(() {
-                    _selectedSubjectId = null;
-                    _selectedSubjectName = null;
-                    _selectedBatchId = null;
-                    _selectedBatchName = null;
-                  });
-                } else {
-                  final match = filteredSubjects.firstWhere(
-                    (x) => '${x.subjectId}_${x.batchId ?? ''}' == val,
-                  );
-                  setState(() {
-                    _selectedSubjectId = match.subjectId;
-                    _selectedSubjectName = match.subjectName;
-                    _selectedBatchId = match.batchId;
-                    _selectedBatchName = match.batchName;
-                  });
-                }
-                _loadData();
-              },
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          _buildDateChip(context),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'REPORT DATE',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: AppColors.primary,
+                                  onPrimary: Colors.white,
+                                  onSurface: AppColors.textPrimary,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedDate = picked;
+                          });
+                          _loadData();
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.textSecondary.withOpacity(0.15),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              DateFormat('yyyy-MM-dd').format(_selectedDate),
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            const Icon(LucideIcons.calendar, size: 14, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'SESSION',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _sessionType = 'forenoon';
+                              });
+                              _loadData();
+                            },
+                            child: Container(
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _sessionType == 'forenoon'
+                                    ? AppColors.primary
+                                    : Theme.of(context).scaffoldBackgroundColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  bottomLeft: Radius.circular(12),
+                                ),
+                                border: Border.all(
+                                  color: _sessionType == 'forenoon'
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary.withOpacity(0.15),
+                                ),
+                              ),
+                              child: Text(
+                                'FORENOON',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _sessionType == 'forenoon' ? Colors.white : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _sessionType = 'afternoon';
+                              });
+                              _loadData();
+                            },
+                            child: Container(
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _sessionType == 'afternoon'
+                                    ? AppColors.primary
+                                    : Theme.of(context).scaffoldBackgroundColor,
+                                borderRadius: const BorderRadius.only(
+                                  topRight: Radius.circular(12),
+                                  bottomRight: Radius.circular(12),
+                                ),
+                                border: Border.all(
+                                  color: _sessionType == 'afternoon'
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary.withOpacity(0.15),
+                                ),
+                              ),
+                              child: Text(
+                                'AFTERNOON',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _sessionType == 'afternoon' ? Colors.white : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterDropdown<T>({
+  Widget _buildSelectorDropdown<T>({
     required String label,
-    required T? value,
+    required T value,
     required String hint,
     required List<DropdownMenuItem<T>> items,
-    required ValueChanged<T?>? onChanged,
+    required void Function(T) onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 4),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-              color: AppColors.textSecondary,
-            ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textSecondary,
+            letterSpacing: 0.5,
           ),
         ),
+        const SizedBox(height: 4),
         Container(
-          height: 42,
+          height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.04),
+            color: Theme.of(context).scaffoldBackgroundColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.textSecondary.withOpacity(0.15),
             ),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
               value: value,
-              hint: Text(
-                hint,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+              hint: Text(hint, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
               items: items,
-              onChanged: onChanged,
+              onChanged: (val) {
+                if (val != null) onChanged(val);
+              },
               isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
               borderRadius: BorderRadius.circular(12),
             ),
           ),
@@ -367,687 +681,563 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
     );
   }
 
-  Widget _buildDateChip(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 4),
-          child: Text(
-            'DATE',
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () async {
-            final now = DateTime.now();
-            final date = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate,
-              firstDate: DateTime(now.year - 1),
-              lastDate: now,
-            );
-            if (date != null) {
-              setState(() => _selectedDate = date);
-              _loadData();
-            }
-          },
-          child: Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.primary.withOpacity(0.15),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  LucideIcons.calendar,
-                  size: 14,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  DateFormat('d MMM').format(_selectedDate),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: NeuInset(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        borderRadius: 14,
-        child: TextField(
-          controller: _searchCtrl,
-          onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          decoration: InputDecoration(
-            hintText: 'Search student...',
-            hintStyle: const TextStyle(color: AppColors.textSecondary),
-            prefixIcon: const Icon(
-              LucideIcons.search,
-              size: 18,
-              color: AppColors.primary,
-            ),
-            suffixIcon: _searchQuery.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(LucideIcons.x, size: 16),
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      setState(() => _searchQuery = '');
-                    },
-                  )
-                : null,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<Map<String, dynamic>> _filterStudents(List<Map<String, dynamic>> students) {
-    if (_searchQuery.isEmpty) return students;
-    return students.where((s) {
-      final name = (s['full_name'] as String? ?? '').toLowerCase();
-      final roll = (s['roll_number'] as String? ?? '').toLowerCase();
-      return name.contains(_searchQuery) || roll.contains(_searchQuery);
-    }).toList();
-  }
-
-  Widget _buildEmptyState() {
+  Widget _buildInitialEmptyState() {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            LucideIcons.users,
-            size: 48,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No students found',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openReportSetupSheet(
-    BuildContext context,
-    Map<String, dynamic> student,
-    DailyReportModel? existingReport,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return _ReportSetupSheet(
-          student: student,
-          existingReport: existingReport,
-          subjectId: _selectedSubjectId,
-          subjectName: _selectedSubjectName,
-          date: _selectedDate,
-          cubit: context.read<DailyReportCubit>(),
-        );
-      },
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Student Report Tile Card
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _StudentReportCard extends StatelessWidget {
-  final Map<String, dynamic> student;
-  final DailyReportModel? report;
-  final VoidCallback onTap;
-
-  const _StudentReportCard({
-    required this.student,
-    required this.report,
-    required this.onTap,
-  });
-
-  String _getInitials(String fullName) {
-    final parts = fullName.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-    }
-    return fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final name = student['full_name'] as String? ?? 'Student';
-    final roll = student['roll_number'] as String? ?? 'N/A';
-    final driveId = student['profile_photo_drive_id'] as String?;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: NeuBox(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        borderRadius: 18,
-        onTap: onTap,
-        child: Row(
-          children: [
-            DriveAvatarImage(
-              driveId: driveId,
-              radius: 24,
-              initials: _getInitials(name),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Roll No: $roll',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _buildStatusBadge(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(BuildContext context) {
-    final isReportSet = report != null;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: isReportSet
-            ? AppColors.success.withOpacity(isDark ? 0.15 : 0.08)
-            : AppColors.textSecondary.withOpacity(isDark ? 0.15 : 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isReportSet
-              ? AppColors.success.withOpacity(0.25)
-              : AppColors.textSecondary.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isReportSet ? LucideIcons.checkCircle2 : LucideIcons.circleDot,
-            size: 12,
-            color: isReportSet ? AppColors.success : AppColors.textSecondary,
+          NeuBox(
+            width: 80,
+            height: 80,
+            borderRadius: 24,
+            child: const Icon(
+              LucideIcons.clipboardList,
+              color: AppColors.textSecondary,
+              size: 32,
+            ),
           ),
-          const SizedBox(width: 6),
-          Text(
-            isReportSet ? 'Report Set' : 'Pending',
+          const SizedBox(height: 20),
+          const Text(
+            'Daily Class Report Workspace',
             style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: isReportSet ? AppColors.success : AppColors.textSecondary,
-              letterSpacing: 0.3,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Select Course & Batch to write report',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
             ),
           ),
         ],
       ),
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Daily Report Setup Dialog/Sheet
-// ─────────────────────────────────────────────────────────────────────────────
+  Widget _buildSessionStatsCard() {
+    final total = _normalStudents.length + _needsImprovementStudents.length;
+    final normalCount = _normalStudents.length;
+    final needsImpCount = _needsImprovementStudents.length;
 
-class _ReportSetupSheet extends StatefulWidget {
-  final Map<String, dynamic> student;
-  final DailyReportModel? existingReport;
-  final String? subjectId;
-  final String? subjectName;
-  final DateTime date;
-  final DailyReportCubit cubit;
-
-  const _ReportSetupSheet({
-    required this.student,
-    required this.existingReport,
-    this.subjectId,
-    this.subjectName,
-    required this.date,
-    required this.cubit,
-  });
-
-  @override
-  State<_ReportSetupSheet> createState() => _ReportSetupSheetState();
-}
-
-class _ReportSetupSheetState extends State<_ReportSetupSheet> {
-  late String _selectedBehavior;
-  late String _selectedEngagement;
-  late String _selectedHomework;
-  final TextEditingController _remarksCtrl = TextEditingController();
-
-  final List<Map<String, String>> _behaviorRatings = [
-    {'emoji': '😠', 'label': 'Poor'},
-    {'emoji': '😟', 'label': 'Needs Imp.'},
-    {'emoji': '😐', 'label': 'Average'},
-    {'emoji': '😊', 'label': 'Good'},
-    {'emoji': '🌟', 'label': 'Excellent'},
-  ];
-
-  final List<String> _engagementOptions = ['Active', 'Passive', 'Distracted'];
-  final List<String> _homeworkOptions = ['Completed', 'Partial', 'Not Completed', 'N/A'];
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.existingReport != null) {
-      _selectedBehavior = widget.existingReport!.behaviorRating;
-      _selectedEngagement = widget.existingReport!.studyEngagement;
-      _selectedHomework = widget.existingReport!.homeworkStatus;
-      _remarksCtrl.text = widget.existingReport!.remarks;
-    } else {
-      _selectedBehavior = 'Good';
-      _selectedEngagement = 'Active';
-      _selectedHomework = 'Completed';
-    }
-  }
-
-  @override
-  void dispose() {
-    _remarksCtrl.dispose();
-    super.dispose();
-  }
-
-  void _onSave(BuildContext context) {
-    final sessionState = context.read<TeacherSessionCubit>().state;
-    final dashTeacher = context.read<TeacherDashboardCubit>().state.teacher;
-
-    final String teacherId = sessionState.teacherId ?? dashTeacher?.id ?? 'unknown';
-    final String teacherName = sessionState.teacherId != null
-        ? (sessionState.teacherName ?? 'Teacher')
-        : (dashTeacher?.fullName ?? 'Teacher');
-
-    final report = DailyReportModel(
-      id: widget.existingReport?.id ?? const Uuid().v4(),
-      studentId: widget.student['id'] as String,
-      subjectId: widget.subjectId,
-      dateStr: widget.date.toIso8601String().split('T').first,
-      behaviorRating: _selectedBehavior,
-      studyEngagement: _selectedEngagement,
-      homeworkStatus: _selectedHomework,
-      remarks: _remarksCtrl.text.trim(),
-      teacherId: teacherId,
-      teacherName: teacherName,
-      createdAt: widget.existingReport?.createdAt ?? DateTime.now(),
-    );
-
-    widget.cubit.saveReport(report);
-    Navigator.of(context).pop();
-  }
-
-  void _onDelete(BuildContext context) {
-    widget.cubit.deleteReport(
-      studentId: widget.student['id'] as String,
-      subjectId: widget.subjectId,
-      date: widget.date,
-    );
-    Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final studentName = widget.student['full_name'] as String? ?? 'Student';
-    final titleLabel = widget.subjectName != null
-        ? 'Report for ${widget.subjectName}'
-        : 'General Daily Report';
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : AppColors.neuBase,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '👨🎓 Students Overview',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
           ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle Bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.textSecondary.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const Text('🟢 ', style: TextStyle(fontSize: 14)),
+              Text(
+                'Normal Students: $normalCount',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
-            ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('🟡 ', style: TextStyle(fontSize: 14)),
+              Text(
+                'Need Improvement: $needsImpCount',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('🔵 ', style: TextStyle(fontSize: 14)),
+              Text(
+                'Total Students: $total',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+          if (_normalStudents.isNotEmpty) ...[
             const SizedBox(height: 16),
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Setup Daily Report',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        studentName,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        titleLabel,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  DateFormat('dd MMM yyyy').format(widget.date),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            // Section 1: Behavior Rating
+            const Divider(height: 1),
+            const SizedBox(height: 12),
             const Text(
-              'BEHAVIOR RATING',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: _behaviorRatings.map((br) {
-                final isSel = _selectedBehavior == br['label'];
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedBehavior = br['label']!),
-                  child: Column(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isSel
-                              ? AppColors.primary.withOpacity(0.12)
-                              : Colors.transparent,
-                          border: Border.all(
-                            color: isSel ? AppColors.primary : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          br['emoji']!,
-                          style: const TextStyle(fontSize: 22),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        br['label']!,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                          color: isSel ? AppColors.primary : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 20),
-            // Section 2: Study Engagement
-            const Text(
-              'CLASS ENGAGEMENT',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: _engagementOptions.map((opt) {
-                final isSel = _selectedEngagement == opt;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(
-                      label: Text(opt),
-                      selected: isSel,
-                      onSelected: (val) {
-                        if (val) setState(() => _selectedEngagement = opt);
-                      },
-                      labelStyle: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: isSel
-                            ? Colors.white
-                            : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimary),
-                      ),
-                      selectedColor: AppColors.primary,
-                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white.withOpacity(0.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(
-                          color: isSel ? AppColors.primary : Colors.transparent,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 20),
-            // Section 3: Homework Completion
-            const Text(
-              'HOMEWORK STATUS',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: AppColors.textSecondary,
-              ),
+              'Normal Students (Tap to mark for improvement):',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _homeworkOptions.map((opt) {
-                final isSel = _selectedHomework == opt;
-                return ChoiceChip(
-                  label: Text(opt),
-                  selected: isSel,
-                  onSelected: (val) {
-                    if (val) setState(() => _selectedHomework = opt);
-                  },
-                  labelStyle: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: isSel
-                        ? Colors.white
-                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimary),
-                  ),
-                  selectedColor: AppColors.primary,
-                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white.withOpacity(0.4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(
-                      color: isSel ? AppColors.primary : Colors.transparent,
+              spacing: 6,
+              runSpacing: 6,
+              children: _normalStudents.map((s) {
+                return InkWell(
+                  onTap: () => _moveStudentToNeedsImprovement(s),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Chip(
+                    label: Text(
+                      s['full_name'] as String? ?? 'Student',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                     ),
+                    backgroundColor: AppColors.success.withOpacity(0.08),
+                    side: BorderSide(color: AppColors.success.withOpacity(0.2)),
+                    padding: EdgeInsets.zero,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 );
               }).toList(),
             ),
-            const SizedBox(height: 20),
-            // Section 4: Remarks
-            const Text(
-              'REMARKS / OBSERVATIONS',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: AppColors.textSecondary,
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndAddCard() {
+    final filteredNormal = _normalStudents.where((s) {
+      final name = (s['full_name'] as String? ?? '').toLowerCase();
+      return name.contains(_studentSearchQuery.toLowerCase());
+    }).toList();
+
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '🔍 Need Improvement Students',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _studentSearchCtrl,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Search Student...........',
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.textSecondary.withOpacity(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary),
               ),
             ),
-            const SizedBox(height: 8),
-            NeuInset(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              borderRadius: 14,
-              child: TextField(
-                controller: _remarksCtrl,
-                maxLines: 3,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                decoration: const InputDecoration(
-                  hintText: 'Enter teacher observations or remarks...',
-                  hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                  border: InputBorder.none,
-                ),
-              ),
+            onChanged: (val) {
+              setState(() {
+                _studentSearchQuery = val;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 180),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.textSecondary.withOpacity(0.1)),
             ),
-            const SizedBox(height: 24),
-            // Actions
-            Row(
-              children: [
-                if (widget.existingReport != null) ...[
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _onDelete(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+            child: filteredNormal.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'No matching students found.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: filteredNormal.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final s = filteredNormal[index];
+                      return ListTile(
+                        title: Text(
+                          s['full_name'] as String? ?? '',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                        trailing: GestureDetector(
+                          onTap: () => _moveStudentToNeedsImprovement(s),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            child: const Text(
+                              '[+]',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        dense: true,
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNeedsImprovementCard() {
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '⚠️ Need Improvement Students',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_needsImprovementStudents.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'No students marked for improvement today.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: _needsImprovementStudents.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final student = _needsImprovementStudents[index];
+                final studentId = student['id'] as String;
+                final ctrl = _commentCtrls[studentId];
+
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.warning.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            student['full_name'] as String? ?? '',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                          GestureDetector(
+                            onTap: () => _moveStudentToNormal(student),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Text(
+                                '❌',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStudentFieldDropdown<String>(
+                              label: 'BEHAVIOR',
+                              value: student['behavior_rating'] as String? ?? 'Needs Imp.',
+                              items: const ['Excellent', 'Good', 'Average', 'Needs Imp.', 'Poor'],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    student['behavior_rating'] = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildStudentFieldDropdown<String>(
+                              label: 'ENGAGEMENT',
+                              value: student['study_engagement'] as String? ?? 'Active',
+                              items: const ['Active', 'Passive', 'Distracted'],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    student['study_engagement'] = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildStudentFieldDropdown<String>(
+                              label: 'HOMEWORK',
+                              value: student['homework_status'] as String? ?? 'Completed',
+                              items: const ['Completed', 'Not Completed', 'Partial', 'N/A'],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    student['homework_status'] = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Comments:',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                      icon: const Icon(LucideIcons.trash2, size: 16),
-                      label: const Text(
-                        'Delete',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: ctrl,
+                        maxLines: 3,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: 'Needs improvement in...',
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.textSecondary.withOpacity(0.2)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.warning),
+                          ),
+                        ),
+                        onChanged: (val) {
+                          student['comment'] = val;
+                        },
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _onSave(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 2,
-                    ),
-                    icon: const Icon(LucideIcons.save, size: 16, color: Colors.white),
-                    label: const Text(
-                      'Save Report',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopicsCard() {
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Topics Covered Today',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 4),
+              const Text('*', style: TextStyle(color: AppColors.error)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _topicsCtrl,
+            maxLines: 4,
+            maxLength: 2000,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Enter topics covered today...',
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.textSecondary.withOpacity(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeworkCard() {
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Homework Given Today',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _homeworkCtrl,
+            maxLines: 4,
+            maxLength: 2000,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Enter homework details (optional)...',
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.textSecondary.withOpacity(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemarksCard() {
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'General Remarks',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _remarksCtrl,
+            maxLines: 4,
+            maxLength: 2000,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Enter general class remarks (optional)...',
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.textSecondary.withOpacity(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(DailyReportState state) {
+    final isSaving = state.status == DailyReportStatus.saving;
+    return ElevatedButton(
+      onPressed: isSaving ? null : _saveReport,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
+      child: isSaving
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+            )
+          : const Text(
+              'Save Report',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+    );
+  }
+
+  Widget _buildStudentFieldDropdown<T>({
+    required String label,
+    required T value,
+    required List<T> items,
+    required void Function(T?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.0,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppColors.textSecondary.withOpacity(0.15),
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+              items: items.map((val) {
+                return DropdownMenuItem<T>(
+                  value: val,
+                  child: Text(
+                    val.toString(),
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

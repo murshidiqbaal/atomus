@@ -126,5 +126,39 @@ void main() {
       expect(longSession.durationLabel, '2h 15m');
       expect(longSession.totalDurationMinutes, 135);
     });
+
+    test('sessionType defaults to forenoon and can be customized', () {
+      final defaultSession = TeacherAttendanceModel(
+        teacherId: 't1',
+        attendanceDate: DateTime.now(),
+      );
+      expect(defaultSession.sessionType, 'forenoon');
+
+      final afternoonSession = TeacherAttendanceModel(
+        teacherId: 't1',
+        attendanceDate: DateTime.now(),
+        sessionType: 'afternoon',
+      );
+      expect(afternoonSession.sessionType, 'afternoon');
+    });
+
+    test('toInsertMap and fromMap handle session_type correctly', () {
+      final today = DateTime.now();
+      final model = TeacherAttendanceModel(
+        teacherId: 't1',
+        attendanceDate: today,
+        sessionType: 'afternoon',
+      );
+
+      final map = model.toInsertMap();
+      expect(map['session_type'], 'afternoon');
+
+      final fromMapModel = TeacherAttendanceModel.fromMap({
+        'teacher_id': 't1',
+        'attendance_date': today.toIso8601String().split('T').first,
+        'session_type': 'afternoon',
+      });
+      expect(fromMapModel.sessionType, 'afternoon');
+    });
   });
 }

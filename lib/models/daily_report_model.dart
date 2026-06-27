@@ -12,6 +12,14 @@ class DailyReportModel {
   final DateTime createdAt;
   final String? subjectName;
 
+  // New fields for daily class reports
+  final String? status; // 'normal' | 'need_improvement'
+  final String? comment;
+  final String? sessionType; // 'forenoon' | 'afternoon'
+  final String? topicsCovered;
+  final String? homework;
+  final String? generalRemarks;
+
   DailyReportModel({
     required this.id,
     required this.studentId,
@@ -25,6 +33,12 @@ class DailyReportModel {
     required this.teacherName,
     required this.createdAt,
     this.subjectName,
+    this.status,
+    this.comment,
+    this.sessionType,
+    this.topicsCovered,
+    this.homework,
+    this.generalRemarks,
   });
 
   Map<String, dynamic> toMap() {
@@ -40,10 +54,45 @@ class DailyReportModel {
       'teacher_id': teacherId,
       'teacher_name': teacherName,
       'created_at': createdAt.toIso8601String(),
+      'status': status,
+      'comment': comment,
+      'session_type': sessionType,
+      'topics_covered': topicsCovered,
+      'homework': homework,
+      'general_remarks': generalRemarks,
     };
   }
 
   factory DailyReportModel.fromMap(Map<String, dynamic> map) {
+    // If the map contains fields from daily_student_reports joined with daily_class_reports
+    if (map.containsKey('status') || map.containsKey('daily_class_reports')) {
+      final classReport = map['daily_class_reports'] as Map<String, dynamic>?;
+      final teacherMap = classReport?['teachers'] as Map<String, dynamic>?;
+      final teacherName = teacherMap?['full_name'] as String? ?? classReport?['teacher_name'] as String? ?? '';
+      return DailyReportModel(
+        id: map['id'] as String,
+        studentId: map['student_id'] as String,
+        subjectId: classReport?['subject_id'] as String?,
+        dateStr: classReport?['report_date'] as String? ?? map['date_str'] as String? ?? '',
+        behaviorRating: map['status'] == 'need_improvement' ? 'Needs Improvement' : 'Excellent',
+        studyEngagement: 'Active',
+        homeworkStatus: 'Completed',
+        remarks: map['comment'] as String? ?? '',
+        teacherId: classReport?['teacher_id'] as String? ?? '',
+        teacherName: teacherName,
+        createdAt: DateTime.parse(
+          map['created_at'] as String? ?? DateTime.now().toIso8601String(),
+        ),
+        subjectName: classReport?['subjects']?['name']?.toString() ?? classReport?['subject_name']?.toString(),
+        status: map['status'] as String?,
+        comment: map['comment'] as String?,
+        sessionType: classReport?['session_type'] as String?,
+        topicsCovered: classReport?['topics_covered'] as String?,
+        homework: classReport?['homework'] as String?,
+        generalRemarks: classReport?['general_remarks'] as String?,
+      );
+    }
+
     return DailyReportModel(
       id: map['id'] as String,
       studentId: map['student_id'] as String,
@@ -59,6 +108,48 @@ class DailyReportModel {
         map['created_at'] as String? ?? DateTime.now().toIso8601String(),
       ),
       subjectName: map['subjects']?['name']?.toString() ?? map['subject_name']?.toString(),
+    );
+  }
+
+  DailyReportModel copyWith({
+    String? id,
+    String? studentId,
+    String? subjectId,
+    String? dateStr,
+    String? behaviorRating,
+    String? studyEngagement,
+    String? homeworkStatus,
+    String? remarks,
+    String? teacherId,
+    String? teacherName,
+    DateTime? createdAt,
+    String? subjectName,
+    String? status,
+    String? comment,
+    String? sessionType,
+    String? topicsCovered,
+    String? homework,
+    String? generalRemarks,
+  }) {
+    return DailyReportModel(
+      id: id ?? this.id,
+      studentId: studentId ?? this.studentId,
+      subjectId: subjectId ?? this.subjectId,
+      dateStr: dateStr ?? this.dateStr,
+      behaviorRating: behaviorRating ?? this.behaviorRating,
+      studyEngagement: studyEngagement ?? this.studyEngagement,
+      homeworkStatus: homeworkStatus ?? this.homeworkStatus,
+      remarks: remarks ?? this.remarks,
+      teacherId: teacherId ?? this.teacherId,
+      teacherName: teacherName ?? this.teacherName,
+      createdAt: createdAt ?? this.createdAt,
+      subjectName: subjectName ?? this.subjectName,
+      status: status ?? this.status,
+      comment: comment ?? this.comment,
+      sessionType: sessionType ?? this.sessionType,
+      topicsCovered: topicsCovered ?? this.topicsCovered,
+      homework: homework ?? this.homework,
+      generalRemarks: generalRemarks ?? this.generalRemarks,
     );
   }
 }

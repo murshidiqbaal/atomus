@@ -13,6 +13,7 @@ import '../../models/teacher_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/shimmer.dart';
 import 'marks_entry_screen.dart';
 import 'student_attendance_screen.dart';
 import 'teacher_attendance_screen.dart';
@@ -44,7 +45,35 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             builder: (context, state) {
               if (state.status == TeacherDashboardStatus.loading &&
                   state.teacher == null) {
-                return const Center(child: CircularProgressIndicator());
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      Row(
+                        children: const [
+                          Shimmer(width: 50, height: 50, borderRadius: 25),
+                          SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Shimmer(width: 80, height: 12),
+                              SizedBox(height: 6),
+                              Shimmer(width: 120, height: 18),
+                            ],
+                          ),
+                          Spacer(),
+                          Shimmer(width: 40, height: 40, borderRadius: 20),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      const Shimmer(width: double.infinity, height: 75, borderRadius: 20),
+                      const SizedBox(height: 24),
+                      ...List.generate(3, (_) => Shimmer.cardSkeleton()),
+                    ],
+                  ),
+                );
               }
               if (state.status == TeacherDashboardStatus.failure) {
                 return Center(

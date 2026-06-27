@@ -7,6 +7,7 @@ class DailyReportState {
   final List<Map<String, dynamic>> students;
   final Map<String, DailyReportModel> reports; // Key: studentId, Value: report
   final List<DailyReportModel> studentReports; // For student-facing IReportsScreen
+  final Map<String, dynamic>? loadedClassReport; // For the new bulk class report flow
   final String? errorMessage;
 
   const DailyReportState({
@@ -14,6 +15,7 @@ class DailyReportState {
     this.students = const [],
     this.reports = const {},
     this.studentReports = const [],
+    this.loadedClassReport,
     this.errorMessage,
   });
 
@@ -22,6 +24,8 @@ class DailyReportState {
     List<Map<String, dynamic>>? students,
     Map<String, DailyReportModel>? reports,
     List<DailyReportModel>? studentReports,
+    Map<String, dynamic>? loadedClassReport,
+    bool clearLoadedClassReport = false,
     String? errorMessage,
   }) {
     return DailyReportState(
@@ -29,6 +33,7 @@ class DailyReportState {
       students: students ?? this.students,
       reports: reports ?? this.reports,
       studentReports: studentReports ?? this.studentReports,
+      loadedClassReport: clearLoadedClassReport ? null : (loadedClassReport ?? this.loadedClassReport),
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
