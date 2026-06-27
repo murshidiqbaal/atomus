@@ -59,16 +59,16 @@ class AuthRepository {
       final teacherRole = await _resolveTeacher();
       if (teacherRole != null) {
         final teacherId = teacherRole['id'] as String;
-        final currentAuthId = teacherRole['auth_user_id'] as String?;
+        final currentAuthId = teacherRole['auth_id'] as String?;
         final user = _supabase.auth.currentUser;
         if (user != null && (currentAuthId == null || currentAuthId != user.id)) {
           try {
             await _supabase
                 .from('teachers')
-                .update({'auth_user_id': user.id})
+                .update({'auth_id': user.id})
                 .eq('id', teacherId);
           } catch (e) {
-            print('Error linking auth_user_id to teacher: $e');
+            print('Error linking auth_id to teacher: $e');
           }
         }
 
@@ -86,6 +86,26 @@ class AuthRepository {
       }
 
       if (parentData != null) {
+        final parentId = parentData['id'] as String;
+        final currentAuthUserId = parentData['auth_user_id'] as String?;
+        final currentAuthId = parentData['auth_id'] as String?;
+        final user = _supabase.auth.currentUser;
+        if (user != null &&
+            (currentAuthUserId == null || currentAuthUserId != user.id ||
+             currentAuthId == null || currentAuthId != user.id)) {
+          try {
+            await _supabase
+                .from('parents')
+                .update({
+                  'auth_user_id': user.id,
+                  'auth_id': user.id,
+                })
+                .eq('id', parentId);
+          } catch (e) {
+            print('Error linking auth_user_id/auth_id to parent: $e');
+          }
+        }
+
         await _setLoggedIn(true);
         await _saveRole(LoginUserRole.parent);
         return LoginUserRole.parent;
@@ -110,17 +130,48 @@ class AuthRepository {
       final phone = user.phone;
       final uid   = user.id;
 
-      // Try multiple columns just like ParentIdentityService does
-      for (final col in ['auth_user_id', 'id', 'email', 'phone_number']) {
-        final val = col == 'email'   ? email
-                  : col == 'phone_number' ? phone
-                  : uid;
-        if (val == null) continue;
+      final checks = <({String column, String value})>[];
+
+      // 1. Direct ID matches (UUIDs)
+      checks.add((column: 'auth_id', value: uid));
+      checks.add((column: 'id', value: uid));
+
+      // 2. Email match (case-insensitive via ilike)
+      if (email != null && email.trim().isNotEmpty) {
+        checks.add((column: 'email', value: email.trim()));
+      }
+
+      // 3. Phone number match with variations (case-insensitive via ilike)
+      if (phone != null && phone.trim().isNotEmpty) {
+        final trimmedPhone = phone.trim();
+        final variations = <String>[trimmedPhone];
+
+        // Variation: without leading '+'
+        if (trimmedPhone.startsWith('+')) {
+          variations.add(trimmedPhone.substring(1));
+        }
+
+        // Variation: last 10 digits
+        final digitsOnly = trimmedPhone.replaceAll(RegExp(r'\D'), '');
+        if (digitsOnly.length >= 10) {
+          final last10 = digitsOnly.substring(digitsOnly.length - 10);
+          if (!variations.contains(last10)) {
+            variations.add(last10);
+          }
+        }
+
+        for (final variation in variations) {
+          checks.add((column: 'phone_number', value: variation));
+        }
+      }
+
+      for (final check in checks) {
         try {
-          final rows = await _supabase
-              .from('teachers')
-              .select('id, full_name, email, auth_user_id')
-              .eq(col, val)
+          final isTextColumn = check.column == 'email' || check.column == 'phone_number';
+          final query = _supabase.from('teachers').select('id, full_name, email, auth_id');
+          final rows = await (isTextColumn
+                  ? query.ilike(check.column, check.value)
+                  : query.eq(check.column, check.value))
               .limit(1);
           if (rows.isNotEmpty) return rows.first;
         } catch (_) {}

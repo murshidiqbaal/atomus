@@ -26,17 +26,18 @@ class SecurityValidationService {
   static Future<String> getTeacherId() async {
     final authUserId = verifyTeacherSession();
     
-    // Try resolving teacher ID by matching auth_user_id, id, email, or phone
-    for (final col in ['auth_user_id', 'id', 'email', 'phone_number']) {
+    // Try resolving teacher ID by matching auth_id, id, email, or phone
+    for (final col in ['auth_id', 'id', 'email', 'phone_number']) {
       final val = col == 'email' ? _supabase.auth.currentUser!.email
                 : col == 'phone_number' ? _supabase.auth.currentUser!.phone
                 : authUserId;
       if (val == null) continue;
       try {
-        final rows = await _supabase
-            .from('teachers')
-            .select('id')
-            .eq(col, val)
+        final isTextColumn = col == 'email' || col == 'phone_number';
+        final query = _supabase.from('teachers').select('id');
+        final rows = await (isTextColumn
+                ? query.ilike(col, val)
+                : query.eq(col, val))
             .limit(1);
         if (rows.isNotEmpty) {
           return rows.first['id'] as String;

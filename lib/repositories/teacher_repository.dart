@@ -17,9 +17,9 @@ class TeacherRepository {
       final uid = user.id;
       final email = user.email;
 
-      // Try auth_user_id first, then id, then email
+      // Try auth_id first, then id, then email
       for (final filter in [
-        {'col': 'auth_user_id', 'val': uid},
+        {'col': 'auth_id', 'val': uid},
         {'col': 'id', 'val': uid},
         if (email != null) {'col': 'email', 'val': email},
       ]) {
@@ -34,12 +34,12 @@ class TeacherRepository {
             final campusMap = row['campuses'] as Map<String, dynamic>?;
             final teacher = TeacherModel.fromMap(row, campusData: campusMap);
 
-            // Link auth_user_id if missing or mismatched
-            if (row['auth_user_id'] == null || row['auth_user_id'] != uid) {
+            // Link auth_id if missing or mismatched
+            if (row['auth_id'] == null || row['auth_id'] != uid) {
               try {
                 await _supabase
                     .from('teachers')
-                    .update({'auth_user_id': uid})
+                    .update({'auth_id': uid})
                     .eq('id', teacher.id);
               } catch (_) {}
             }

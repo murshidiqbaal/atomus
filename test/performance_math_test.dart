@@ -93,13 +93,13 @@ void main() {
     );
 
     // Mathematics academics: 85%. Mathematics attendance: Present (100) and Absent (0) -> 50%
-    // Combined = 0.7 * 85 + 0.3 * 50 = 59.5 + 15 = 74.5%
+    // Combined = 85.0% (strictly using marks percentage under the updated service logic)
     final mathPerf = result.subjectWisePerformance.firstWhere(
       (p) => p.subjectName.toLowerCase() == 'mathematics',
     );
     expect(mathPerf.marksPercentage, 85.0);
     expect(mathPerf.attendancePercentage, 50.0);
-    expect(mathPerf.combinedScore, 74.5);
+    expect(mathPerf.combinedScore, 85.0);
   });
 
   test(

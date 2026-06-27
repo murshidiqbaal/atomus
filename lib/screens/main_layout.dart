@@ -17,6 +17,7 @@ import '../blocs/theme/theme_state.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/notification_repository.dart';
 import '../services/notification_service.dart';
+import '../services/parent_activity_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import '../widgets/neu_box.dart';
@@ -59,6 +60,17 @@ class MainLayoutState extends State<MainLayout> {
       ),
     );
     _initNotifications();
+    
+    // Initialize parent activity tracking
+    final activityService = context.read<ParentActivityService>();
+    activityService.initialize();
+    activityService.trackAppOpen();
+  }
+
+  @override
+  void dispose() {
+    context.read<ParentActivityService>().dispose();
+    super.dispose();
   }
 
   Future<void> _initNotifications() async {
