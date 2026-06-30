@@ -5,11 +5,13 @@ import 'package:flutter/rendering.dart';
 class MarqueeWidget extends StatefulWidget {
   final List<Widget> children;
   final double scrollSpeed; // pixels per second
+  final bool rightToLeft; // new flag to support scrolling direction
 
   const MarqueeWidget({
     super.key,
     required this.children,
     this.scrollSpeed = 50.0,
+    this.rightToLeft = true, // default to rightToLeft
   });
 
   @override
@@ -38,11 +40,20 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
         double maxScroll = _scrollController.position.maxScrollExtent;
         double currentScroll = _scrollController.offset;
 
-        // Left to Right: decrease offset
-        if (currentScroll <= 0) {
-          _scrollController.jumpTo(maxScroll);
+        if (widget.rightToLeft) {
+          // Right to Left: increase offset
+          if (currentScroll >= maxScroll) {
+            _scrollController.jumpTo(0);
+          } else {
+            _scrollController.jumpTo(currentScroll + (widget.scrollSpeed / 20));
+          }
         } else {
-          _scrollController.jumpTo(currentScroll - (widget.scrollSpeed / 20));
+          // Left to Right: decrease offset
+          if (currentScroll <= 0) {
+            _scrollController.jumpTo(maxScroll);
+          } else {
+            _scrollController.jumpTo(currentScroll - (widget.scrollSpeed / 20));
+          }
         }
       }
     });

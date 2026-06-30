@@ -10,8 +10,10 @@ import '../utils/logger.dart';
 import '../widgets/app_background.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/neu_box.dart';
+import 'package:hive/hive.dart';
 import 'main_layout.dart';
 import 'teacher/teacher_main_layout.dart';
+import 'onboarding/components/onboarding_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,9 +39,17 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state.status == AuthStatus.authenticated) {
-          final destination = state.isTeacher
-              ? const TeacherMainLayout()
-              : const MainLayout();
+          final Widget destination;
+          if (state.isTeacher) {
+            destination = const TeacherMainLayout();
+          } else {
+            final settingsBox = Hive.box('settings');
+            final onboardingCompleted =
+                settingsBox.get('onboarding_completed', defaultValue: false) as bool;
+            destination = onboardingCompleted
+                ? const MainLayout()
+                : const OnboardingScreen();
+          }
           Navigator.of(
             context,
           ).pushReplacement(MaterialPageRoute(builder: (_) => destination));

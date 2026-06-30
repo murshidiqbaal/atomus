@@ -163,7 +163,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   onRefresh: () async {
                     if (teacher == null) return;
                     final cubit = ctx.read<TeacherAttendanceCubit>();
-                    await cubit.loadTodaySession(teacher.id, sessionType: _sessionType);
+                    await cubit.loadTodaySession(
+                      teacher.id,
+                      sessionType: _sessionType,
+                    );
                     await cubit.loadHistory(teacher.id, month: _selectedMonth);
                     _verifyLocation(silent: true);
                   },
@@ -377,9 +380,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 setState(() {
                   _sessionType = 'forenoon';
                 });
-                final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+                final teacher = context
+                    .read<TeacherDashboardCubit>()
+                    .state
+                    .teacher;
                 if (teacher != null) {
-                  context.read<TeacherAttendanceCubit>().loadTodaySession(teacher.id, sessionType: 'forenoon');
+                  context.read<TeacherAttendanceCubit>().loadTodaySession(
+                    teacher.id,
+                    sessionType: 'forenoon',
+                  );
                 }
               }
             },
@@ -395,9 +404,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 setState(() {
                   _sessionType = 'afternoon';
                 });
-                final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+                final teacher = context
+                    .read<TeacherDashboardCubit>()
+                    .state
+                    .teacher;
                 if (teacher != null) {
-                  context.read<TeacherAttendanceCubit>().loadTodaySession(teacher.id, sessionType: 'afternoon');
+                  context.read<TeacherAttendanceCubit>().loadTodaySession(
+                    teacher.id,
+                    sessionType: 'afternoon',
+                  );
                 }
               }
             },
@@ -498,8 +513,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         final insideCampus = noCampus || geo.status == GeofenceStatus.inside;
         final hasFilters = _filterCourseId != null && _filterSubjectId != null;
         final nowTime = DateTime.now();
-        final isTimeAllowed = (_sessionType == 'forenoon' && nowTime.hour < 13) ||
-                              (_sessionType == 'afternoon' && nowTime.hour >= 13);
+        final isTimeAllowed =
+            (_sessionType == 'forenoon' && nowTime.hour < 13) ||
+            (_sessionType == 'afternoon' && nowTime.hour >= 13);
         final canPunch = insideCampus && hasFilters && isTimeAllowed;
 
         String? disabledHint;
@@ -517,7 +533,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           color = AppColors.textSecondary;
           disabledHint = 'Pick a course and a subject before punching in.';
         } else if (!isTimeAllowed) {
-          label = _sessionType == 'forenoon' ? 'FORENOON NOT ALLOWED' : 'AFTERNOON NOT ALLOWED';
+          label = _sessionType == 'forenoon'
+              ? 'FORENOON NOT ALLOWED'
+              : 'AFTERNOON NOT ALLOWED';
           icon = LucideIcons.lock;
           color = AppColors.textSecondary;
           disabledHint = _sessionType == 'forenoon'
@@ -567,7 +585,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     bool isDisabled = false,
     TeacherAttendanceModel? activeSession,
   }) {
-    final List<dynamic> assignments = (teacher?.subjects as List?) ?? const <dynamic>[];
+    final List<dynamic> assignments =
+        (teacher?.subjects as List?) ?? const <dynamic>[];
     if (assignments.isEmpty && !isDisabled) {
       return Container(
         padding: const EdgeInsets.all(12),
@@ -616,10 +635,14 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     // Subjects scoped by the currently selected course (if any).
     final List<dynamic> subjectItems = _filterCourseId == null
         ? List<dynamic>.from(assignments)
-        : List<dynamic>.from(assignments.where((a) => a.courseId == _filterCourseId));
+        : List<dynamic>.from(
+            assignments.where((a) => a.courseId == _filterCourseId),
+          );
 
     if (isDisabled && activeSession != null) {
-      final hasSubject = subjectItems.any((a) => a.subjectId == _filterSubjectId);
+      final hasSubject = subjectItems.any(
+        (a) => a.subjectId == _filterSubjectId,
+      );
       if (_filterSubjectId != null && !hasSubject) {
         subjectItems.add(
           TeacherSubjectAssignment(
@@ -768,7 +791,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       builder: (geoCtx, geo) {
         final teacher = context.read<TeacherDashboardCubit>().state.teacher;
         final noCampus = teacher == null || !teacher.hasCampusCoordinates;
-        
+
         final elapsedDuration = session.startTime != null
             ? DateTime.now().difference(session.startTime!)
             : Duration.zero;
@@ -778,16 +801,24 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         if (elapsedDuration.inMinutes > 240) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && !isLoading) {
-              ctx.read<TeacherAttendanceCubit>().loadTodaySession(teacher!.id, sessionType: _sessionType);
+              ctx.read<TeacherAttendanceCubit>().loadTodaySession(
+                teacher!.id,
+                sessionType: _sessionType,
+              );
             }
           });
         }
 
-        final canPunchOut = (noCampus || geo.status == GeofenceStatus.inside) && isDurationMet;
+        final canPunchOut =
+            (noCampus || geo.status == GeofenceStatus.inside) && isDurationMet;
 
-        final hh = elapsedDuration.inHours.toString().padLeft(2, '0');
-        final mm = (elapsedDuration.inMinutes % 60).toString().padLeft(2, '0');
-        final ss = (elapsedDuration.inSeconds % 60).toString().padLeft(2, '0');
+        final maxDuration = const Duration(hours: 4);
+        final remaining = maxDuration - elapsedDuration;
+        final displayDuration = remaining.isNegative ? Duration.zero : remaining;
+
+        final hh = displayDuration.inHours.toString().padLeft(2, '0');
+        final mm = (displayDuration.inMinutes % 60).toString().padLeft(2, '0');
+        final ss = (displayDuration.inSeconds % 60).toString().padLeft(2, '0');
         final elapsedStr = '$hh:$mm:$ss';
 
         return CustomCard(
@@ -805,7 +836,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               const SizedBox(height: 16),
               _buildFilters(teacher, isDisabled: true, activeSession: session),
               const SizedBox(height: 16),
-              
+
               // Large timer display
               Center(
                 child: Column(
@@ -821,7 +852,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'ELAPSED TIME',
+                      'REMAINING TIME (4H MAX)',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -833,19 +864,19 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               Center(
                 child: Text(
-                  'Punched in at ${session.startTime != null ? DateFormat('hh:mm a').format(session.startTime!) : '--'}',
+                  'Punched in at ${session.startTime != null ? DateFormat('hh:mm a').format(session.startTime!.toLocal()) : '--'}',
                   style: const TextStyle(
-                     fontSize: 13,
-                     fontWeight: FontWeight.w600,
-                     color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
               const SizedBox(height: 18),
-              
+
               if (!isDurationMet) ...[
                 // Countdown representation
                 Container(
@@ -859,7 +890,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(LucideIcons.lock, color: AppColors.warning, size: 20),
+                      const Icon(
+                        LucideIcons.lock,
+                        color: AppColors.warning,
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -893,7 +928,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 _buildBigPunchButton(
                   label: canPunchOut ? 'PUNCH OUT' : 'OUTSIDE CAMPUS',
                   icon: canPunchOut ? LucideIcons.square : LucideIcons.lock,
-                  color: canPunchOut ? AppColors.error : AppColors.textSecondary,
+                  color: canPunchOut
+                      ? AppColors.error
+                      : AppColors.textSecondary,
                   isLoading: isLoading,
                   disabledHint: canPunchOut
                       ? null
@@ -929,7 +966,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   icon: LucideIcons.logIn,
                   label: 'Punch-In',
                   value: session.startTime != null
-                      ? DateFormat('hh:mm a').format(session.startTime!)
+                      ? DateFormat('hh:mm a').format(session.startTime!.toLocal())
                       : '--',
                 ),
               ),
@@ -939,7 +976,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   icon: LucideIcons.logOut,
                   label: 'Punch-Out',
                   value: session.endTime != null
-                      ? DateFormat('hh:mm a').format(session.endTime!)
+                      ? DateFormat('hh:mm a').format(session.endTime!.toLocal())
                       : '--',
                 ),
               ),
@@ -1256,22 +1293,37 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   }
 
   Widget _buildCalendar(TeacherAttendanceState state) {
-    final Map<int, TeacherAttendanceModel> recordMap = {};
+    final Map<int, List<TeacherAttendanceModel>> recordMap = {};
     for (final r in _monthRecords(state)) {
-      recordMap[r.attendanceDate.day] = r;
+      recordMap.putIfAbsent(r.attendanceDate.day, () => []).add(r);
     }
     // Also include today's active session in calendar
     final active = state.activeSession;
     if (active != null &&
         active.attendanceDate.year == _selectedMonth.year &&
         active.attendanceDate.month == _selectedMonth.month) {
-      recordMap[active.attendanceDate.day] = active;
+      final list = recordMap.putIfAbsent(active.attendanceDate.day, () => []);
+      if (!list.any(
+        (r) => r.id == active.id || r.sessionType == active.sessionType,
+      )) {
+        list.add(active);
+      }
     }
     final completedToday = state.completedSession;
     if (completedToday != null &&
         completedToday.attendanceDate.year == _selectedMonth.year &&
         completedToday.attendanceDate.month == _selectedMonth.month) {
-      recordMap[completedToday.attendanceDate.day] = completedToday;
+      final list = recordMap.putIfAbsent(
+        completedToday.attendanceDate.day,
+        () => [],
+      );
+      if (!list.any(
+        (r) =>
+            r.id == completedToday.id ||
+            r.sessionType == completedToday.sessionType,
+      )) {
+        list.add(completedToday);
+      }
     }
 
     final daysInMonth = DateTime(
@@ -1319,7 +1371,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             itemBuilder: (context, index) {
               if (index < startOffset) return const SizedBox();
               final day = index - startOffset + 1;
-              final record = recordMap[day];
+              final dayRecords = recordMap[day];
               final date = DateTime(
                 _selectedMonth.year,
                 _selectedMonth.month,
@@ -1334,10 +1386,18 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               );
 
               Color? bgColor;
-              if (!isFuture && record != null) {
-                if (record.isCompleted) {
-                  bgColor = record.isLate ? AppColors.warning : AppColors.success;
-                } else if (record.isActive) {
+              if (!isFuture && dayRecords != null && dayRecords.isNotEmpty) {
+                final hasCompletedOnTime = dayRecords.any(
+                  (r) => r.isCompleted && !r.isLate,
+                );
+                final hasActive = dayRecords.any((r) => r.isActive);
+                final hasCompletedLate = dayRecords.any(
+                  (r) => r.isCompleted && r.isLate,
+                );
+
+                if (hasCompletedOnTime) {
+                  bgColor = AppColors.success;
+                } else if (hasActive || hasCompletedLate) {
                   bgColor = AppColors.warning;
                 } else {
                   bgColor = AppColors.error;
@@ -1436,44 +1496,34 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   // ----------------------------------------------------------------
 
   Widget _buildSelectedDayCard(TeacherAttendanceState state) {
-    TeacherAttendanceModel? record;
+    final List<TeacherAttendanceModel> matchedRecords = [];
     for (final r in _monthRecords(state)) {
       if (r.attendanceDate.day == _selectedDate.day &&
           r.attendanceDate.month == _selectedDate.month &&
           r.attendanceDate.year == _selectedDate.year) {
-        record = r;
-        break;
+        matchedRecords.add(r);
       }
     }
-    record ??= _matchesDate(state.activeSession, _selectedDate);
-    record ??= _matchesDate(state.completedSession, _selectedDate);
+    final active = _matchesDate(state.activeSession, _selectedDate);
+    if (active != null &&
+        !matchedRecords.any(
+          (m) => m.id == active.id || m.sessionType == active.sessionType,
+        )) {
+      matchedRecords.add(active);
+    }
+    final completed = _matchesDate(state.completedSession, _selectedDate);
+    if (completed != null &&
+        !matchedRecords.any(
+          (m) => m.id == completed.id || m.sessionType == completed.sessionType,
+        )) {
+      matchedRecords.add(completed);
+    }
 
-    Color color;
-    IconData icon;
-    String statusLabel;
-    if (record == null) {
-      color = AppColors.textSecondary;
-      icon = LucideIcons.helpCircle;
-      statusLabel = 'NOT MARKED';
-    } else if (record.isCompleted) {
-      if (record.isLate) {
-        color = AppColors.warning;
-        icon = LucideIcons.clock;
-        statusLabel = 'LATE';
-      } else {
-        color = AppColors.success;
-        icon = LucideIcons.checkCircle;
-        statusLabel = 'PRESENT';
-      }
-    } else if (record.isActive) {
-      color = AppColors.warning;
-      icon = LucideIcons.clock;
-      statusLabel = 'IN PROGRESS';
-    } else {
-      color = AppColors.error;
-      icon = LucideIcons.xCircle;
-      statusLabel = 'MISSED';
-    }
+    // Sort by session order (forenoon, afternoon, evening)
+    matchedRecords.sort((a, b) {
+      final order = {'forenoon': 1, 'afternoon': 2, 'evening': 3};
+      return (order[a.sessionType] ?? 9).compareTo(order[b.sessionType] ?? 9);
+    });
 
     return CustomCard(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -1493,74 +1543,45 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withValues(alpha: 0.03)
-                  : Colors.black.withValues(alpha: 0.02),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
+          if (matchedRecords.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+              decoration: BoxDecoration(
                 color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.05),
+                    ? Colors.white.withValues(alpha: 0.03)
+                    : Colors.black.withValues(alpha: 0.02),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.black.withValues(alpha: 0.05),
+                ),
               ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
+              child: Column(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(
+                      color: AppColors.textSecondary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      LucideIcons.helpCircle,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
-                  child: Icon(icon, color: color, size: 32),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 20,
-                    letterSpacing: 1.5,
-                    color: color,
-                  ),
-                ),
-                if (record != null) ...[
                   const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatChip(
-                          icon: LucideIcons.logIn,
-                          label: 'Punch-In',
-                          value: record.startTime != null
-                              ? DateFormat('hh:mm a').format(record.startTime!)
-                              : '--',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatChip(
-                          icon: LucideIcons.logOut,
-                          label: 'Punch-Out',
-                          value: record.endTime != null
-                              ? DateFormat('hh:mm a').format(record.endTime!)
-                              : '--',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatChip(
-                          icon: LucideIcons.timer,
-                          label: 'Duration',
-                          value: record.durationLabel,
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'NOT MARKED',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      letterSpacing: 1.5,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ] else ...[
                   const SizedBox(height: 8),
                   const Text(
                     'No attendance marked for this day.',
@@ -1570,8 +1591,128 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     ),
                   ),
                 ],
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (int i = 0; i < matchedRecords.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 12),
+                  _buildIndividualSessionCard(matchedRecords[i]),
+                ],
               ],
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndividualSessionCard(TeacherAttendanceModel record) {
+    Color color;
+    IconData icon;
+    String statusLabel;
+    if (record.isCompleted) {
+      if (record.isLate) {
+        color = AppColors.warning;
+        icon = LucideIcons.clock;
+        statusLabel = 'LATE';
+      } else {
+        color = AppColors.success;
+        icon = LucideIcons.checkCircle;
+        statusLabel = 'PRESENT';
+      }
+    } else if (record.isActive) {
+      color = AppColors.warning;
+      icon = LucideIcons.clock;
+      statusLabel = 'IN PROGRESS';
+    } else {
+      color = AppColors.error;
+      icon = LucideIcons.xCircle;
+      statusLabel = 'MISSED';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.03)
+            : Colors.black.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.05),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                record.sessionType.toUpperCase(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatChip(
+                  icon: LucideIcons.logIn,
+                  label: 'Punch-In',
+                  value: record.startTime != null
+                      ? DateFormat(
+                          'hh:mm a',
+                        ).format(record.startTime!.toLocal())
+                      : '--',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatChip(
+                  icon: LucideIcons.logOut,
+                  label: 'Punch-Out',
+                  value: record.endTime != null
+                      ? DateFormat('hh:mm a').format(record.endTime!.toLocal())
+                      : '--',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatChip(
+                  icon: LucideIcons.timer,
+                  label: 'Duration',
+                  value: record.durationLabel,
+                ),
+              ),
+            ],
           ),
         ],
       ),

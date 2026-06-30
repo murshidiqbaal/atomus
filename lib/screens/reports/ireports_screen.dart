@@ -23,6 +23,8 @@ class IReportsScreen extends StatefulWidget {
 class _IReportsScreenState extends State<IReportsScreen>
     with AutomaticKeepAliveClientMixin {
   String? _lastLoadedStudentId;
+  int _selectedTab = 0; // 0: Daily Reports, 1: Needs Improvement
+  final Set<String> _expandedReportIds = {};
 
   @override
   bool get wantKeepAlive => true;
@@ -55,6 +57,125 @@ class _IReportsScreenState extends State<IReportsScreen>
     }
   }
 
+  Widget _buildTabSelector() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: NeuBox(
+        padding: const EdgeInsets.all(4),
+        borderRadius: 16,
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedTab = 0),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedTab == 0
+                        ? (isDark
+                              ? AppColors.accent.withOpacity(0.15)
+                              : AppColors.primary.withOpacity(0.08))
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Daily Reports',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: _selectedTab == 0
+                            ? (isDark ? AppColors.accent : AppColors.primary)
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedTab = 1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedTab == 1
+                        ? (isDark
+                              ? AppColors.accent.withOpacity(0.15)
+                              : AppColors.primary.withOpacity(0.08))
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Needs Improvement',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: _selectedTab == 1
+                            ? (isDark ? AppColors.accent : AppColors.primary)
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyStateForTab() {
+    if (_selectedTab == 0) {
+      return _buildEmptyState();
+    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            NeuBox(
+              width: 80,
+              height: 80,
+              borderRadius: 24,
+              child: const Icon(
+                LucideIcons.checkCircle,
+                color: AppColors.success,
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'All Clear!',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No issues or academic improvement tasks have been flagged by your teachers.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.6,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -76,6 +197,7 @@ class _IReportsScreenState extends State<IReportsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(context),
+              _buildTabSelector(),
               Expanded(
                 child: BlocBuilder<DailyReportCubit, DailyReportState>(
                   builder: (context, state) {
@@ -86,10 +208,19 @@ class _IReportsScreenState extends State<IReportsScreen>
                     if (state.status == DailyReportStatus.failure) {
                       return _buildErrorState(state.errorMessage);
                     }
-                    if (state.studentReports.isEmpty) {
-                      return _buildEmptyState();
+
+                    final filteredReports = _selectedTab == 0
+                        ? state.studentReports
+                              .where((r) => r.status != 'need_improvement')
+                              .toList()
+                        : state.studentReports
+                              .where((r) => r.status == 'need_improvement')
+                              .toList();
+
+                    if (filteredReports.isEmpty) {
+                      return _buildEmptyStateForTab();
                     }
-                    return _buildReportsList(state.studentReports);
+                    return _buildReportsList(filteredReports);
                   },
                 ),
               ),
@@ -396,6 +527,8 @@ class _IReportsScreenState extends State<IReportsScreen>
 
   Widget _buildReportCard(DailyReportModel report) {
     final isNewReport = report.topicsCovered != null;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isExpanded = _expandedReportIds.contains(report.id);
 
     if (isNewReport) {
       final isNeedsImp = report.status == 'need_improvement';
@@ -403,150 +536,210 @@ class _IReportsScreenState extends State<IReportsScreen>
         padding: const EdgeInsets.only(bottom: 12),
         child: CustomCard(
           padding: const EdgeInsets.all(16),
+          onTap: () {
+            setState(() {
+              if (isExpanded) {
+                _expandedReportIds.remove(report.id);
+              } else {
+                _expandedReportIds.add(report.id);
+              }
+            });
+          },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Row: Session & Date
+              // Header Row: Session, Teacher & Chevron
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      (report.sessionType ?? 'FORENOON').toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'by ${report.teacherName}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-
-              // Topics Covered Section
-              const Text(
-                'Topics Covered Today',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                report.topicsCovered ?? '',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
-                  height: 1.4,
-                ),
-              ),
-
-              // Homework Section
-              if (report.homework != null && report.homework!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text(
-                  'Homework Given Today',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  report.homework!,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-
-              // General Remarks Section
-              if (report.generalRemarks != null && report.generalRemarks!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text(
-                  'General Remarks',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  report.generalRemarks!,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-
-              // Needs Improvement Yellow Warning Card
-              if (isNeedsImp && report.comment != null && report.comment!.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      const Icon(LucideIcons.alertTriangle, size: 18, color: Colors.orange),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Academic Attention Required',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Teacher Comments: ${report.comment}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textPrimary,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          (report.sessionType ?? 'FORENOON').toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        report.subjectName?.toUpperCase() ?? 'GENERAL',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? AppColors.accent : AppColors.primary,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ],
                   ),
+                  Row(
+                    children: [
+                      Text(
+                        'by ${report.teacherName}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          LucideIcons.chevronDown,
+                          size: 16,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              
+              // Animated Expandable Content
+              AnimatedSize(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: !isExpanded
+                      ? const SizedBox.shrink()
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 12),
+                            const Divider(height: 1),
+                            const SizedBox(height: 12),
+
+                            // Topics Covered Section
+                            const Text(
+                              'Topics Covered Today',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              report.topicsCovered ?? '',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                height: 1.4,
+                              ),
+                            ),
+
+                            // Homework Section
+                            if (report.homework != null && report.homework!.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Homework Given Today',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                report.homework!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+
+                            // General Remarks Section
+                            if (report.generalRemarks != null &&
+                                report.generalRemarks!.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              const Text(
+                                'General Remarks',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                report.generalRemarks!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+
+                            // Needs Improvement Yellow Warning Card
+                            if (isNeedsImp &&
+                                report.comment != null &&
+                                report.comment!.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      LucideIcons.alertTriangle,
+                                      size: 18,
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Academic Attention Required',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.orange,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Teacher Comments: ${report.comment}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -560,6 +753,15 @@ class _IReportsScreenState extends State<IReportsScreen>
       padding: const EdgeInsets.only(bottom: 12),
       child: CustomCard(
         padding: const EdgeInsets.all(16),
+        onTap: () {
+          setState(() {
+            if (isExpanded) {
+              _expandedReportIds.remove(report.id);
+            } else {
+              _expandedReportIds.add(report.id);
+            }
+          });
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -582,7 +784,9 @@ class _IReportsScreenState extends State<IReportsScreen>
                         'by ${report.teacherName}',
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -590,70 +794,97 @@ class _IReportsScreenState extends State<IReportsScreen>
                   ),
                 ),
                 _buildChip(report.behaviorRating, behaviorColor),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-
-            // Metrics row
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricItem(
-                    icon: LucideIcons.brain,
-                    label: 'Engagement',
-                    value: report.studyEngagement,
-                    color: engagementColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricItem(
-                    icon: LucideIcons.bookCheck,
-                    label: 'Homework',
-                    value: report.homeworkStatus,
-                    color: _homeworkColor(report.homeworkStatus),
+                const SizedBox(width: 8),
+                AnimatedRotation(
+                  turns: isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    LucideIcons.chevronDown,
+                    size: 16,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
 
-            // Remarks
-            if (report.remarks.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
+            // Animated Expandable Content
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              child: SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.1)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      LucideIcons.messageSquare,
-                      size: 14,
-                      color: AppColors.primary.withOpacity(0.7),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        report.remarks,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          height: 1.5,
-                        ),
+                child: !isExpanded
+                    ? const SizedBox.shrink()
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+
+                          // Metrics row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMetricItem(
+                                  icon: LucideIcons.brain,
+                                  label: 'Engagement',
+                                  value: report.studyEngagement,
+                                  color: engagementColor,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildMetricItem(
+                                  icon: LucideIcons.bookCheck,
+                                  label: 'Homework',
+                                  value: report.homeworkStatus,
+                                  color: _homeworkColor(report.homeworkStatus),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Remarks
+                          if (report.remarks.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    LucideIcons.messageSquare,
+                                    size: 14,
+                                    color: AppColors.primary.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      report.remarks,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark
+                                            ? AppColors.textSecondaryDark
+                                            : AppColors.textSecondary,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -666,6 +897,7 @@ class _IReportsScreenState extends State<IReportsScreen>
     required String value,
     required Color color,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -685,7 +917,9 @@ class _IReportsScreenState extends State<IReportsScreen>
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
                     letterSpacing: 0.5,
                   ),
                 ),

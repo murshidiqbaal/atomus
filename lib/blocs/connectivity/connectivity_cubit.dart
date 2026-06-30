@@ -25,6 +25,11 @@ class ConnectivityCubit extends Cubit<ConnectivityState> {
     }
   }
 
+  Future<void> checkConnection() async {
+    final result = await Connectivity().checkConnectivity();
+    _emitFromResults(result);
+  }
+
   @override
   Future<void> close() {
     _sub?.cancel();

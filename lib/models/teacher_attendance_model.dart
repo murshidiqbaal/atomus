@@ -61,10 +61,10 @@ class TeacherAttendanceModel {
   factory TeacherAttendanceModel.fromMap(Map<String, dynamic> map) {
     final subject = map['subjects'] as Map<String, dynamic>?;
     final start = map['start_time'] != null
-        ? DateTime.parse(map['start_time'] as String)
+        ? _parseDateTime(map['start_time'])
         : null;
     final end = map['end_time'] != null
-        ? DateTime.parse(map['end_time'] as String)
+        ? _parseDateTime(map['end_time'])
         : null;
     final duration = (start != null && end != null)
         ? end.difference(start).inMinutes
@@ -78,7 +78,7 @@ class TeacherAttendanceModel {
       subjectName:          subject?['name'] as String?,
       courseId:             map['course_id'] as String?,
       batchId:              map['batch_id'] as String?,
-      attendanceDate:       DateTime.parse(map['attendance_date'] as String),
+      attendanceDate:       _parseDateTime(map['attendance_date']),
       startTime:            start,
       endTime:              end,
       totalDurationMinutes: duration,
@@ -87,10 +87,30 @@ class TeacherAttendanceModel {
       status:               TeacherAttendanceStatusX.fromString(
                               map['attendance_status'] as String? ?? 'Active'),
       createdAt:            map['created_at'] != null
-                              ? DateTime.parse(map['created_at'] as String)
+                              ? _parseDateTime(map['created_at'])
                               : DateTime.now(),
       sessionType:          map['session_type'] as String? ?? 'forenoon',
     );
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value.toLocal();
+    final str = value as String;
+    final parsed = DateTime.parse(str);
+    // Auto-detect timezone mismatch (legacy local times stored as UTC)
+    if (parsed.isUtc &&
+        parsed.isAfter(DateTime.now().toUtc().add(const Duration(minutes: 5)))) {
+      return DateTime(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+      );
+    }
+    return parsed.toLocal();
   }
 
   Map<String, dynamic> toInsertMap() {
@@ -101,8 +121,8 @@ class TeacherAttendanceModel {
       if (courseId  != null) 'course_id':  courseId,
       if (batchId   != null) 'batch_id':   batchId,
       'attendance_date':  attendanceDate.toIso8601String().split('T').first,
-      if (startTime != null) 'start_time': startTime!.toIso8601String(),
-      if (endTime   != null) 'end_time':   endTime!.toIso8601String(),
+      if (startTime != null) 'start_time': startTime!.toUtc().toIso8601String(),
+      if (endTime   != null) 'end_time':   endTime!.toUtc().toIso8601String(),
       if (latitude  != null) 'latitude':   latitude,
       if (longitude != null) 'longitude':  longitude,
       'attendance_status': status.value,

@@ -358,4 +358,79 @@ class DailyReportRepository {
       rethrow;
     }
   }
+
+  /// Fetch all daily class reports created by a teacher
+  Future<List<Map<String, dynamic>>> fetchClassReportsForTeacher(String teacherId) async {
+    try {
+      final rows = await _supabase
+          .from('daily_class_reports')
+          .select('''
+            *,
+            courses (
+              name
+            ),
+            batches (
+              name
+            ),
+            subjects (
+              name
+            )
+          ''')
+          .eq('teacher_id', teacherId)
+          .order('report_date', ascending: false)
+          .limit(20);
+      return (rows as List).map((r) => Map<String, dynamic>.from(r)).toList();
+    } catch (e) {
+      print('DailyReportRepository [fetchClassReportsForTeacher] Supabase error: $e');
+      return [];
+    }
+  }
+
+  /// Fetch recent student daily reports for all students in a course
+  Future<List<DailyReportModel>> fetchRecentReportsForCourse({
+    required String courseId,
+    int limit = 20,
+  }) async {
+    try {
+      // 1. Get all students in the course
+      final students = await fetchStudentsForCourses(courseIds: [courseId]);
+      if (students.isEmpty) return [];
+      final studentIds = students.map((s) => s['id'] as String).toList();
+
+      // 2. Fetch daily student reports
+      final rows = await _supabase
+          .from('daily_student_reports')
+          .select('''
+            *,
+            students (
+              full_name
+            ),
+            daily_class_reports (
+              report_date,
+              session_type,
+              topics_covered,
+              homework,
+              general_remarks,
+              subjects (
+                name
+              ),
+              teachers (
+                full_name
+              )
+            )
+          ''')
+          .inFilter('student_id', studentIds)
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      final reports = (rows as List).map((r) {
+        return DailyReportModel.fromMap(Map<String, dynamic>.from(r));
+      }).toList();
+
+      return reports;
+    } catch (e) {
+      print('DailyReportRepository [fetchRecentReportsForCourse] Supabase error: $e');
+      return [];
+    }
+  }
 }

@@ -240,4 +240,48 @@ class DailyReportCubit extends Cubit<DailyReportState> {
       );
     }
   }
+
+  /// Load historical class reports for the logged in teacher
+  Future<void> loadClassReportsForTeacher(String teacherId) async {
+    emit(state.copyWith(status: DailyReportStatus.loading));
+    try {
+      final reports = await _repo.fetchClassReportsForTeacher(teacherId);
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.success,
+          classReports: reports,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
+    }
+  }
+
+  /// Fetch recent reports for a course (used on parent dashboard marquee)
+  Future<void> fetchRecentReportsForCourse({
+    required String courseId,
+  }) async {
+    emit(state.copyWith(status: DailyReportStatus.loading));
+    try {
+      final reports = await _repo.fetchRecentReportsForCourse(courseId: courseId);
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.success,
+          courseReports: reports,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          status: DailyReportStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
+    }
+  }
 }

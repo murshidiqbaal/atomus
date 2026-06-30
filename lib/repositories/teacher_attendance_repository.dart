@@ -56,7 +56,7 @@ class TeacherAttendanceRepository {
     try {
       final inserted = await _supabase
           .from('teacher_attendance')
-          .upsert(record.toInsertMap(), onConflict: 'teacher_id,attendance_date')
+          .upsert(record.toInsertMap(), onConflict: 'teacher_id,attendance_date,session_type')
           .select()
           .single();
       final saved = TeacherAttendanceModel.fromMap(inserted);
@@ -89,7 +89,7 @@ class TeacherAttendanceRepository {
     // total_duration_minutes is a GENERATED column in Postgres -- it is
     // computed automatically from start_time/end_time. Never write to it.
     final updatePayload = {
-      'end_time':          now.toIso8601String(),
+      'end_time':          now.toUtc().toIso8601String(),
       'attendance_status': TeacherAttendanceStatus.completed.value,
     };
 
@@ -125,7 +125,7 @@ class TeacherAttendanceRepository {
         // No existing row found -- insert the whole record.
         result = await _supabase
             .from('teacher_attendance')
-            .upsert(updated.toInsertMap(), onConflict: 'teacher_id,attendance_date')
+            .upsert(updated.toInsertMap(), onConflict: 'teacher_id,attendance_date,session_type')
             .select();
       }
 
@@ -179,7 +179,8 @@ class TeacherAttendanceRepository {
           await _supabase
               .from('teacher_attendance')
               .update({
-                'end_time': autoEndTime.toIso8601String(),
+                'end_time': autoEndTime.toUtc().toIso8601String(),
+                'total_duration_minutes': 240,
                 'attendance_status': TeacherAttendanceStatus.completed.value,
               })
               .eq('id', session.id!);
@@ -216,7 +217,7 @@ class TeacherAttendanceRepository {
 
   // Fetch today's most recent completed session.
   Future<TeacherAttendanceModel?> fetchTodayCompletedSession(String teacherId, [String? sessionType]) async {
-    final type = sessionType ?? (DateTime.now().hour >= 12 ? 'afternoon' : 'forenoon');
+    final type = sessionType ?? (DateTime.now().hour >= 13 ? 'afternoon' : 'forenoon');
     try {
       final today = DateTime.now().toIso8601String().split('T').first;
       final rows  = await _supabase

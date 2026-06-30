@@ -2,7 +2,7 @@ import 'package:atomus/blocs/student/student_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
-
+ 
 import '../../blocs/announcement/announcement_bloc.dart';
 import '../../blocs/announcement/announcement_event.dart';
 import '../../blocs/announcement/announcement_state.dart';
@@ -35,6 +35,9 @@ import '../notifications/notification_screen.dart';
 import '../../widgets/drive_profile_image.dart';
 import '../../widgets/shimmer.dart';
 import '../main_layout.dart';
+import '../reports/ireports_screen.dart';
+import '../../blocs/daily_report/daily_report_cubit.dart';
+import '../../blocs/daily_report/daily_report_state.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -44,6 +47,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  String? _lastLoadedCourseId;
 
   @override
   void initState() {
@@ -56,12 +60,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final feeBloc = context.read<FeeBloc>();
     final announcementBloc = context.read<AnnouncementBloc>();
     final notificationBloc = context.read<NotificationBloc>();
-
+    final dailyReportCubit = context.read<DailyReportCubit>();
+ 
     studentBloc.add(LoadStudentData());
     feeBloc.add(LoadFeeData());
     announcementBloc.add(LoadAnnouncements());
     notificationBloc.add(LoadNotifications());
-
+ 
     final now = DateTime.now();
     studentBloc.add(
       LoadAttendance(
@@ -69,7 +74,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         endDate: DateTime(now.year, now.month + 1, 0),
       ),
     );
-
+ 
+    final studentInfo = studentBloc.state.studentInfo;
+    if (studentInfo?.courseId != null) {
+      dailyReportCubit.fetchRecentReportsForCourse(
+        courseId: studentInfo!.courseId!,
+      );
+    }
+ 
     await Future.wait([
       studentBloc.stream
           .firstWhere((s) => s.status != StudentStatus.loading)
@@ -262,6 +274,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           final student = state.studentInfo;
           if (student == null) return const SizedBox();
+ 
+          if (student.courseId != null && student.courseId != _lastLoadedCourseId) {
+            final courseId = student.courseId!;
+            _lastLoadedCourseId = courseId;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.read<DailyReportCubit>().fetchRecentReportsForCourse(
+                courseId: courseId,
+              );
+            });
+          }
 
           final performance = state.performance;
           final double academicPerformance = performance != null
@@ -589,6 +611,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                           const SizedBox(height: 16),
                           _buildCourseMarquee(context),
+                          const SizedBox(height: 32),
+                          _buildDailyReportsMarquee(context),
                           const SizedBox(height: 32),
 
                           // Academic Insights Grid
@@ -1131,6 +1155,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               height: 180,
               child: MarqueeWidget(
                 scrollSpeed: 30,
+                rightToLeft: false,
                 children: state.courses.map((course) {
                   return Container(
                     width: 280,
@@ -1355,6 +1380,214 @@ class _DashboardScreenState extends State<DashboardScreen> {
         fontWeight: FontWeight.w900,
         color: AppColors.accent,
         letterSpacing: 1.5,
+      ),
+    );
+  }
+
+  Widget _buildDailyReportsMarquee(BuildContext context) {
+    return BlocBuilder<DailyReportCubit, DailyReportState>(
+      builder: (context, state) {
+        if (state.status == DailyReportStatus.loading && state.courseReports.isEmpty) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildMarqueeHeader(context),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 85,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 3,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemBuilder: (_, __) => Container(
+                    width: 170,
+                    margin: const EdgeInsets.only(right: 12),
+                    child: const Shimmer(width: 170, height: 85, borderRadius: 16),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        // Filter out "needs improvement" reports
+        final dailyReports = state.courseReports
+            .where((r) => r.status != 'need_improvement')
+            .toList();
+
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        // Check if today's daily report is assigned
+        final todayStr = DateTime.now().toIso8601String().split('T').first;
+        final hasTodayReport = dailyReports.any((r) => r.dateStr == todayStr);
+
+        if (!hasTodayReport) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildMarqueeHeader(context),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.glassBase : Colors.black.withOpacity(0.02),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? AppColors.glassBorder : AppColors.neuDark.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 16,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'No updates today',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildMarqueeHeader(context),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 85,
+              child: MarqueeWidget(
+                scrollSpeed: 25,
+                rightToLeft: true,
+                children: dailyReports.map((report) {
+                  final formattedDate = report.dateStr.isNotEmpty
+                      ? DateFormat('d MMM').format(DateTime.parse(report.dateStr))
+                      : '';
+                  final displayTopics = report.topicsCovered != null && report.topicsCovered!.isNotEmpty
+                      ? (report.topicsCovered!.length > 40
+                          ? '${report.topicsCovered!.substring(0, 37)}...'
+                          : report.topicsCovered!)
+                      : 'Daily class update available.';
+
+                  return Container(
+                    width: 170,
+                    margin: const EdgeInsets.only(right: 12),
+                    child: CustomCard(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const IReportsScreen(),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  report.subjectName?.toUpperCase() ?? 'GENERAL',
+                                  style: TextStyle(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: isDark ? AppColors.accent : AppColors.primary,
+                                    letterSpacing: 0.5,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                formattedDate,
+                                style: const TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            report.studentName ?? 'Student',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Expanded(
+                            child: Text(
+                              displayTopics,
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMarqueeHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4.0),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'DAILY CLASS UPDATES',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: AppColors.textSecondary,
+              letterSpacing: 2.0,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }

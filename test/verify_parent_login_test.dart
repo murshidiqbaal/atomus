@@ -1,8 +1,7 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:atomus/services/parent_identity_service.dart';
 import 'package:atomus/repositories/auth_repository.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   setUpAll(() async {
@@ -11,7 +10,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       await Supabase.initialize(
         url: 'https://txtvvlxaurqovghtngzm.supabase.co',
-        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4dHZ2bHhhdXJxb3ZnaHRuZ3ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNTc3OTQsImV4cCI6MjA5MzYzMzc5NH0.7BJqpZTW64Vgz6VLbjSdOf8M2Oq8nrWrK8uDBTEHO3s',
+        anonKey:
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4dHZ2bHhhdXJxb3ZnaHRuZ3ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNTc3OTQsImV4cCI6MjA5MzYzMzc5NH0.7BJqpZTW64Vgz6VLbjSdOf8M2Oq8nrWrK8uDBTEHO3s',
       );
     } catch (_) {
       // already initialized
@@ -29,10 +29,7 @@ void main() {
     try {
       await supabase
           .from('parents')
-          .update({
-            'auth_user_id': null,
-            'auth_id': null,
-          })
+          .update({'auth_user_id': null, 'auth_id': null})
           .eq('email', farhanEmail);
       print('Reset successful.');
     } catch (e) {
@@ -43,7 +40,7 @@ void main() {
     const loginEmail = 'Farhan.Parent@email.com';
     const password = '79900000';
     print('\n--- signing in with mixed-case email: $loginEmail ---');
-    
+
     // Log out first to ensure clean state
     try {
       await supabase.auth.signOut();
@@ -87,9 +84,7 @@ void main() {
     try {
       await supabase
           .from('teachers')
-          .update({
-            'auth_id': null,
-          })
+          .update({'auth_id': null})
           .eq('email', teacherEmail);
       print('Reset successful.');
     } catch (e) {
@@ -100,7 +95,7 @@ void main() {
     const loginEmail = 'MurshidIqbaalKM10@gmail.com';
     const password = 'HelloWorld';
     print('\n--- signing in with mixed-case email: $loginEmail ---');
-    
+
     // Log out first to ensure clean state
     try {
       await supabase.auth.signOut();

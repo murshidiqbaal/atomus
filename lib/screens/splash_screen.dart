@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
 
 import '../blocs/auth/auth_bloc.dart';
 import '../blocs/auth/auth_state.dart';
@@ -8,6 +9,7 @@ import '../widgets/app_background.dart';
 import 'login_screen.dart';
 import 'main_layout.dart';
 import 'teacher/teacher_main_layout.dart';
+import 'onboarding/components/onboarding_screen.dart';
 
 /// Minimal premium animated splash.
 /// Two controllers: one runs once (entrance), one loops (aura pulse).
@@ -102,9 +104,16 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       final Widget destination;
       if (state.status == AuthStatus.authenticated) {
-        destination = state.isTeacher
-            ? const TeacherMainLayout()
-            : const MainLayout();
+        if (state.isTeacher) {
+          destination = const TeacherMainLayout();
+        } else {
+          final settingsBox = Hive.box('settings');
+          final onboardingCompleted =
+              settingsBox.get('onboarding_completed', defaultValue: false) as bool;
+          destination = onboardingCompleted
+              ? const MainLayout()
+              : const OnboardingScreen();
+        }
       } else {
         destination = const LoginScreen();
       }

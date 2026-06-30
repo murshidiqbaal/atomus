@@ -11,7 +11,7 @@ import '../../widgets/app_background.dart';
 import '../../widgets/custom_card.dart';
 import '../../widgets/glass_background.dart';
 import '../../widgets/neu_box.dart';
-import '../../widgets/progress_chart.dart';
+import '../../widgets/stock_chart.dart';
 import '../../widgets/shimmer.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -229,8 +229,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
             // Generate Trajectory Chart data dynamically
             final chartDataPoints = <double>[];
             final chartLabels = <String>[];
+            final chartExamNames = <String>[];
             final List<String> sortedAvailableMonths = [];
-
+ 
             if (state.exams.isNotEmpty) {
               final Set<String> availableMonths = {};
               for (final session in state.exams) {
@@ -240,24 +241,24 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 availableMonths.add(monthKey);
               }
               sortedAvailableMonths.addAll(availableMonths.toList()..sort());
-
+ 
               if (sortedAvailableMonths.isNotEmpty) {
                 _startMonth ??= sortedAvailableMonths.length > 6
                     ? sortedAvailableMonths[sortedAvailableMonths.length - 6]
                     : sortedAvailableMonths.first;
                 _endMonth ??= sortedAvailableMonths.last;
               }
-
+ 
               final sortedExams = List<ExamSession>.from(state.exams)
                 ..sort(
                   (a, b) => _parseDate(a.date).compareTo(_parseDate(b.date)),
                 );
-
+ 
               if (_isMonthly) {
                 // Group exams by month
                 final Map<String, List<double>> monthlyPercentages = {};
                 final List<String> monthKeys = [];
-
+ 
                 for (final session in sortedExams) {
                   double sessionObtained = 0;
                   double sessionTotal = 0;
@@ -270,7 +271,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     final date = _parseDate(session.date);
                     final monthKey =
                         '${date.year}-${date.month.toString().padLeft(2, '0')}';
-
+ 
                     if (!monthlyPercentages.containsKey(monthKey)) {
                       monthlyPercentages[monthKey] = [];
                       monthKeys.add(monthKey);
@@ -278,7 +279,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     monthlyPercentages[monthKey]!.add(pct);
                   }
                 }
-
+ 
                 // Filter keys by range
                 final List<String> filteredMonthKeys = monthKeys.where((key) {
                   if (_startMonth != null && key.compareTo(_startMonth!) < 0) {
@@ -289,7 +290,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   }
                   return true;
                 }).toList();
-
+ 
                 final List<String> monthNames = [
                   'JAN',
                   'FEB',
@@ -304,25 +305,40 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   'NOV',
                   'DEC',
                 ];
-
+                final List<String> monthNamesFull = [
+                  'January',
+                  'February',
+                  'March',
+                  'April',
+                  'May',
+                  'June',
+                  'July',
+                  'August',
+                  'September',
+                  'October',
+                  'November',
+                  'December',
+                ];
+ 
                 for (final key in filteredMonthKeys) {
                   final parts = key.split('-');
                   final monthIndex = int.parse(parts[1]) - 1;
                   final year = parts[0].substring(2);
-
+ 
                   final pcts = monthlyPercentages[key]!;
                   final avgPct = pcts.reduce((a, b) => a + b) / pcts.length;
-
-                  chartDataPoints.add(avgPct);
+ 
+                  chartDataPoints.add(avgPct * 100.0);
                   chartLabels.add('${monthNames[monthIndex]} \'$year');
+                  chartExamNames.add('${monthNamesFull[monthIndex]} 20$year');
                 }
               } else {
-                // Daily View: Take last 6 sorted exams
-                final recentExams = sortedExams.length > 6
-                    ? sortedExams.sublist(sortedExams.length - 6)
-                    : sortedExams;
-
-                for (final session in recentExams) {
+                // Daily View: group by dayKey (yyyy-MM-dd)
+                final Map<String, List<double>> dailyPercentages = {};
+                final Map<String, List<String>> dailyTitles = {};
+                final List<String> dayKeys = [];
+ 
+                for (final session in sortedExams) {
                   double sessionObtained = 0;
                   double sessionTotal = 0;
                   for (final sub in session.subjects) {
@@ -330,9 +346,48 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     sessionTotal += sub.totalMarks;
                   }
                   if (sessionTotal > 0) {
-                    chartDataPoints.add(sessionObtained / sessionTotal);
-                    // Do NOT show dates like 25/5, 10/6 etc in Daily View.
-                    chartLabels.add('');
+                    final pct = sessionObtained / sessionTotal;
+                    final date = _parseDate(session.date);
+                    final dayKey =
+                        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+ 
+                    if (!dailyPercentages.containsKey(dayKey)) {
+                      dailyPercentages[dayKey] = [];
+                      dailyTitles[dayKey] = [];
+                      dayKeys.add(dayKey);
+                    }
+                    dailyPercentages[dayKey]!.add(pct);
+                    dailyTitles[dayKey]!.add(session.title);
+                  }
+                }
+ 
+                dayKeys.sort();
+ 
+                // Take last 8 days to keep the graph readable and accurate
+                final recentDayKeys = dayKeys.length > 8
+                    ? dayKeys.sublist(dayKeys.length - 8)
+                    : dayKeys;
+ 
+                for (final key in recentDayKeys) {
+                  final pcts = dailyPercentages[key]!;
+                  final avgPct = pcts.reduce((a, b) => a + b) / pcts.length;
+                  chartDataPoints.add(avgPct * 100.0);
+ 
+                  final parts = key.split('-');
+                  final monthIndex = int.parse(parts[1]) - 1;
+                  final day = int.parse(parts[2]);
+                  final monthNamesShort = [
+                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                  ];
+ 
+                  chartLabels.add('$day ${monthNamesShort[monthIndex]}');
+ 
+                  final titles = dailyTitles[key]!;
+                  if (titles.length == 1) {
+                    chartExamNames.add(titles.first);
+                  } else {
+                    chartExamNames.add('${titles.length} Exams');
                   }
                 }
               }
@@ -547,9 +602,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                     ),
                                     const SizedBox(height: 24),
                                   ],
-                                  ProgressChart(
+                                  StockChart(
                                     dataPoints: chartDataPoints,
                                     labels: chartLabels,
+                                    examNames: chartExamNames,
                                   ),
                                   const SizedBox(height: 32),
                                   Row(

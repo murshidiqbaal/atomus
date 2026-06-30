@@ -1,6 +1,7 @@
 class DailyReportModel {
   final String id;
   final String studentId;
+  final String? studentName; // Added student name
   final String? subjectId; // Nullable for general course-level reports
   final String dateStr; // 'yyyy-MM-dd'
   final String behaviorRating; // 'Excellent' | 'Good' | 'Average' | 'Needs Improvement' | 'Poor'
@@ -23,6 +24,7 @@ class DailyReportModel {
   DailyReportModel({
     required this.id,
     required this.studentId,
+    this.studentName,
     this.subjectId,
     required this.dateStr,
     required this.behaviorRating,
@@ -45,6 +47,7 @@ class DailyReportModel {
     return {
       'id': id,
       'student_id': studentId,
+      'student_name': studentName,
       'subject_id': subjectId,
       'date_str': dateStr,
       'behavior_rating': behaviorRating,
@@ -64,6 +67,7 @@ class DailyReportModel {
   }
 
   factory DailyReportModel.fromMap(Map<String, dynamic> map) {
+    final studentNameVal = map['students']?['full_name'] as String? ?? map['student_name'] as String?;
     // If the map contains fields from daily_student_reports joined with daily_class_reports
     if (map.containsKey('status') || map.containsKey('daily_class_reports')) {
       final classReport = map['daily_class_reports'] as Map<String, dynamic>?;
@@ -72,6 +76,7 @@ class DailyReportModel {
       return DailyReportModel(
         id: map['id'] as String,
         studentId: map['student_id'] as String,
+        studentName: studentNameVal,
         subjectId: classReport?['subject_id'] as String?,
         dateStr: classReport?['report_date'] as String? ?? map['date_str'] as String? ?? '',
         behaviorRating: map['status'] == 'need_improvement' ? 'Needs Improvement' : 'Excellent',
@@ -96,6 +101,7 @@ class DailyReportModel {
     return DailyReportModel(
       id: map['id'] as String,
       studentId: map['student_id'] as String,
+      studentName: studentNameVal,
       subjectId: map['subject_id'] as String?,
       dateStr: map['date_str'] as String,
       behaviorRating: map['behavior_rating'] as String,
@@ -114,6 +120,7 @@ class DailyReportModel {
   DailyReportModel copyWith({
     String? id,
     String? studentId,
+    String? studentName,
     String? subjectId,
     String? dateStr,
     String? behaviorRating,
@@ -134,6 +141,7 @@ class DailyReportModel {
     return DailyReportModel(
       id: id ?? this.id,
       studentId: studentId ?? this.studentId,
+      studentName: studentName ?? this.studentName,
       subjectId: subjectId ?? this.subjectId,
       dateStr: dateStr ?? this.dateStr,
       behaviorRating: behaviorRating ?? this.behaviorRating,

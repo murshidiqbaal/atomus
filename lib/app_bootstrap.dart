@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:hive_flutter/hive_flutter.dart';
+ 
 import 'core/constants/supabase_constants.dart';
 import 'firebase_options.dart';
 import 'services/fee_hive_service.dart';
@@ -88,6 +89,7 @@ class AppBootstrap {
       await Future.wait([
         _teacherHiveService.initBoxes(),
         FeeHiveService().initBoxes(),
+        Hive.openBox('settings'),
       ]);
     } catch (e, stack) {
       AppLogger.critical('AppBootstrap', 'Opening Hive boxes failed', e, stack);

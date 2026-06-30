@@ -14,7 +14,7 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
     final type = sessionType ?? state.sessionType;
     emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading, sessionType: type));
     try {
-      final session   = await _repo.fetchTodayActiveSession(teacherId);
+      final session   = await _repo.fetchTodayActiveSession(teacherId, type);
       final resolvedType = session != null ? session.sessionType : type;
 
       final completed = session == null

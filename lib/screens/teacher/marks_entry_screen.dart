@@ -117,9 +117,12 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                   if (state.status == MarksLoadStatus.loading &&
                       state.selectedExam == null) {
                     return ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       itemCount: 4,
-                      itemBuilder: (_, __) => Shimmer.cardSkeleton(height: 110),
+                      itemBuilder: (_, _) => Shimmer.cardSkeleton(height: 110),
                     );
                   }
 
