@@ -11,6 +11,7 @@ import '../widgets/app_background.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/neu_box.dart';
 import 'package:hive/hive.dart';
+import '../services/parent_activity_service.dart';
 import 'main_layout.dart';
 import 'teacher/teacher_main_layout.dart';
 import 'onboarding/components/onboarding_screen.dart';
@@ -43,6 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
           if (state.isTeacher) {
             destination = const TeacherMainLayout();
           } else {
+            // Track parent login activity
+            context.read<ParentActivityService>().trackDailyAppOpen();
+            
             final settingsBox = Hive.box('settings');
             final onboardingCompleted =
                 settingsBox.get('onboarding_completed', defaultValue: false) as bool;

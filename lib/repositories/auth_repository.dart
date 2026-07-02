@@ -193,9 +193,32 @@ class AuthRepository {
 
   Future<bool> isAuthenticated() async {
     final hasFlag = await _getLoggedIn();
+    if (!hasFlag) return false;
+
     final session = _supabase.auth.currentSession;
-    final isValidSession = session != null && !session.isExpired;
-    return hasFlag && isValidSession;
+    if (session == null) return false;
+
+    // If the access token is expired, attempt to refresh the session.
+    if (session.isExpired) {
+      try {
+        final res = await _supabase.auth.refreshSession();
+        return res.session != null;
+      } on AuthException catch (_) {
+        // The session is invalid/revoked (e.g. password changed elsewhere).
+        // Clear flag and sign out so the user goes back to the login screen.
+        try {
+          await _supabase.auth.signOut();
+          await _setLoggedIn(false);
+        } catch (_) {}
+        return false;
+      } catch (_) {
+        // Any other exception (like network connection failure) should not prevent
+        // the user from entering the dashboard to see cached offline data.
+        return true;
+      }
+    }
+
+    return true;
   }
 
   // ── Parent account creation helpers (unchanged) ─────────────

@@ -200,4 +200,16 @@ class TeacherHiveService {
     final box = _getBox(_dailyReportsBox);
     return box.values.map((v) => jsonDecode(v) as Map<String, dynamic>).toList();
   }
+
+  Future<void> clearAll() async {
+    await Future.wait([
+      _getBox(_profileBox).clear(),
+      _getBox(_pendingAttendanceBox).clear(),
+      _getBox(_pendingMarksBox).clear(),
+      _getBox(_cachedStudentsBox).clear(),
+      _getBox(_assignmentsBox).clear(),
+      _getBox(_activeSessionBox).clear(),
+      _getBox(_dailyReportsBox).clear(),
+    ]);
+  }
 }

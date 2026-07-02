@@ -1,159 +1,113 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/parent_daily_activity_model.dart';
+import '../repositories/parent_activity_repository.dart';
+import '../repositories/student_repository.dart';
 import 'parent_identity_service.dart';
 
-class ParentActivityService with WidgetsBindingObserver {
-  ParentActivityService({
-    SupabaseClient? client,
-    ParentIdentityService? parentIdentityService,
-  })  : _supabase = client ?? Supabase.instance.client,
-        _parentIdentityService = parentIdentityService ?? ParentIdentityService();
-
+class ParentActivityService {
   final SupabaseClient _supabase;
-  final ParentIdentityService _parentIdentityService;
+  final ParentIdentityService _identityService;
+  final ParentActivityRepository _activityRepository;
+  final StudentRepository _studentRepository;
 
-  String? _currentRecordId;
-  DateTime? _sessionStart;
-  bool _isTracking = false;
+  bool hasTrackedToday = false;
 
-  void initialize() {
-    if (_isTracking) return;
-    WidgetsBinding.instance.addObserver(this);
-    _isTracking = true;
-  }
+  ParentActivityService({
+    required SupabaseClient client,
+    required ParentIdentityService parentIdentityService,
+    required ParentActivityRepository activityRepository,
+    required StudentRepository studentRepository,
+  })  : _supabase = client,
+        _identityService = parentIdentityService,
+        _activityRepository = activityRepository,
+        _studentRepository = studentRepository;
 
-  void dispose() {
-    if (!_isTracking) return;
-    WidgetsBinding.instance.removeObserver(this);
-    _isTracking = false;
-  }
+  /// Entry point to check and record parent app open activity
+  Future<void> trackDailyAppOpen() async {
+    if (hasTrackedToday) return;
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_isTracking || _currentRecordId == null) return;
-
-    if (state == AppLifecycleState.resumed) {
-      _sessionStart = DateTime.now();
-      updateLastSeen();
-    } else if (state == AppLifecycleState.paused) {
-      updateSessionDuration();
-    }
-  }
-
-  Future<void> trackAppOpen() async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) return;
 
-      // Resolve parent profile
-      final parent = await _parentIdentityService.resolveCurrentParent();
-      final String parentId = parent['id'] as String;
-      final String parentName = parent['full_name'] as String;
+      final parent = await _identityService.resolveCurrentParent();
+      final parentId = parent['id'] as String;
 
-      // App version
-      final packageInfo = await PackageInfo.fromPlatform();
-      final appVersion = packageInfo.version;
-
-      // Platform
-      String devicePlatform = 'Unknown';
-      if (!kIsWeb) {
-        if (Platform.isAndroid) {
-          devicePlatform = 'Android';
-        } else if (Platform.isIOS) {
-          devicePlatform = 'iOS';
-        }
-      }
-
-      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-
-      // Check if record exists for today
-      final existingRecord = await _supabase
-          .from('parent_app_activity_logs')
-          .select('id, session_duration_minutes')
-          .eq('parent_id', parentId)
-          .eq('login_date', todayStr)
-          .maybeSingle();
-
-      _sessionStart = DateTime.now();
-
-      if (existingRecord != null) {
-        _currentRecordId = existingRecord['id'] as String;
-        await _supabase
-            .from('parent_app_activity_logs')
-            .update({
-              'last_seen_at': DateTime.now().toUtc().toIso8601String(),
-              'parent_name': parentName,
-              'app_version': appVersion,
-              'device_platform': devicePlatform,
-            })
-            .eq('id', _currentRecordId!);
+      final todayActivity = await _activityRepository.getTodayActivity(parentId);
+      if (todayActivity != null) {
+        await updateTodayRecord(todayActivity);
       } else {
-        final inserted = await _supabase
-            .from('parent_app_activity_logs')
-            .insert({
-              'parent_id': parentId,
-              'parent_name': parentName,
-              'device_platform': devicePlatform,
-              'app_version': appVersion,
-              'login_date': todayStr,
-              'opened_at': DateTime.now().toUtc().toIso8601String(),
-              'last_seen_at': DateTime.now().toUtc().toIso8601String(),
-              'session_duration_minutes': 0.0,
-            })
-            .select('id')
-            .single();
-        _currentRecordId = inserted['id'] as String;
+        await createTodayRecord(parentId);
       }
+
+      hasTrackedToday = true;
     } catch (e) {
-      debugPrint('Error tracking app open: $e');
+      // Do not block app execution or throw runtime errors
+      print('Parent activity tracking failed: $e');
     }
   }
 
-  Future<void> updateLastSeen() async {
-    if (_currentRecordId == null) return;
+  /// Checks if the parent has already opened the app today
+  Future<bool> hasOpenedToday() async {
     try {
-      await _supabase
-          .from('parent_app_activity_logs')
-          .update({
-            'last_seen_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', _currentRecordId!);
+      final user = _supabase.auth.currentUser;
+      if (user == null) return false;
+
+      final parent = await _identityService.resolveCurrentParent();
+      final parentId = parent['id'] as String;
+
+      final todayActivity = await _activityRepository.getTodayActivity(parentId);
+      return todayActivity != null;
     } catch (e) {
-      debugPrint('Error updating last seen: $e');
+      print('Error checking daily app open status: $e');
+      return false;
     }
   }
 
-  Future<void> updateSessionDuration() async {
-    if (_currentRecordId == null || _sessionStart == null) return;
+  /// Inserts a new record for today
+  Future<void> createTodayRecord(String parentId) async {
+    // Fetch student info to link campus, course, batch
+    final studentInfo = await _studentRepository.getStudentInfo(parentId);
+    String? batchId;
+    if (studentInfo != null) {
+      batchId = await _fetchStudentBatchId(studentInfo.id);
+    }
+
+    final activity = ParentDailyActivityModel(
+      parentId: parentId,
+      studentId: studentInfo?.id,
+      campusId: studentInfo?.campusId,
+      courseId: studentInfo?.courseId,
+      batchId: batchId,
+      openDate: DateTime.now(),
+      firstOpenedAt: DateTime.now(),
+      lastOpenedAt: DateTime.now(),
+      openCount: 1,
+    );
+
+    await _activityRepository.insertActivity(activity);
+  }
+
+  /// Updates the open count and timestamp for an existing record
+  Future<void> updateTodayRecord(ParentDailyActivityModel existing) async {
+    final updated = existing.copyWith(
+      lastOpenedAt: DateTime.now(),
+      openCount: existing.openCount + 1,
+    );
+    await _activityRepository.updateActivity(updated);
+  }
+
+  /// Local helper to resolve batch_id from the student record
+  Future<String?> _fetchStudentBatchId(String studentId) async {
     try {
-      final now = DateTime.now();
-      final diff = now.difference(_sessionStart!);
-      final segmentMinutes = diff.inSeconds / 60.0;
-
-      _sessionStart = null; // reset session start since we paused
-
-      // Fetch the current duration, add the segment, and save it back
-      final record = await _supabase
-          .from('parent_app_activity_logs')
-          .select('session_duration_minutes')
-          .eq('id', _currentRecordId!)
-          .single();
-
-      final double existingDuration = (record['session_duration_minutes'] as num?)?.toDouble() ?? 0.0;
-      final newDuration = existingDuration + segmentMinutes;
-
-      await _supabase
-          .from('parent_app_activity_logs')
-          .update({
-            'session_duration_minutes': newDuration,
-            'last_seen_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', _currentRecordId!);
-    } catch (e) {
-      debugPrint('Error updating session duration: $e');
+      final res = await _supabase
+          .from('students')
+          .select('batch_id')
+          .eq('id', studentId)
+          .maybeSingle();
+      return res?['batch_id'] as String?;
+    } catch (_) {
+      return null;
     }
   }
 }

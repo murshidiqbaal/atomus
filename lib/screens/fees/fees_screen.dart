@@ -14,6 +14,7 @@ import '../../models/dummy_data.dart';
 import '../../repositories/fee_repository.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/drive_image_helper.dart';
+import '../../utils/receipt_pdf_generator.dart';
 import '../../widgets/drive_network_image.dart';
 import '../../widgets/glass_background.dart';
 import '../../widgets/neu_box.dart';
@@ -27,7 +28,7 @@ class FeesScreen extends StatelessWidget {
     final studentBloc = context.read<StudentBloc>();
 
     studentBloc.add(LoadStudentData());
-    feeBloc.add(LoadFeeData());
+    feeBloc.add(const LoadFeeData(isRefresh: true));
 
     await Future.wait([
       feeBloc.stream
@@ -226,25 +227,52 @@ class FeesScreen extends StatelessWidget {
                   ],
 
                   // ─── Term-wise Fee Cards ───────────────────────────
-                  _buildSectionHeader(
-                    'Term-wise Breakdown',
-                    Icons.view_timeline_rounded,
-                    isDark,
-                  ),
-                  const SizedBox(height: 12),
-                  ...state.fees.asMap().entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildTermCard(
-                        context,
-                        entry.value,
-                        entry.key,
-                        studentName,
-                        studentGrade,
-                        isDark,
+                  if (state.termWiseFees.isNotEmpty) ...[
+                    _buildSectionHeader(
+                      'Term-wise Breakdown',
+                      Icons.view_timeline_rounded,
+                      isDark,
+                    ),
+                    const SizedBox(height: 12),
+                    ...state.termWiseFees.asMap().entries.map(
+                      (entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildTermCard(
+                          context,
+                          entry.value,
+                          entry.key,
+                          studentName,
+                          studentGrade,
+                          isDark,
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ─── Other / Individual Fees ────────────────────────
+                  if (state.otherFees.isNotEmpty) ...[
+                    _buildSectionHeader(
+                      'Other & Individual Fees',
+                      Icons.payments_rounded,
+                      isDark,
+                    ),
+                    const SizedBox(height: 12),
+                    ...state.otherFees.asMap().entries.map(
+                      (entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildTermCard(
+                          context,
+                          entry.value,
+                          entry.key,
+                          studentName,
+                          studentGrade,
+                          isDark,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // // ─── Payment History ───────────────────────────────
                   // if (state.paymentHistory.isNotEmpty) ...[
@@ -1236,14 +1264,20 @@ class FeesScreen extends StatelessWidget {
                                 color: statusColor,
                                 size: 22,
                               )
-                            : Text(
-                                '${index + 1}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 18,
-                                  color: statusColor,
-                                ),
-                              ),
+                            : (!fee.isTermWise
+                                ? Icon(
+                                    Icons.label_important_rounded,
+                                    color: statusColor,
+                                    size: 20,
+                                  )
+                                : Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 18,
+                                      color: statusColor,
+                                    ),
+                                  )),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -1761,21 +1795,16 @@ class FeesScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Receipt link copied!'),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        );
+                      onPressed: () async {
                         Navigator.pop(context);
+                        await ReceiptPdfGenerator.shareReceipt(
+                          fee: fee,
+                          studentName: studentName,
+                          studentGrade: studentGrade,
+                        );
                       },
                       icon: const Icon(Icons.share_rounded, size: 18),
-                      label: const Text('Share'),
+                      label: const Text('Share / Save PDF'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -1788,24 +1817,25 @@ class FeesScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await ReceiptPdfGenerator.printReceipt(
+                          fee: fee,
+                          studentName: studentName,
+                          studentGrade: studentGrade,
+                        );
+                      },
+                      icon: const Icon(Icons.print_rounded, size: 18),
+                      label: const Text('Print Receipt'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: isDark ? AppColors.accent : AppColors.primary,
                         side: BorderSide(
                           color: isDark ? Colors.white24 : Colors.grey.shade300,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text(
-                        'Close',
-                        style: TextStyle(
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),

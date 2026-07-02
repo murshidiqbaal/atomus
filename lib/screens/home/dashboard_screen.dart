@@ -1470,7 +1470,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _buildMarqueeHeader(context),
             const SizedBox(height: 16),
             SizedBox(
-              height: 85,
+              height: 105,
               child: MarqueeWidget(
                 scrollSpeed: 25,
                 rightToLeft: true,
@@ -1478,14 +1478,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   final formattedDate = report.dateStr.isNotEmpty
                       ? DateFormat('d MMM').format(DateTime.parse(report.dateStr))
                       : '';
-                  final displayTopics = report.topicsCovered != null && report.topicsCovered!.isNotEmpty
-                      ? (report.topicsCovered!.length > 40
-                          ? '${report.topicsCovered!.substring(0, 37)}...'
-                          : report.topicsCovered!)
-                      : 'Daily class update available.';
 
                   return Container(
-                    width: 170,
+                    width: 195,
                     margin: const EdgeInsets.only(right: 12),
                     child: CustomCard(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1538,19 +1533,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
-                          Expanded(
-                            child: Text(
-                              displayTopics,
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w500,
+                          const SizedBox(height: 4),
+                          // Topic Row
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.menu_book_rounded,
+                                size: 10,
                                 color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                                height: 1.2,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  report.topicsCovered != null && report.topicsCovered!.trim().isNotEmpty
+                                      ? report.topicsCovered!.trim()
+                                      : 'No topic detailed',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          // Homework Row
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.assignment_outlined,
+                                size: 10,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  report.homework != null && report.homework!.trim().isNotEmpty
+                                      ? 'HW: ${report.homework!.trim()}'
+                                      : 'No homework',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

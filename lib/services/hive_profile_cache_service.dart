@@ -124,4 +124,12 @@ class HiveProfileCacheService {
   }
 
   String _authParentKey(String authUserId) => 'auth_parent:$authUserId';
+
+  Future<void> clearAll() async {
+    await Future.wait([
+      _profiles.clear(),
+      _pendingUploads.clear(),
+      _meta.clear(),
+    ]);
+  }
 }

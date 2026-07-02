@@ -97,11 +97,23 @@ class MarksEntryRepository {
       }
 
       final teacherUserId = _supabase.auth.currentUser?.id;
+      String? teacherCampusId;
+      if (teacherUserId != null) {
+        final teacherRow = await _supabase
+            .from('teachers')
+            .select('campus_id')
+            .eq('auth_id', teacherUserId)
+            .maybeSingle();
+        teacherCampusId = teacherRow?['campus_id'] as String?;
+      }
+
       return allExams.where((e) {
-        // Access control: only exams created by admin or the logged-in teacher are visible
-        final isCreatedByMe = e.createdBy == teacherUserId;
+        // Access control: only exams created by admin, the logged-in teacher, or linked to the same/null campus are visible
+        final isCreatedByMe = e.createdBy == teacherUserId || e.creatorId == teacherUserId;
         final isCreatedByAdmin = e.creatorRole?.toLowerCase() == 'admin' || e.creatorRole == null;
-        if (!isCreatedByMe && !isCreatedByAdmin) return false;
+        final isMatchingCampus = e.campusId == null || (teacherCampusId != null && e.campusId == teacherCampusId);
+
+        if (!isCreatedByMe && !isCreatedByAdmin && !isMatchingCampus) return false;
 
         if (e.batchId == null) {
           // Course exam: course must match, and subject must either be null (course-wide) or match subjectIds

@@ -1,18 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'theme/app_theme.dart';
-import 'blocs/theme/theme_bloc.dart';
-import 'blocs/theme/theme_state.dart';
-import 'screens/splash_screen.dart';
-import 'utils/logger.dart';
 
 import 'app_bootstrap.dart';
 import 'app_providers.dart';
-import 'services/password_recovery_service.dart';
 import 'blocs/connectivity/connectivity_cubit.dart';
 import 'blocs/connectivity/connectivity_state.dart';
+import 'blocs/theme/theme_bloc.dart';
+import 'blocs/theme/theme_state.dart';
 import 'screens/no_internet_screen.dart';
+import 'screens/splash_screen.dart';
+import 'services/password_recovery_service.dart';
+import 'theme/app_theme.dart';
+import 'utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,10 +44,7 @@ void main() async {
   final bootstrapResult = await bootstrap.bootstrap();
 
   runApp(
-    AppProviders(
-      bootstrapResult: bootstrapResult,
-      child: const AtomusApp(),
-    ),
+    AppProviders(bootstrapResult: bootstrapResult, child: const AtomusApp()),
   );
 }
 
@@ -68,7 +65,16 @@ class AtomusApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeState.themeMode,
-          builder: (context, child) => ConnectivityWrapper(child: child ?? const SizedBox.shrink()),
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.noScaling),
+              child: ConnectivityWrapper(
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
           home: const SplashScreen(),
         );
       },
@@ -95,9 +101,7 @@ class ConnectivityWrapper extends StatelessWidget {
                       key: ValueKey('no_internet_screen'),
                       child: NoInternetScreen(),
                     )
-                  : const SizedBox.shrink(
-                      key: ValueKey('online_placeholder'),
-                    ),
+                  : const SizedBox.shrink(key: ValueKey('online_placeholder')),
             ),
           ],
         );
@@ -105,4 +109,3 @@ class ConnectivityWrapper extends StatelessWidget {
     );
   }
 }
-

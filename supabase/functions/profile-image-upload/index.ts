@@ -13,7 +13,7 @@
  */
 
 import { createClient, SupabaseClient, User } from "https://esm.sh/@supabase/supabase-js@2";
-import { createJWT } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
+import { create } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 
 const corsHeaders = {
@@ -188,7 +188,7 @@ async function getDriveAccessToken(serviceKey: string): Promise<string> {
     ["sign"],
   );
 
-  const assertion = await createJWT(
+  const assertion = await create(
     { alg: "RS256", typ: "JWT" },
     {
       iss: key.client_email,

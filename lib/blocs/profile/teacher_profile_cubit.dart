@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import '../../repositories/teacher_repository.dart';
 import '../../services/drive_upload_service.dart';
@@ -12,6 +12,8 @@ import '../../services/profile_image_service.dart';
 import '../../services/teacher_profile_hive_service.dart';
 import '../teacher_session/teacher_session_cubit.dart';
 import 'teacher_profile_state.dart';
+import '../auth/auth_bloc.dart';
+import '../auth/auth_state.dart';
 
 class TeacherProfileCubit extends Cubit<TeacherProfileState> {
   final TeacherRepository _teacherRepository;
@@ -22,6 +24,7 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
   final Connectivity _connectivity;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<AuthState>? _authSubscription;
   bool _isSyncing = false;
 
   TeacherProfileCubit({
@@ -30,6 +33,7 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
     required DriveUploadService driveUploadService,
     required ProfileImageService imageService,
     required TeacherSessionCubit sessionCubit,
+    required AuthBloc authBloc,
     Connectivity? connectivity,
   }) : _teacherRepository = teacherRepository,
        _hiveService = hiveService,
@@ -39,6 +43,19 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
        _connectivity = connectivity ?? Connectivity(),
        super(const TeacherProfileState()) {
     _initConnectivityListener();
+    _initAuthListener(authBloc);
+  }
+
+  void _initAuthListener(AuthBloc authBloc) {
+    _authSubscription = authBloc.stream.listen((state) {
+      if (state.status == AuthStatus.unauthenticated) {
+        clearProfile();
+      }
+    });
+  }
+
+  void clearProfile() {
+    emit(const TeacherProfileState());
   }
 
   void _initConnectivityListener() {
@@ -401,6 +418,7 @@ class TeacherProfileCubit extends Cubit<TeacherProfileState> {
   @override
   Future<void> close() {
     _connectivitySubscription?.cancel();
+    _authSubscription?.cancel();
     return super.close();
   }
 }

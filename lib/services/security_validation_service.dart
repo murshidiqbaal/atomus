@@ -161,8 +161,7 @@ class SecurityValidationService {
       );
     }
   }
-
-  /// Restricts exam deletion so only the teacher who created or is assigned to the exam's subject can delete it.
+  /// Restricts exam deletion so only the teacher who created the exam can delete it.
   static Future<void> validateExamDeletion(String examId, String? subjectId) async {
     final teacherId = await getTeacherId();
 
@@ -181,23 +180,8 @@ class SecurityValidationService {
         }
       }
 
-      if (subjectId != null) {
-        // Check if teacher is assigned to the exam's subject
-        final assigned = await _supabase
-            .from('teacher_subjects')
-            .select('id')
-            .eq('teacher_id', teacherId)
-            .eq('subject_id', subjectId)
-            .eq('is_active', true)
-            .limit(1);
-
-        if (assigned.isNotEmpty) {
-          return; // Authorized as assigned subject teacher!
-        }
-      }
-
       throw UnauthorizedAssignmentException(
-        'Access Denied: Only the exam creator or the assigned subject teacher can delete this exam.',
+        'Access Denied: Only the exam creator can delete this exam.',
       );
     } catch (e) {
       if (e is UnauthorizedAssignmentException) rethrow;

@@ -143,6 +143,19 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     final now = DateTime.now();
     return Row(
       children: [
+        NeuBox(
+          width: 44,
+          height: 44,
+          borderRadius: 14,
+          padding: EdgeInsets.zero,
+          onTap: () => Scaffold.of(context).openDrawer(),
+          child: const Icon(
+            Icons.menu_rounded,
+            color: AppColors.primary,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

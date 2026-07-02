@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
+import '../../app_bootstrap.dart';
+import '../../services/fee_hive_service.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
@@ -61,6 +63,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (_) {}
 
     await authRepository.logout();
+
+    // Clear all Hive caches
+    try {
+      final bootstrap = AppBootstrap();
+      await Future.wait([
+        bootstrap.teacherHiveService.clearAll(),
+        bootstrap.hiveProfileCacheService.clearAll(),
+        bootstrap.teacherProfileHiveService.clearAll(),
+        FeeHiveService().clearAll(),
+      ]);
+    } catch (e) {
+      // ignore
+    }
+
     emit(const AuthState(status: AuthStatus.unauthenticated));
   }
 }

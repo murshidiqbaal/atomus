@@ -128,7 +128,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scale = (MediaQuery.of(context).size.shortestSide / 390.0).clamp(0.72, 1.35);
+    const scale = 1.0;
 
     return AppBackground(
       child: Scaffold(

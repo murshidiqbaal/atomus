@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../models/exam_marks_model.dart';
@@ -5,20 +6,38 @@ import '../../repositories/marks_entry_repository.dart';
 import '../../repositories/teacher_attendance_repository.dart';
 import '../../repositories/teacher_repository.dart';
 import 'teacher_dashboard_state.dart';
+import '../auth/auth_bloc.dart';
+import '../auth/auth_state.dart';
 
 class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
   final TeacherRepository _teacherRepo;
   final TeacherAttendanceRepository _attendanceRepo;
   final MarksEntryRepository _marksRepo;
+  StreamSubscription<AuthState>? _authSubscription;
 
   TeacherDashboardCubit({
     required TeacherRepository teacherRepository,
     required TeacherAttendanceRepository attendanceRepository,
     required MarksEntryRepository marksRepository,
+    required AuthBloc authBloc,
   })  : _teacherRepo    = teacherRepository,
         _attendanceRepo = attendanceRepository,
         _marksRepo      = marksRepository,
-        super(const TeacherDashboardState());
+        super(const TeacherDashboardState()) {
+    _initAuthListener(authBloc);
+  }
+
+  void _initAuthListener(AuthBloc authBloc) {
+    _authSubscription = authBloc.stream.listen((state) {
+      if (state.status == AuthStatus.unauthenticated) {
+        reset();
+      }
+    });
+  }
+
+  void reset() {
+    emit(const TeacherDashboardState());
+  }
 
   Future<void> load() async {
     emit(state.copyWith(status: TeacherDashboardStatus.loading));
@@ -93,4 +112,10 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
   }
 
   Future<void> refresh() => load();
+
+  @override
+  Future<void> close() {
+    _authSubscription?.cancel();
+    return super.close();
+  }
 }

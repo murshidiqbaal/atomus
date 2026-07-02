@@ -8,20 +8,38 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../models/profile_models.dart';
 import '../../repositories/profile_repository.dart';
 import 'profile_state.dart';
+import '../auth/auth_bloc.dart';
+import '../auth/auth_state.dart';
 
 class ProfileCubit extends Cubit<ProfileState> {
   ProfileCubit({
     required ProfileRepository repository,
+    required AuthBloc authBloc,
     Connectivity? connectivity,
   }) : _repository = repository,
        _connectivity = connectivity ?? Connectivity(),
-       super(const ProfileState());
+       super(const ProfileState()) {
+    _initAuthListener(authBloc);
+  }
 
   final ProfileRepository _repository;
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<AuthState>? _authSubscription;
   Timer? _syncDebounce;
   bool _isSyncing = false;
+
+  void _initAuthListener(AuthBloc authBloc) {
+    _authSubscription = authBloc.stream.listen((state) {
+      if (state.status == AuthStatus.unauthenticated) {
+        clearProfile();
+      }
+    });
+  }
+
+  void clearProfile() {
+    emit(const ProfileState());
+  }
 
   void startConnectivitySync() {
     _connectivitySubscription ??= _connectivity.onConnectivityChanged.listen((
@@ -425,6 +443,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> close() {
     _syncDebounce?.cancel();
     _connectivitySubscription?.cancel();
+    _authSubscription?.cancel();
     return super.close();
   }
 }

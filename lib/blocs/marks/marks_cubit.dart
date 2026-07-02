@@ -19,7 +19,7 @@ class MarksCubit extends Cubit<MarksState> {
     bool includeAllDates = false,
     DateTime? date,
   }) async {
-    emit(state.copyWith(status: MarksLoadStatus.loading));
+    emit(state.copyWith(status: MarksLoadStatus.loading, saved: false));
     try {
       final exams = await _repo.fetchAssignedExams(
         subjectIds: subjectIds,
@@ -184,8 +184,9 @@ class MarksCubit extends Cubit<MarksState> {
     required List<String> courseIds,
     String? courseId,
     DateTime? listDate,
+    String? campusId,
   }) async {
-    emit(state.copyWith(status: MarksLoadStatus.loading));
+    emit(state.copyWith(status: MarksLoadStatus.loading, saved: false));
     try {
       await _repo.createExam(
         name: name,
@@ -194,6 +195,7 @@ class MarksCubit extends Cubit<MarksState> {
         batchId: batchId,
         subjectId: subjectId,
         courseId: courseId,
+        campusId: campusId,
       );
       final exams = await _repo.fetchAssignedExams(
         subjectIds: subjectIds,
@@ -232,7 +234,7 @@ class MarksCubit extends Cubit<MarksState> {
     required List<String> courseIds,
     DateTime? listDate,
   }) async {
-    emit(state.copyWith(status: MarksLoadStatus.loading));
+    emit(state.copyWith(status: MarksLoadStatus.loading, saved: false));
     try {
       await _repo.updateExam(
         examId: examId,
@@ -275,7 +277,7 @@ class MarksCubit extends Cubit<MarksState> {
     required List<String> courseIds,
     DateTime? listDate,
   }) async {
-    emit(state.copyWith(status: MarksLoadStatus.loading));
+    emit(state.copyWith(status: MarksLoadStatus.loading, saved: false));
     try {
       await _repo.deleteExam(examId, subjectId);
       final exams = await _repo.fetchAssignedExams(

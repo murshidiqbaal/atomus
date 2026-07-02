@@ -32,6 +32,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
   @override
   void initState() {
     super.initState();
+    context.read<TeacherProfileCubit>().loadProfile();
     _headerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),

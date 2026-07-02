@@ -56,6 +56,12 @@ class FeeState extends Equatable {
     return fees.where((f) => !f.isPaid && f.dueDate.isBefore(now)).toList();
   }
 
+  /// List of term-wise/recurring fees
+  List<FeeRecord> get termWiseFees => fees.where((f) => f.isTermWise).toList();
+
+  /// List of other/individual/one-time fees
+  List<FeeRecord> get otherFees => fees.where((f) => !f.isTermWise).toList();
+
   FeeState copyWith({
     FeeStatus? status,
     List<FeeRecord>? fees,

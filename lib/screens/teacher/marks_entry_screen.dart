@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../blocs/marks/marks_cubit.dart';
 import '../../blocs/marks/marks_state.dart';
@@ -52,16 +53,15 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           .toList();
       final courseIds = teacher.courses.map((c) => c.courseId).toSet().toList();
 
-      // When the course filter is "All Courses" (no specific course
-      // picked), bypass the today-only visibility rule and pull every
-      // assigned exam across all dates.
-      final allCourses = _selectedFilterCourseId == null;
+      // Bypass the today-only visibility rule and fetch exams across all dates
+      // if no specific date is selected in the date strip filter.
+      final showAllDates = _examListDate == null;
 
       await context.read<MarksCubit>().loadExams(
         subjectIds: subjectIds,
         batchIds: batchIds,
         courseIds: courseIds,
-        includeAllDates: allCourses,
+        includeAllDates: showAllDates,
         date: _examListDate,
       );
     }
@@ -93,6 +93,10 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                 centerTitle: true,
               ),
               body: BlocConsumer<MarksCubit, MarksState>(
+                listenWhen: (previous, current) =>
+                    (previous.saved != current.saved && current.saved) ||
+                    (previous.status != current.status &&
+                        current.status == MarksLoadStatus.failure),
                 listener: (ctx, state) {
                   if (state.saved) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
@@ -581,22 +585,24 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                       color: AppColors.primary.withOpacity(0.8),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Premium Exam Deletion Lock Icon Trigger
-                  GestureDetector(
-                    onTap: () => _confirmDeleteExam(
-                      context,
-                      exam,
-                      subjectIds,
-                      batchIds,
-                      courseIds,
+                  if (exam.createdBy == Supabase.instance.client.auth.currentUser?.id ||
+                      exam.creatorId == Supabase.instance.client.auth.currentUser?.id) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => _confirmDeleteExam(
+                        context,
+                        exam,
+                        subjectIds,
+                        batchIds,
+                        courseIds,
+                      ),
+                      child: Icon(
+                        LucideIcons.trash2,
+                        size: 15,
+                        color: AppColors.error.withOpacity(0.7),
+                      ),
                     ),
-                    child: Icon(
-                      LucideIcons.trash2,
-                      size: 15,
-                      color: AppColors.error.withOpacity(0.7),
-                    ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 6),
@@ -1443,7 +1449,9 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     // Default course mapping
     String? selCourseId = examToEdit?.courseId;
     if (selCourseId == null || !courseMap.containsKey(selCourseId)) {
-      if (assignments.isNotEmpty) {
+      if (_selectedFilterCourseId != null && courseMap.containsKey(_selectedFilterCourseId)) {
+        selCourseId = _selectedFilterCourseId;
+      } else if (assignments.isNotEmpty) {
         final firstWithCourse = assignments.firstWhere(
           (s) => s.courseId != null,
           orElse: () => assignments.first,
@@ -1451,6 +1459,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
         selCourseId = firstWithCourse.courseId;
       }
     }
+
+    String? selSubjectId = examToEdit?.subjectId ?? _selectedFilterSubjectId;
 
     showModalBottomSheet(
       context: context,
@@ -1462,6 +1472,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
         courseMap: courseMap,
         listDate: _examListDate ?? DateTime.now(),
         initialCourseId: selCourseId,
+        initialSubjectId: selSubjectId,
         teacher: teacher,
       ),
     );
@@ -1524,6 +1535,7 @@ class _CreateEditExamBottomSheet extends StatefulWidget {
   final Map<String, String> courseMap;
   final DateTime listDate;
   final String? initialCourseId;
+  final String? initialSubjectId;
   final TeacherModel? teacher;
 
   const _CreateEditExamBottomSheet({
@@ -1532,6 +1544,7 @@ class _CreateEditExamBottomSheet extends StatefulWidget {
     required this.courseMap,
     required this.listDate,
     required this.initialCourseId,
+    this.initialSubjectId,
     required this.teacher,
   });
 
@@ -1588,7 +1601,12 @@ class _CreateEditExamBottomSheetState
                   (s.batchId ?? '') == (widget.examToEdit!.batchId ?? ''),
               orElse: () => _filteredAssignments.first,
             )
-          : _filteredAssignments.first;
+          : (widget.initialSubjectId != null && isInit
+              ? _filteredAssignments.firstWhere(
+                  (s) => s.subjectId == widget.initialSubjectId,
+                  orElse: () => _filteredAssignments.first,
+                )
+              : _filteredAssignments.first);
       _selAssignmentId = match.id;
       _selSubjectId = match.subjectId;
       _selBatchId = match.batchId ?? '';
@@ -1810,6 +1828,7 @@ class _CreateEditExamBottomSheetState
                             batchIds: batchIds,
                             courseIds: courseIds,
                             listDate: widget.listDate,
+                            campusId: widget.teacher?.campusId,
                           );
                         } else {
                           context.read<MarksCubit>().updateExam(

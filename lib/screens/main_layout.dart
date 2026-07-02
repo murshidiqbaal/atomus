@@ -62,14 +62,11 @@ class MainLayoutState extends State<MainLayout> {
     _initNotifications();
     
     // Initialize parent activity tracking
-    final activityService = context.read<ParentActivityService>();
-    activityService.initialize();
-    activityService.trackAppOpen();
+    context.read<ParentActivityService>().trackDailyAppOpen();
   }
 
   @override
   void dispose() {
-    context.read<ParentActivityService>().dispose();
     super.dispose();
   }
 

@@ -17,21 +17,23 @@ class FeeBloc extends Bloc<FeeEvent, FeeState> {
     emit(state.copyWith(status: FeeStatus.loading));
 
     try {
-      // Try Hive cache first for instant display
+      // Try Hive cache first for instant display (only if not a force refresh)
       await _hiveService.initBoxes();
-      final cachedRecords = _hiveService.getCachedFeeRecords();
-      final cachedHistory = _hiveService.getCachedPaymentHistory();
+      if (!event.isRefresh) {
+        final cachedRecords = _hiveService.getCachedFeeRecords();
+        final cachedHistory = _hiveService.getCachedPaymentHistory();
 
-      if (cachedRecords != null && cachedRecords.isNotEmpty) {
-        final totals = _computeTotals(cachedRecords);
-        emit(state.copyWith(
-          status: FeeStatus.success,
-          fees: cachedRecords,
-          paymentHistory: cachedHistory ?? [],
-          totalFee: totals['totalFee'],
-          totalPaid: totals['totalPaid'],
-          totalPending: totals['totalPending'],
-        ));
+        if (cachedRecords != null && cachedRecords.isNotEmpty) {
+          final totals = _computeTotals(cachedRecords);
+          emit(state.copyWith(
+            status: FeeStatus.success,
+            fees: cachedRecords,
+            paymentHistory: cachedHistory ?? [],
+            totalFee: totals['totalFee'],
+            totalPaid: totals['totalPaid'],
+            totalPending: totals['totalPending'],
+          ));
+        }
       }
 
       // Fetch fresh data from Supabase in parallel

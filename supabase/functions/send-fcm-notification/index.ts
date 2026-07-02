@@ -13,7 +13,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createJWT } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
+import { create } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 
 const corsHeaders = {
@@ -46,7 +46,7 @@ async function getAccessToken(serviceKey: string): Promise<string> {
     ["sign"],
   );
 
-  return createJWT(
+  return create(
     { alg: "RS256", typ: "JWT" },
     {
       iss: key.client_email,

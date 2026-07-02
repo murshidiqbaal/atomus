@@ -8,17 +8,22 @@ class StudentRepository {
   final _supabase = Supabase.instance.client;
   final _parentIdentityService = ParentIdentityService();
 
-  Future<StudentInfo?> getStudentInfo() async {
+  Future<StudentInfo?> getStudentInfo([String? parentId]) async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) {
         throw Exception('User session not found. Please log in again.');
       }
 
-      final parent = await _parentIdentityService.resolveCurrentParent();
-      final parentId = parent['id']?.toString();
+      final String resolvedParentId;
+      if (parentId != null) {
+        resolvedParentId = parentId;
+      } else {
+        final parent = await _parentIdentityService.resolveCurrentParent();
+        resolvedParentId = parent['id']?.toString() ?? '';
+      }
 
-      print('Fetching linked student for Parent ID: $parentId');
+      print('Fetching linked student for Parent ID: $resolvedParentId');
 
       // Fetch the student record linked to this parent
       // Relationship: students.parent_id -> parents.id
@@ -39,7 +44,7 @@ class StudentRepository {
               payment_qr_drive_id
             )
           ''')
-          .eq('parent_id', parentId!)
+          .eq('parent_id', resolvedParentId)
           .maybeSingle();
 
       if (studentData == null) {

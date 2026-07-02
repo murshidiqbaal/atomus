@@ -21,20 +21,7 @@ void main() async {
     final list = response as List;
     print('Found ${list.length} student fee records:\n');
     for (var record in list) {
-      final student = record['students'];
-      final studentName = student != null ? student['full_name'] : 'Unknown Student';
-      final studentId = record['student_id'];
-      final status = record['payment_status'];
-      final total = record['total_fee'];
-      final paid = record['paid_amount'];
-      final balance = record['balance_amount'];
-      
-      print('Student Name: $studentName');
-      print('Student ID  : $studentId');
-      print('Status      : $status');
-      print('Total Fee   : $total');
-      print('Paid Amount : $paid');
-      print('Balance     : $balance');
+      print(record);
       print('-' * 40);
     }
   } catch (e) {

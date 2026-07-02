@@ -286,6 +286,27 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
               backgroundColor: AppColors.success,
             ),
           );
+          setState(() {
+            _selectedCourseId = null;
+            _selectedCourseName = null;
+            _selectedAssignmentId = null;
+            _selectedSubjectId = null;
+            _selectedSubjectName = null;
+            _selectedBatchId = null;
+            _selectedBatchName = null;
+            _selectedDate = DateTime.now();
+            _sessionType = 'forenoon';
+            _normalStudents = [];
+            _needsImprovementStudents = [];
+            _topicsCtrl.clear();
+            _homeworkCtrl.clear();
+            _remarksCtrl.clear();
+            _studentSearchCtrl.clear();
+            for (final ctrl in _commentCtrls.values) {
+              ctrl.dispose();
+            }
+            _commentCtrls.clear();
+          });
           context.read<DailyReportCubit>().loadClassReportsForTeacher(
             teacher.id,
           );
@@ -1282,70 +1303,158 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      // Behavior selector (Emojis)
+                      const Text(
+                        'BEHAVIOR',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: _buildStudentFieldDropdown<String>(
-                              label: 'BEHAVIOR',
-                              value:
-                                  student['behavior_rating'] as String? ??
-                                  'Needs Imp.',
-                              items: const [
-                                'Excellent',
-                                'Good',
-                                'Average',
-                                'Needs Imp.',
-                                'Poor',
+                          {'label': 'Excellent', 'emoji': '🤩'},
+                          {'label': 'Good', 'emoji': '😊'},
+                          {'label': 'Average', 'emoji': '😐'},
+                          {'label': 'Needs Imp.', 'emoji': '🥺'},
+                          {'label': 'Poor', 'emoji': '😞'},
+                        ].map((br) {
+                          final label = br['label']!;
+                          final emoji = br['emoji']!;
+                          final isSel = (student['behavior_rating'] ?? 'Needs Imp.') == label;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                student['behavior_rating'] = label;
+                              });
+                            },
+                            child: Column(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSel
+                                        ? AppColors.warning.withOpacity(0.15)
+                                        : Colors.transparent,
+                                    border: Border.all(
+                                      color: isSel ? AppColors.warning : Colors.transparent,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    emoji,
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  label,
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                                    color: isSel ? AppColors.warning : AppColors.textSecondary,
+                                  ),
+                                ),
                               ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    student['behavior_rating'] = val;
-                                  });
-                                }
-                              },
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildStudentFieldDropdown<String>(
-                              label: 'ENGAGEMENT',
-                              value:
-                                  student['study_engagement'] as String? ??
-                                  'Active',
-                              items: const ['Active', 'Passive', 'Distracted'],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    student['study_engagement'] = val;
-                                  });
-                                }
-                              },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      // Study Engagement selector (Chips)
+                      const Text(
+                        'CLASS ENGAGEMENT',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: ['Active', 'Passive', 'Distracted'].map((opt) {
+                          final isSel = (student['study_engagement'] ?? 'Active') == opt;
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: ChoiceChip(
+                                label: Text(opt, style: const TextStyle(fontSize: 10)),
+                                selected: isSel,
+                                onSelected: (val) {
+                                  if (val) {
+                                    setState(() {
+                                      student['study_engagement'] = opt;
+                                    });
+                                  }
+                                },
+                                labelStyle: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isSel ? Colors.white : AppColors.textPrimary,
+                                ),
+                                selectedColor: AppColors.warning,
+                                backgroundColor: Colors.white.withOpacity(0.4),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: BorderSide(
+                                    color: isSel ? AppColors.warning : Colors.grey.withOpacity(0.2),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildStudentFieldDropdown<String>(
-                              label: 'HOMEWORK',
-                              value:
-                                  student['homework_status'] as String? ??
-                                  'Completed',
-                              items: const [
-                                'Completed',
-                                'Not Completed',
-                                'Partial',
-                                'N/A',
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    student['homework_status'] = val;
-                                  });
-                                }
-                              },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      // Homework Status selector (Chips)
+                      const Text(
+                        'HOMEWORK STATUS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: ['Completed', 'Partial', 'Not Completed', 'N/A'].map((opt) {
+                          final isSel = (student['homework_status'] ?? 'Completed') == opt;
+                          return ChoiceChip(
+                            label: Text(opt, style: const TextStyle(fontSize: 10)),
+                            selected: isSel,
+                            onSelected: (val) {
+                              if (val) {
+                                setState(() {
+                                  student['homework_status'] = opt;
+                                });
+                              }
+                            },
+                            labelStyle: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isSel ? Colors.white : AppColors.textPrimary,
                             ),
-                          ),
-                        ],
+                            selectedColor: AppColors.warning,
+                            backgroundColor: Colors.white.withOpacity(0.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(
+                                color: isSel ? AppColors.warning : Colors.grey.withOpacity(0.2),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                       const SizedBox(height: 12),
                       const Text(

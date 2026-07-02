@@ -21,6 +21,8 @@ import '../login_screen.dart';
 import '../../repositories/notification_repository.dart';
 import '../../services/notification_service.dart';
 
+import 'parent_daily_activity_screen.dart';
+
 class TeacherMainLayout extends StatefulWidget {
   const TeacherMainLayout({super.key});
 
@@ -113,6 +115,89 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
     super.dispose();
   }
 
+  Widget _buildTeacherDrawer(BuildContext context) {
+    return Drawer(
+      child: Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const NeuBox(
+                      width: 60,
+                      height: 60,
+                      borderRadius: 15,
+                      child: Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: AppColors.primary,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'ATOMUS PORTAL',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'ANALYTICS',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.analytics_rounded,
+                color: AppColors.primary,
+              ),
+              title: const Text(
+                'Parent Daily Activity',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ParentDailyActivityScreen()),
+                );
+              },
+            ),
+            const Spacer(),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'v1.0.0',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // All providers (TeacherHiveService, repositories, cubits) are available
@@ -129,6 +214,10 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
       child: AppBackground(
         child: Scaffold(
           backgroundColor: Colors.transparent,
+          drawer: SizedBox(
+            width: MediaQuery.of(context).size.width * 2 / 3,
+            child: _buildTeacherDrawer(context),
+          ),
           body: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeOutCubic,

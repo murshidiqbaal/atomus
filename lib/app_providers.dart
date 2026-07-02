@@ -34,6 +34,7 @@ import 'repositories/fee_repository.dart';
 import 'repositories/marks_entry_repository.dart';
 import 'repositories/notification_repository.dart';
 import 'repositories/profile_repository.dart';
+import 'repositories/parent_activity_repository.dart';
 import 'repositories/student_attendance_teacher_repository.dart';
 import 'repositories/student_repository.dart';
 import 'repositories/teacher_attendance_repository.dart';
@@ -89,10 +90,13 @@ class AppProviders extends StatelessWidget {
         RepositoryProvider(create: (_) => CourseRepository()),
         RepositoryProvider(create: (_) => NotificationRepository()),
         RepositoryProvider(create: (_) => ParentIdentityService()),
+        RepositoryProvider(create: (_) => ParentActivityRepository()),
         RepositoryProvider(
           create: (ctx) => ParentActivityService(
             client: Supabase.instance.client,
             parentIdentityService: ctx.read<ParentIdentityService>(),
+            activityRepository: ctx.read<ParentActivityRepository>(),
+            studentRepository: ctx.read<StudentRepository>(),
           ),
         ),
         RepositoryProvider(create: (_) => ProfileImageService()),
@@ -173,7 +177,10 @@ class AppProviders extends StatelessWidget {
           ),
           BlocProvider(
             create: (ctx) =>
-                ProfileCubit(repository: ctx.read<ProfileRepository>())
+                ProfileCubit(
+                  repository: ctx.read<ProfileRepository>(),
+                  authBloc: ctx.read<AuthBloc>(),
+                )
                   ..startConnectivitySync(),
           ),
           BlocProvider(
@@ -194,6 +201,7 @@ class AppProviders extends StatelessWidget {
               driveUploadService: ctx.read<DriveUploadService>(),
               imageService: ctx.read<ProfileImageService>(),
               sessionCubit: ctx.read<TeacherSessionCubit>(),
+              authBloc: ctx.read<AuthBloc>(),
             )..loadProfile(),
           ),
           BlocProvider(
@@ -201,6 +209,7 @@ class AppProviders extends StatelessWidget {
               teacherRepository: ctx.read<TeacherRepository>(),
               attendanceRepository: ctx.read<TeacherAttendanceRepository>(),
               marksRepository: ctx.read<MarksEntryRepository>(),
+              authBloc: ctx.read<AuthBloc>(),
             ),
           ),
           BlocProvider(

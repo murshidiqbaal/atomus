@@ -270,6 +270,7 @@ class FeeRecord {
   final double? amountPaid;
   final String? status;
   final DateTime? paymentDate;
+  final bool isTermWise;
 
   FeeRecord({
     required this.title,
@@ -281,6 +282,7 @@ class FeeRecord {
     this.amountPaid,
     this.status,
     this.paymentDate,
+    this.isTermWise = true,
   });
 }
 

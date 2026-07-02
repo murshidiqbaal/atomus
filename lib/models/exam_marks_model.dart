@@ -18,6 +18,7 @@ class TeacherExam {
   final String? creatorId;
   final bool isDaily;
   final DateTime? createdAt;
+  final String? campusId;
 
   const TeacherExam({
     required this.id,
@@ -39,6 +40,7 @@ class TeacherExam {
     this.creatorId,
     this.isDaily = false,
     this.createdAt,
+    this.campusId,
   });
 
   factory TeacherExam.fromMap(Map<String, dynamic> map) {
@@ -80,6 +82,7 @@ class TeacherExam {
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String)
           : null,
+      campusId: map['campus_id'] as String?,
     );
   }
 }

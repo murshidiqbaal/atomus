@@ -10,12 +10,29 @@ android {
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
+    signingConfigs {
+        getByName("debug") {
+            isV1SigningEnabled = true
+            isV2SigningEnabled = true
+        }
+        create("releaseConfig") {
+            val debugConfig = getByName("debug")
+            keyAlias = debugConfig.keyAlias
+            keyPassword = debugConfig.keyPassword
+            storeFile = debugConfig.storeFile
+            storePassword = debugConfig.storePassword
+            isV1SigningEnabled = true
+            isV2SigningEnabled = true
+        }
+    }
+
     defaultConfig {
         applicationId = "com.atomus.parentapp"
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
     }
 
     compileOptions {
@@ -30,13 +47,20 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            signingConfig = signingConfigs.getByName("releaseConfig")
         }
     }
 }
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("androidx.multidex:multidex:2.0.1")
 }
 
 flutter {

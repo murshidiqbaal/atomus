@@ -63,6 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '289406891186',
     projectId: 'atomus-77489',
     storageBucket: 'atomus-77489.firebasestorage.app',
-    iosBundleId: 'com.atomus.parentapp',
+    iosBundleId: 'com.example.atomus',
   );
+
 }
