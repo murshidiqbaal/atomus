@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import 'package:lucide_flutter/lucide_flutter.dart';
+
 import '../../../theme/app_colors.dart';
 import '../../../widgets/app_background.dart';
-import '../../../widgets/custom_card.dart';
 import '../../../widgets/neu_box.dart';
 import 'onboarding_model.dart';
 import 'onboarding_page_widget.dart';
@@ -16,7 +16,8 @@ class OnboardingScreen extends StatelessWidget {
   static const List<OnboardingModel> _pages = [
     OnboardingModel(
       title: 'Welcome to ATOMUS',
-      description: 'Your complete tuition management companion. Track attendance, marks, fees, reports, announcements, and student progress from anywhere.',
+      description:
+          'Your complete tuition management companion. Track attendance, marks, fees, reports, announcements, and student progress from anywhere.',
       icon: LucideIcons.school,
       color: Colors.blue,
       backgroundGradient: LinearGradient(
@@ -27,7 +28,8 @@ class OnboardingScreen extends StatelessWidget {
     ),
     OnboardingModel(
       title: 'Daily Reports & Homework',
-      description: 'Receive teacher reports, topics covered, homework, and personalized improvement comments every day.',
+      description:
+          'Receive teacher reports, topics covered, homework, and personalized improvement comments every day.',
       icon: LucideIcons.clipboardList,
       color: Colors.green,
       backgroundGradient: LinearGradient(
@@ -38,7 +40,8 @@ class OnboardingScreen extends StatelessWidget {
     ),
     OnboardingModel(
       title: 'Attendance & Progress',
-      description: 'Monitor attendance percentages, exam results, and academic performance with beautiful analytics.',
+      description:
+          'Monitor attendance percentages, exam results, and academic performance with beautiful analytics.',
       icon: LucideIcons.trendingUp,
       color: Colors.orange,
       backgroundGradient: LinearGradient(
@@ -49,7 +52,8 @@ class OnboardingScreen extends StatelessWidget {
     ),
     OnboardingModel(
       title: 'Instant Notifications',
-      description: 'Get instant updates about attendance, exams, fees, announcements, and important notices.',
+      description:
+          'Get instant updates about attendance, exams, fees, announcements, and important notices.',
       icon: LucideIcons.bellRing,
       color: Colors.purple,
       backgroundGradient: LinearGradient(
@@ -92,7 +96,10 @@ class _OnboardingContent extends StatelessWidget {
   }
 
   Widget _buildOnboardingFlow(
-      BuildContext context, OnboardingProvider provider, bool isDark) {
+    BuildContext context,
+    OnboardingProvider provider,
+    bool isDark,
+  ) {
     return Column(
       key: const ValueKey('onboarding_pages_view'),
       children: [
@@ -146,7 +153,8 @@ class _OnboardingContent extends StatelessWidget {
                   spacing: 24,
                   dotWidth: 10,
                   dotHeight: 10,
-                  activeDotColor: OnboardingScreen._pages[provider.currentPage].color,
+                  activeDotColor:
+                      OnboardingScreen._pages[provider.currentPage].color,
                   dotColor: isDark
                       ? Colors.white.withOpacity(0.15)
                       : Colors.black.withOpacity(0.1),
@@ -195,7 +203,9 @@ class _OnboardingContent extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                    color: isDark
+                                        ? AppColors.textSecondaryDark
+                                        : AppColors.textSecondary,
                                     letterSpacing: 1.0,
                                   ),
                                 ),
@@ -217,9 +227,11 @@ class _OnboardingContent extends StatelessWidget {
                                     Text(
                                       'NEXT',
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.w900,
-                                        color: isDark ? AppColors.accent : AppColors.primary,
+                                        color: isDark
+                                            ? AppColors.accent
+                                            : AppColors.primary,
                                         letterSpacing: 1.0,
                                       ),
                                     ),
@@ -227,7 +239,9 @@ class _OnboardingContent extends StatelessWidget {
                                     Icon(
                                       LucideIcons.chevronRight,
                                       size: 16,
-                                      color: isDark ? AppColors.accent : AppColors.primary,
+                                      color: isDark
+                                          ? AppColors.accent
+                                          : AppColors.primary,
                                     ),
                                   ],
                                 ),
@@ -268,10 +282,7 @@ class _NotificationPermissionViewState
     )..repeat(reverse: true);
 
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
 
@@ -295,7 +306,7 @@ class _NotificationPermissionViewState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(flex: 3),
-              
+
               // Pulsing Bell Notification Icon
               ScaleTransition(
                 scale: _pulseAnimation,
@@ -328,9 +339,9 @@ class _NotificationPermissionViewState
               Text(
                 'Stay Updated',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -342,7 +353,9 @@ class _NotificationPermissionViewState
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
                     height: 1.6,
                     fontWeight: FontWeight.w500,
                   ),
@@ -355,7 +368,8 @@ class _NotificationPermissionViewState
                 width: double.infinity,
                 height: 54,
                 child: TextButton(
-                  onPressed: () => provider.requestNotificationPermission(context),
+                  onPressed: () =>
+                      provider.requestNotificationPermission(context),
                   style: TextButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
@@ -383,7 +397,9 @@ class _NotificationPermissionViewState
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
                     letterSpacing: 0.5,
                   ),
                 ),

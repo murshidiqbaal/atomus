@@ -8,12 +8,14 @@ class GeofenceState extends Equatable {
   final double distanceMeters;
   final Position? position;
   final String? errorMessage;
+  final String? matchedCampusId;
 
   const GeofenceState({
     this.status = GeofenceStatus.unknown,
     this.distanceMeters = double.infinity,
     this.position,
     this.errorMessage,
+    this.matchedCampusId,
   });
 
   bool get isInside => status == GeofenceStatus.inside;
@@ -46,15 +48,17 @@ class GeofenceState extends Equatable {
     double? distanceMeters,
     Position? position,
     String? errorMessage,
+    String? matchedCampusId,
   }) {
     return GeofenceState(
       status:         status        ?? this.status,
       distanceMeters: distanceMeters ?? this.distanceMeters,
       position:       position      ?? this.position,
       errorMessage:   errorMessage  ?? this.errorMessage,
+      matchedCampusId: matchedCampusId ?? this.matchedCampusId,
     );
   }
 
   @override
-  List<Object?> get props => [status, distanceMeters, errorMessage];
+  List<Object?> get props => [status, distanceMeters, errorMessage, matchedCampusId];
 }

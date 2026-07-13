@@ -151,7 +151,9 @@ class MarksEntryRepository {
           );
 
       if (batchId != null && batchId.isNotEmpty) {
-        query = query.eq('batch_id', batchId);
+        query = query.or(
+          'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
+        );
       } else if (courseId != null && courseId.isNotEmpty) {
         query = query.eq('course_id', courseId);
       }

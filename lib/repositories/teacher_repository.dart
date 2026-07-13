@@ -45,7 +45,7 @@ class TeacherRepository {
             }
 
             final withAssignments = await _attachAssignments(teacher);
-            await _hive.saveTeacherProfile(row);
+            await _hive.saveTeacherProfile(withAssignments.toMap());
             return withAssignments;
           }
         } catch (_) {}
@@ -73,7 +73,7 @@ class TeacherRepository {
     try {
       final rows = await _supabase
           .from('teacher_subjects')
-          .select('*, subjects(name, course_id, courses(name)), batches(name)')
+          .select('*, subjects(name, course_id, courses(name)), campuses(*), batches(name)')
           .eq('teacher_id', teacher.id); // is_active removed from schema
 
       subjects = (rows as List).map((r) {
@@ -91,6 +91,7 @@ class TeacherRepository {
                   as String?, // get courseName from subjects.courses
           batchId: r['batch_id'] as String?,
           batchName: batch?['name'] as String?,
+          campusId: r['campus_id'] as String?,
         );
       }).toList();
 
@@ -103,6 +104,7 @@ class TeacherRepository {
               'course_id': a.courseId,
               'batch_id': a.batchId,
               'batch_name': a.batchName,
+              'campus_id': a.campusId,
             },
           )
           .toList();
@@ -111,15 +113,32 @@ class TeacherRepository {
       print('Error fetching teacher_subjects: $e');
     }
 
+    final campusIds = {
+      if (teacher.campusId != null) teacher.campusId!,
+      for (final s in subjects) if (s.campusId != null) s.campusId!,
+    };
+
     // Fetch courses
     try {
       final rows = await _supabase
           .from('teacher_courses')
           .select('*, courses!inner(name, campus_courses!inner(campus_id))')
-          .eq('teacher_id', teacher.id)
-          .eq('courses.campus_courses.campus_id', teacher.campusId as Object);
+          .eq('teacher_id', teacher.id);
 
-      courses = (rows as List).map((r) {
+      final filteredRows = (rows as List).where((r) {
+        try {
+          final course = r['courses'] as Map<String, dynamic>?;
+          final campusCourses = course?['campus_courses'];
+          if (campusCourses is List) {
+            return campusCourses.any((cc) => campusIds.contains(cc['campus_id']));
+          } else if (campusCourses is Map) {
+            return campusIds.contains(campusCourses['campus_id']);
+          }
+        } catch (_) {}
+        return true;
+      }).toList();
+
+      courses = filteredRows.map((r) {
         // Need to handle the nested courses -> name structure correctly
         final cMap = Map<String, dynamic>.from(r);
         final coursesData = cMap['courses'] as Map<String, dynamic>?;
@@ -128,7 +147,26 @@ class TeacherRepository {
       }).toList();
     } catch (_) {}
 
-    return teacher.copyWith(subjects: subjects, courses: courses);
+    List<CampusLocation> campuses = [];
+    if (campusIds.isNotEmpty) {
+      try {
+        final campusRes = await _supabase
+            .from('campuses')
+            .select('*')
+            .inFilter('id', campusIds.toList());
+        campuses = (campusRes as List)
+            .map((c) => CampusLocation.fromMap(c as Map<String, dynamic>))
+            .toList();
+      } catch (e) {
+        print('Error fetching campuses: $e');
+      }
+    }
+
+    return teacher.copyWith(
+      subjects: subjects,
+      courses: courses,
+      campuses: campuses,
+    );
   }
 
   // Returns all students in a given batch, filtered to the teacher's campus.
@@ -142,7 +180,9 @@ class TeacherRepository {
           .select(
             'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id',
           )
-          .eq('batch_id', batchId);
+          .or(
+            'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
+          );
 
       if (campusId != null && campusId.isNotEmpty) {
         query = query.eq('campus_id', campusId);

@@ -891,7 +891,7 @@ class FeesScreen extends StatelessWidget {
           color: AppColors.success,
           isDark: isDark,
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         _buildStatBox(
           icon: Icons.schedule_rounded,
           label: 'Pending',
@@ -899,12 +899,20 @@ class FeesScreen extends StatelessWidget {
           color: AppColors.warning,
           isDark: isDark,
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         _buildStatBox(
           icon: Icons.receipt_long_rounded,
           label: 'Terms',
-          value: '${state.fees.length}',
+          value: '${state.termWiseFees.length}',
           color: AppColors.info,
+          isDark: isDark,
+        ),
+        const SizedBox(width: 8),
+        _buildStatBox(
+          icon: Icons.payments_rounded,
+          label: 'Others',
+          value: '${state.otherFees.length}',
+          color: AppColors.primary,
           isDark: isDark,
         ),
       ],
@@ -1265,19 +1273,19 @@ class FeesScreen extends StatelessWidget {
                                 size: 22,
                               )
                             : (!fee.isTermWise
-                                ? Icon(
-                                    Icons.label_important_rounded,
-                                    color: statusColor,
-                                    size: 20,
-                                  )
-                                : Text(
-                                    '${index + 1}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 18,
+                                  ? Icon(
+                                      Icons.label_important_rounded,
                                       color: statusColor,
-                                    ),
-                                  )),
+                                      size: 20,
+                                    )
+                                  : Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 18,
+                                        color: statusColor,
+                                      ),
+                                    )),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -1830,7 +1838,9 @@ class FeesScreen extends StatelessWidget {
                       label: const Text('Print Receipt'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        foregroundColor: isDark ? AppColors.accent : AppColors.primary,
+                        foregroundColor: isDark
+                            ? AppColors.accent
+                            : AppColors.primary,
                         side: BorderSide(
                           color: isDark ? Colors.white24 : Colors.grey.shade300,
                         ),

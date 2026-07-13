@@ -2,12 +2,14 @@ import 'package:atomus/blocs/student/student_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
- 
+
 import '../../blocs/announcement/announcement_bloc.dart';
 import '../../blocs/announcement/announcement_event.dart';
 import '../../blocs/announcement/announcement_state.dart';
 import '../../blocs/course/course_bloc.dart';
 import '../../blocs/course/course_state.dart';
+import '../../blocs/daily_report/daily_report_cubit.dart';
+import '../../blocs/daily_report/daily_report_state.dart';
 import '../../blocs/fee/fee_bloc.dart';
 import '../../blocs/fee/fee_event.dart';
 import '../../blocs/fee/fee_state.dart';
@@ -21,23 +23,21 @@ import '../../theme/app_colors.dart';
 import '../../widgets/announcement_popup.dart';
 import '../../widgets/custom_card.dart';
 import '../../widgets/drive_network_image.dart';
+import '../../widgets/drive_profile_image.dart';
 import '../../widgets/glass_background.dart';
 import '../../widgets/marquee_widget.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/shimmer.dart';
 import '../../widgets/status_badge.dart';
 import '../course/course_detail_screen.dart';
 import '../fees/fees_screen.dart';
-import '../progress/progress_screen.dart';
-import '../progress/average_marks_details_screen.dart';
-import '../progress/average_attendance_details_screen.dart';
-import '../profile/profile_screen.dart';
-import '../notifications/notification_screen.dart';
-import '../../widgets/drive_profile_image.dart';
-import '../../widgets/shimmer.dart';
 import '../main_layout.dart';
+import '../notifications/notification_screen.dart';
+import '../profile/profile_screen.dart';
+import '../progress/average_attendance_details_screen.dart';
+import '../progress/average_marks_details_screen.dart';
+import '../progress/progress_screen.dart';
 import '../reports/ireports_screen.dart';
-import '../../blocs/daily_report/daily_report_cubit.dart';
-import '../../blocs/daily_report/daily_report_state.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -61,12 +61,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final announcementBloc = context.read<AnnouncementBloc>();
     final notificationBloc = context.read<NotificationBloc>();
     final dailyReportCubit = context.read<DailyReportCubit>();
- 
+
     studentBloc.add(LoadStudentData());
     feeBloc.add(LoadFeeData());
     announcementBloc.add(LoadAnnouncements());
     notificationBloc.add(LoadNotifications());
- 
+
     final now = DateTime.now();
     studentBloc.add(
       LoadAttendance(
@@ -74,14 +74,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         endDate: DateTime(now.year, now.month + 1, 0),
       ),
     );
- 
+
     final studentInfo = studentBloc.state.studentInfo;
     if (studentInfo?.courseId != null) {
       dailyReportCubit.fetchRecentReportsForCourse(
         courseId: studentInfo!.courseId!,
       );
     }
- 
+
     await Future.wait([
       studentBloc.stream
           .firstWhere((s) => s.status != StudentStatus.loading)
@@ -114,986 +114,1065 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<StudentBloc, StudentState>(
-        builder: (context, state) {
-          if (state.status == StudentStatus.loading) {
-            return GlassBackground(
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 20,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Shimmer
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Shimmer(width: 50, height: 50, borderRadius: 12),
-                          Row(
-                            children: const [
-                              Shimmer(width: 50, height: 50, borderRadius: 12),
-                              SizedBox(width: 12),
-                              Shimmer(width: 50, height: 50, borderRadius: 12),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Profile Card Shimmer (Large)
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.03)
-                              : Colors.black.withOpacity(0.01),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.05)
-                                : Colors.black.withOpacity(0.03),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Shimmer(width: 100, height: 100, borderRadius: 50),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  Shimmer(width: 150, height: 18),
-                                  SizedBox(height: 12),
-                                  Shimmer(width: 80, height: 24, borderRadius: 12),
-                                  SizedBox(height: 12),
-                                  Shimmer(width: 120, height: 12),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Explore Courses Shimmer Header
-                      const Shimmer(width: 140, height: 16),
-                      const SizedBox(height: 20),
-
-                      // Explore Courses Shimmer Items
-                      SizedBox(
-                        height: 180,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: 3,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemBuilder: (context, index) {
-                            return Container(
-                              width: 280,
-                              margin: const EdgeInsets.only(right: 24),
-                              child: const Shimmer(width: 280, height: 180, borderRadius: 24),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Academic Insights Grid Shimmer
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white.withOpacity(0.03)
-                                    : Colors.black.withOpacity(0.01),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white.withOpacity(0.05)
-                                      : Colors.black.withOpacity(0.03),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  Shimmer(width: 32, height: 32, borderRadius: 8),
-                                  SizedBox(height: 24),
-                                  Shimmer(width: 60, height: 14),
-                                  SizedBox(height: 8),
-                                  Shimmer(width: 80, height: 36),
-                                  SizedBox(height: 12),
-                                  Shimmer(width: 70, height: 20, borderRadius: 10),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white.withOpacity(0.03)
-                                    : Colors.black.withOpacity(0.01),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Colors.white.withOpacity(0.05)
-                                      : Colors.black.withOpacity(0.03),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  Shimmer(width: 32, height: 32, borderRadius: 8),
-                                  SizedBox(height: 24),
-                                  Shimmer(width: 80, height: 14),
-                                  SizedBox(height: 8),
-                                  Shimmer(width: 80, height: 36),
-                                  SizedBox(height: 12),
-                                  Shimmer(width: 70, height: 20, borderRadius: 10),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }
-          if (state.status == StudentStatus.failure) {
-            return Center(child: Text('Error: ${state.errorMessage}'));
-          }
-
-          final student = state.studentInfo;
-          if (student == null) return const SizedBox();
- 
-          if (student.courseId != null && student.courseId != _lastLoadedCourseId) {
-            final courseId = student.courseId!;
-            _lastLoadedCourseId = courseId;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              context.read<DailyReportCubit>().fetchRecentReportsForCourse(
-                courseId: courseId,
-              );
-            });
-          }
-
-          final performance = state.performance;
-          final double academicPerformance = performance != null
-              ? performance.academicPerformance / 100.0
-              : _computeAcademicPerformance(state);
-          final double attendancePercentage = performance != null
-              ? performance.attendancePercentage
-              : student.attendancePercentage;
-          final double marksPercentage = performance != null
-              ? performance.marksPercentage
-              : academicPerformance * 100.0;
-          final String statusLabel = performance != null
-              ? performance.progressStatus
-              : (academicPerformance >= 0.8
-                    ? 'Excellent'
-                    : academicPerformance >= 0.6
-                    ? 'Good'
-                    : academicPerformance >= 0.4
-                    ? 'Average'
-                    : 'Needs Attention');
-          final Color progressColor = performance != null
-              ? performance.progressColor
-              : (academicPerformance >= 0.8
-                    ? AppColors.success
-                    : academicPerformance >= 0.6
-                    ? AppColors.info
-                    : academicPerformance >= 0.4
-                    ? AppColors.warning
-                    : AppColors.error);
-
-          // Find today's attendance record
-          final today = DateTime.now();
-          final todayAttendance = state.attendance.where(
-            (r) =>
-                r.date.year == today.year &&
-                r.date.month == today.month &&
-                r.date.day == today.day,
-          );
-          final todayRecord = todayAttendance.isNotEmpty
-              ? todayAttendance.first
-              : null;
-
+      builder: (context, state) {
+        if (state.status == StudentStatus.loading) {
           return GlassBackground(
             child: SafeArea(
-              child: Stack(
-                children: [
-                  RefreshIndicator(
-                    color: AppColors.accent,
-                    backgroundColor: AppColors.primary,
-                    onRefresh: _handleRefresh,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 20,
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Shimmer
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Shimmer(width: 50, height: 50, borderRadius: 12),
+                        Row(
+                          children: const [
+                            Shimmer(width: 50, height: 50, borderRadius: 12),
+                            SizedBox(width: 12),
+                            Shimmer(width: 50, height: 50, borderRadius: 12),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Profile Card Shimmer (Large)
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.03)
+                            : Colors.black.withOpacity(0.01),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.05)
+                              : Colors.black.withOpacity(0.03),
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          // Header — menu | bell | profile
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Menu button
-                              NeuBox(
-                                width: 50,
-                                height: 50,
-                                borderRadius: 12,
-                                padding: EdgeInsets.zero,
-                                onTap: () =>
-                                    Scaffold.of(context).openDrawer(),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.menu_rounded,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ),
-
-                              // Right-side actions: bell + profile
-                              Row(
-                                children: [
-                                  // Notification bell with unread badge
-                                  BlocBuilder<NotificationBloc, NotificationState>(
-                                    builder: (context, notifState) {
-                                      return GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => const NotificationScreen(),
-                                            ),
-                                          );
-                                        },
-                                        child: Stack(
-                                          clipBehavior: Clip.none,
-                                          children: [
-                                            NeuBox(
-                                              width: 50,
-                                              height: 50,
-                                              borderRadius: 12,
-                                              padding: EdgeInsets.zero,
-                                              child: Center(
-                                                child: Icon(
-                                                  notifState.unreadCount > 0
-                                                      ? Icons.notifications_rounded
-                                                      : Icons.notifications_none_rounded,
-                                                  color: notifState.unreadCount > 0
-                                                      ? AppColors.accent
-                                                      : AppColors.primary,
-                                                  size: 24,
-                                                ),
-                                              ),
-                                            ),
-                                            if (notifState.unreadCount > 0)
-                                              Positioned(
-                                                top: -4,
-                                                right: -4,
-                                                child: Container(
-                                                  constraints: const BoxConstraints(
-                                                    minWidth: 18,
-                                                    minHeight: 18,
-                                                  ),
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 5,
-                                                    vertical: 2,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.error,
-                                                    borderRadius: BorderRadius.circular(10),
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: AppColors.error.withOpacity(0.4),
-                                                        blurRadius: 6,
-                                                        spreadRadius: 1,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  child: Text(
-                                                    notifState.unreadCount > 99
-                                                        ? '99+'
-                                                        : '${notifState.unreadCount}',
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w900,
-                                                      height: 1.0,
-                                                    ),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(width: 12),
-                                  // Profile avatar
-                                  GestureDetector(
-                                    onTap: () {
-                                      final mainLayoutState = context.findAncestorStateOfType<MainLayoutState>();
-                                      if (mainLayoutState != null) {
-                                        mainLayoutState.setIndex(5);
-                                      } else {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => const ProfileScreen(),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: NeuBox(
-                                      width: 50,
-                                      height: 50,
-                                      borderRadius: 12,
-                                      padding: EdgeInsets.zero,
-                                      child: Center(
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: DriveProfileImage(
-                                            driveId: student.profilePhotoDriveId,
-                                            radius: 20,
-                                            initials: student.initials,
-                                            alt: '${student.fullName} profile photo',
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          const Shimmer(
+                            width: 100,
+                            height: 100,
+                            borderRadius: 50,
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Shimmer(width: 150, height: 18),
+                                SizedBox(height: 12),
+                                Shimmer(
+                                  width: 80,
+                                  height: 24,
+                                  borderRadius: 12,
+                                ),
+                                SizedBox(height: 12),
+                                Shimmer(width: 120, height: 12),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
 
-                          // Student Profile Card
-                          CustomCard(
-                            padding: const EdgeInsets.all(24),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ProgressScreen(),
-                                ),
-                              );
-                            },
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 100,
-                                  height: 100,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      SizedBox(
-                                        width: 100,
-                                        height: 100,
-                                        child: CircularProgressIndicator(
-                                          value: academicPerformance,
-                                          strokeWidth: 10,
-                                          backgroundColor: AppColors.primary
-                                              .withOpacity(0.1),
-                                          color: progressColor,
-                                          strokeCap: StrokeCap.round,
-                                        ),
-                                      ),
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${(academicPerformance * 100).toInt()}%',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 24,
-                                                ),
-                                          ),
-                                          Text(
-                                            'Overall',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Academic Performance',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: 0.5,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: progressColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          statusLabel,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w800,
-                                                color: progressColor,
-                                              ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        statusLabel == 'Excellent'
-                                            ? 'Outstanding academic record.'
-                                            : statusLabel == 'Good'
-                                            ? 'On track with steady progress.'
-                                            : statusLabel == 'Average'
-                                            ? 'Consistent performance.'
-                                            : statusLabel == 'Needs Improvement'
-                                            ? 'Requires additional support.'
-                                            : 'Immediate intervention required.',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color:
-                                                  Theme.of(
-                                                        context,
-                                                      ).brightness ==
-                                                      Brightness.dark
-                                                  ? AppColors.textSecondaryDark
-                                                  : AppColors.textSecondary,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
+                    // Explore Courses Shimmer Header
+                    const Shimmer(width: 140, height: 16),
+                    const SizedBox(height: 20),
+
+                    // Explore Courses Shimmer Items
+                    SizedBox(
+                      height: 180,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: 3,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemBuilder: (context, index) {
+                          return Container(
+                            width: 280,
+                            margin: const EdgeInsets.only(right: 24),
+                            child: const Shimmer(
+                              width: 280,
+                              height: 180,
+                              borderRadius: 24,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Academic Insights Grid Shimmer
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white.withOpacity(0.03)
+                                  : Colors.black.withOpacity(0.01),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white.withOpacity(0.05)
+                                    : Colors.black.withOpacity(0.03),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Shimmer(width: 32, height: 32, borderRadius: 8),
+                                SizedBox(height: 24),
+                                Shimmer(width: 60, height: 14),
+                                SizedBox(height: 8),
+                                Shimmer(width: 80, height: 36),
+                                SizedBox(height: 12),
+                                Shimmer(
+                                  width: 70,
+                                  height: 20,
+                                  borderRadius: 10,
                                 ),
                               ],
                             ),
                           ),
-
-                          const SizedBox(height: 16),
-                          _buildCourseMarquee(context),
-                          const SizedBox(height: 32),
-                          _buildDailyReportsMarquee(context),
-                          const SizedBox(height: 32),
-
-                          // Academic Insights Grid
-                          Row(
-                            children: [
-                              Expanded(
-                                child: CustomCard(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const AverageMarksDetailsScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        Icons.insights_rounded,
-                                        color: AppColors.accent,
-                                        size: 28,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      Text(
-                                        'MARKS',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelLarge
-                                            ?.copyWith(
-                                              color: AppColors.textSecondary,
-                                              letterSpacing: 1.5,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.baseline,
-                                        textBaseline: TextBaseline.alphabetic,
-                                        children: [
-                                          Text(
-                                            '${marksPercentage.toInt()}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .displaySmall
-                                                ?.copyWith(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).primaryColor,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                          ),
-                                          Text(
-                                            '%',
-                                            style: TextStyle(
-                                              color: Theme.of(
-                                                context,
-                                              ).primaryColor.withOpacity(0.5),
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      StatusBadge(
-                                        status: BadgeStatus.fromProgress(
-                                          marksPercentage / 100.0,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              Expanded(
-                                child: CustomCard(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const AverageAttendanceDetailsScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        Icons.calendar_month,
-                                        color: AppColors.success,
-                                        size: 28,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      Text(
-                                        'ATTENDANCE',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelLarge
-                                            ?.copyWith(
-                                              color: AppColors.textSecondary,
-                                              letterSpacing: 1.5,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.baseline,
-                                        textBaseline: TextBaseline.alphabetic,
-                                        children: [
-                                          Text(
-                                            '${attendancePercentage.toInt()}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .displaySmall
-                                                ?.copyWith(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).primaryColor,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                          ),
-                                          Text(
-                                            '%',
-                                            style: TextStyle(
-                                              color: Theme.of(
-                                                context,
-                                              ).primaryColor.withOpacity(0.5),
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      StatusBadge(
-                                        status: BadgeStatus.fromProgress(
-                                          attendancePercentage / 100.0,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 40),
-
-                          // Recent Evaluations
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildSectionHeader(
-                                context,
-                                'Recent Evaluations',
-                              ),
-                              TextButton(
-                                onPressed: () {},
-                                child: const Text(
-                                  'ARCHIVE',
-                                  style: TextStyle(
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 11,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Today's attendance card
-                          _buildTodayAttendanceCard(context, todayRecord),
-                          const SizedBox(height: 12),
-
-                          // Latest exam marks card
-                          if (state.exams.isNotEmpty) ...[
-                            CustomCard(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        state.exams.first.title.toUpperCase(),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 14,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                      Text(
-                                        state.exams.first.date,
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const NeuDivider(),
-                                  const SizedBox(height: 16),
-                                  ...state.exams.first.subjects
-                                      .take(2)
-                                      .map(
-                                        (subject) => Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 12,
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                subject.subject,
-                                                style: const TextStyle(
-                                                  color: AppColors.textPrimary,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 10,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .primaryColor
-                                                      .withOpacity(0.05),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  '${subject.marksObtained}/${subject.totalMarks}',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).primaryColor,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                ],
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white.withOpacity(0.03)
+                                  : Colors.black.withOpacity(0.01),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white.withOpacity(0.05)
+                                    : Colors.black.withOpacity(0.03),
                               ),
                             ),
-                          ] else ...[
-                            const CustomCard(
-                              padding: EdgeInsets.all(24),
-                              child: Center(
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.assignment_late_outlined,
-                                      color: AppColors.textSecondary,
-                                      size: 32,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Shimmer(width: 32, height: 32, borderRadius: 8),
+                                SizedBox(height: 24),
+                                Shimmer(width: 80, height: 14),
+                                SizedBox(height: 8),
+                                Shimmer(width: 80, height: 36),
+                                SizedBox(height: 12),
+                                Shimmer(
+                                  width: 70,
+                                  height: 20,
+                                  borderRadius: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        if (state.status == StudentStatus.failure) {
+          return Center(child: Text('Error: ${state.errorMessage}'));
+        }
+
+        final student = state.studentInfo;
+        if (student == null) return const SizedBox();
+
+        if (student.courseId != null &&
+            student.courseId != _lastLoadedCourseId) {
+          final courseId = student.courseId!;
+          _lastLoadedCourseId = courseId;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.read<DailyReportCubit>().fetchRecentReportsForCourse(
+              courseId: courseId,
+            );
+          });
+        }
+
+        final performance = state.performance;
+        final double academicPerformance = performance != null
+            ? performance.academicPerformance / 100.0
+            : _computeAcademicPerformance(state);
+        final double attendancePercentage = performance != null
+            ? performance.attendancePercentage
+            : student.attendancePercentage;
+        final double marksPercentage = performance != null
+            ? performance.marksPercentage
+            : academicPerformance * 100.0;
+        final String statusLabel = performance != null
+            ? performance.progressStatus
+            : (academicPerformance >= 0.8
+                  ? 'Excellent'
+                  : academicPerformance >= 0.6
+                  ? 'Good'
+                  : academicPerformance >= 0.4
+                  ? 'Average'
+                  : 'Needs Attention');
+        final Color progressColor = performance != null
+            ? performance.progressColor
+            : (academicPerformance >= 0.8
+                  ? AppColors.success
+                  : academicPerformance >= 0.6
+                  ? AppColors.info
+                  : academicPerformance >= 0.4
+                  ? AppColors.warning
+                  : AppColors.error);
+
+        // Find today's attendance record
+        final today = DateTime.now();
+        final todayAttendance = state.attendance.where(
+          (r) =>
+              r.date.year == today.year &&
+              r.date.month == today.month &&
+              r.date.day == today.day,
+        );
+        final todayRecord = todayAttendance.isNotEmpty
+            ? todayAttendance.first
+            : null;
+
+        // Find exams marked today
+        final examsToday = state.exams.where((e) {
+          final examDate = DateTime.tryParse(e.date);
+          if (examDate == null) return false;
+          return examDate.year == today.year &&
+              examDate.month == today.month &&
+              examDate.day == today.day;
+        }).toList();
+
+        return GlassBackground(
+          child: SafeArea(
+            child: Stack(
+              children: [
+                RefreshIndicator(
+                  color: AppColors.accent,
+                  backgroundColor: AppColors.primary,
+                  onRefresh: _handleRefresh,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header — menu | bell | profile
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Menu button
+                            NeuBox(
+                              width: 50,
+                              height: 50,
+                              borderRadius: 12,
+                              padding: EdgeInsets.zero,
+                              onTap: () => Scaffold.of(context).openDrawer(),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.menu_rounded,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+
+                            // Right-side actions: bell + profile
+                            Row(
+                              children: [
+                                // Notification bell with unread badge
+                                BlocBuilder<
+                                  NotificationBloc,
+                                  NotificationState
+                                >(
+                                  builder: (context, notifState) {
+                                    return GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const NotificationScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          NeuBox(
+                                            width: 50,
+                                            height: 50,
+                                            borderRadius: 12,
+                                            padding: EdgeInsets.zero,
+                                            child: Center(
+                                              child: Icon(
+                                                notifState.unreadCount > 0
+                                                    ? Icons
+                                                          .notifications_rounded
+                                                    : Icons
+                                                          .notifications_none_rounded,
+                                                color:
+                                                    notifState.unreadCount > 0
+                                                    ? AppColors.accent
+                                                    : AppColors.primary,
+                                                size: 24,
+                                              ),
+                                            ),
+                                          ),
+                                          if (notifState.unreadCount > 0)
+                                            Positioned(
+                                              top: -4,
+                                              right: -4,
+                                              child: Container(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 18,
+                                                      minHeight: 18,
+                                                    ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.error,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: AppColors.error
+                                                          .withOpacity(0.4),
+                                                      blurRadius: 6,
+                                                      spreadRadius: 1,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Text(
+                                                  notifState.unreadCount > 99
+                                                      ? '99+'
+                                                      : '${notifState.unreadCount}',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                    height: 1.0,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                // Profile avatar
+                                GestureDetector(
+                                  onTap: () {
+                                    final mainLayoutState = context
+                                        .findAncestorStateOfType<
+                                          MainLayoutState
+                                        >();
+                                    if (mainLayoutState != null) {
+                                      mainLayoutState.setIndex(5);
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const ProfileScreen(),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: NeuBox(
+                                    width: 50,
+                                    height: 50,
+                                    borderRadius: 12,
+                                    padding: EdgeInsets.zero,
+                                    child: Center(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: DriveProfileImage(
+                                          driveId: student.profilePhotoDriveId,
+                                          radius: 20,
+                                          initials: student.initials,
+                                          alt:
+                                              '${student.fullName} profile photo',
+                                        ),
+                                      ),
                                     ),
-                                    SizedBox(height: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Student Profile Card
+                        CustomCard(
+                          padding: const EdgeInsets.all(24),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProgressScreen(),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 100,
+                                height: 100,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 100,
+                                      height: 100,
+                                      child: CircularProgressIndicator(
+                                        value: academicPerformance,
+                                        strokeWidth: 10,
+                                        backgroundColor: AppColors.primary
+                                            .withOpacity(0.1),
+                                        color: progressColor,
+                                        strokeCap: StrokeCap.round,
+                                      ),
+                                    ),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${(academicPerformance * 100).toInt()}%',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 24,
+                                              ),
+                                        ),
+                                        Text(
+                                          'Overall',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      'No recent evaluations found.',
-                                      style: TextStyle(
+                                      'Academic Performance',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.5,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: progressColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        statusLabel,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                              color: progressColor,
+                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      statusLabel == 'Excellent'
+                                          ? 'Outstanding academic record.'
+                                          : statusLabel == 'Good'
+                                          ? 'On track with steady progress.'
+                                          : statusLabel == 'Average'
+                                          ? 'Consistent performance.'
+                                          : statusLabel == 'Needs Improvement'
+                                          ? 'Requires additional support.'
+                                          : 'Immediate intervention required.',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color:
+                                                Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? AppColors.textSecondaryDark
+                                                : AppColors.textSecondary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                        _buildCourseMarquee(context),
+                        const SizedBox(height: 32),
+                        _buildDailyReportsMarquee(context),
+                        const SizedBox(height: 32),
+                        if (examsToday.isNotEmpty) ...[
+                          _buildTodayExamsCard(context, examsToday),
+                          const SizedBox(height: 32),
+                        ],
+
+                        // Academic Insights Grid
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomCard(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const AverageMarksDetailsScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.insights_rounded,
+                                      color: AppColors.accent,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'MARKS',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color: AppColors.textSecondary,
+                                            letterSpacing: 1.5,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        Text(
+                                          '${marksPercentage.toInt()}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .displaySmall
+                                              ?.copyWith(
+                                                color: Theme.of(
+                                                  context,
+                                                ).primaryColor,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                        ),
+                                        Text(
+                                          '%',
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).primaryColor.withOpacity(0.5),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    StatusBadge(
+                                      status: BadgeStatus.fromProgress(
+                                        marksPercentage / 100.0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: CustomCard(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const AverageAttendanceDetailsScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_month,
+                                      color: AppColors.success,
+                                      size: 28,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'ATTENDANCE',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color: AppColors.textSecondary,
+                                            letterSpacing: 1.5,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        Text(
+                                          '${attendancePercentage.toInt()}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .displaySmall
+                                              ?.copyWith(
+                                                color: Theme.of(
+                                                  context,
+                                                ).primaryColor,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                        ),
+                                        Text(
+                                          '%',
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).primaryColor.withOpacity(0.5),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    StatusBadge(
+                                      status: BadgeStatus.fromProgress(
+                                        attendancePercentage / 100.0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // Recent Evaluations
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildSectionHeader(context, 'Recent Evaluations'),
+                            TextButton(
+                              onPressed: () {},
+                              child: const Text(
+                                'ARCHIVE',
+                                style: TextStyle(
+                                  color: AppColors.accent,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Today's attendance card
+                        _buildTodayAttendanceCard(context, todayRecord),
+                        const SizedBox(height: 12),
+
+                        // Latest exam marks card
+                        if (state.exams.isNotEmpty) ...[
+                          CustomCard(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      state.exams.first.title.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      state.exams.first.date,
+                                      style: const TextStyle(
                                         color: AppColors.textSecondary,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 16),
+                                const NeuDivider(),
+                                const SizedBox(height: 16),
+                                ...state.exams.first.subjects
+                                    .take(2)
+                                    .map(
+                                      (subject) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              subject.subject,
+                                              style: const TextStyle(
+                                                color: AppColors.textPrimary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .primaryColor
+                                                    .withOpacity(0.05),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                '${subject.marksObtained}/${subject.totalMarks}',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).primaryColor,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                              ],
+                            ),
+                          ),
+                        ] else ...[
+                          const CustomCard(
+                            padding: EdgeInsets.all(24),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.assignment_late_outlined,
+                                    color: AppColors.textSecondary,
+                                    size: 32,
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'No recent evaluations found.',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                          const SizedBox(height: 40),
+                          ),
+                        ],
+                        const SizedBox(height: 40),
 
-                          // Financial Overview
-                          _buildSectionHeader(context, 'Financial Overview'),
-                          const SizedBox(height: 16),
-                          BlocBuilder<FeeBloc, FeeState>(
-                            builder: (context, feeState) {
-                              if (feeState.status == FeeStatus.loading) {
-                                return const Center(
-                                  child: LinearProgressIndicator(),
+                        // Financial Overview
+                        _buildSectionHeader(context, 'Financial Overview'),
+                        const SizedBox(height: 16),
+                        BlocBuilder<FeeBloc, FeeState>(
+                          builder: (context, feeState) {
+                            if (feeState.status == FeeStatus.loading) {
+                              return const Center(
+                                child: LinearProgressIndicator(),
+                              );
+                            }
+                            if (feeState.fees.isEmpty) {
+                              return const SizedBox();
+                            }
+
+                            final bool hasUnpaid = feeState.pendingCount > 0;
+
+                            String cardLabel;
+                            String cardAmount;
+                            String cardDetail;
+                            Color iconColor;
+                            IconData iconData;
+                            String buttonText;
+
+                            if (hasUnpaid) {
+                              final overdueList = feeState.overdueFees;
+                              final nextDue = feeState.nextDueFee;
+
+                              FeeRecord displayFee;
+                              if (overdueList.isNotEmpty) {
+                                overdueList.sort(
+                                  (a, b) => a.dueDate.compareTo(b.dueDate),
                                 );
-                              }
-                              if (feeState.fees.isEmpty) {
-                                return const SizedBox();
-                              }
+                                displayFee = overdueList.first;
+                                cardLabel = 'OVERDUE BALANCE';
+                                iconColor = AppColors.error;
+                                iconData = Icons.warning_amber_rounded;
+                                buttonText = 'SETTLE';
 
-                              final bool hasUnpaid = feeState.pendingCount > 0;
-                              
-                              String cardLabel;
-                              String cardAmount;
-                              String cardDetail;
-                              Color iconColor;
-                              IconData iconData;
-                              String buttonText;
+                                final totalOverdue = overdueList.fold<double>(
+                                  0,
+                                  (sum, f) =>
+                                      sum + f.amount - (f.amountPaid ?? 0),
+                                );
+                                cardAmount =
+                                    '₹${totalOverdue.toStringAsFixed(0)}';
+                                cardDetail = overdueList.length > 1
+                                    ? 'Across ${overdueList.length} overdue installments'
+                                    : 'Due: ${DateFormat('dd MMM yyyy').format(displayFee.dueDate)} (${displayFee.title})';
+                              } else if (nextDue != null) {
+                                displayFee = nextDue;
+                                cardLabel = 'UPCOMING DUE';
+                                iconColor = AppColors.warning;
+                                iconData =
+                                    Icons.account_balance_wallet_outlined;
+                                buttonText = 'PAY NOW';
 
-                              if (hasUnpaid) {
-                                final overdueList = feeState.overdueFees;
-                                final nextDue = feeState.nextDueFee;
-                                
-                                FeeRecord displayFee;
-                                if (overdueList.isNotEmpty) {
-                                  overdueList.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-                                  displayFee = overdueList.first;
-                                  cardLabel = 'OVERDUE BALANCE';
-                                  iconColor = AppColors.error;
-                                  iconData = Icons.warning_amber_rounded;
-                                  buttonText = 'SETTLE';
-                                } else if (nextDue != null) {
-                                  displayFee = nextDue;
-                                  cardLabel = 'UPCOMING DUE';
-                                  iconColor = AppColors.warning;
-                                  iconData = Icons.account_balance_wallet_outlined;
-                                  buttonText = 'PAY NOW';
-                                } else {
-                                  final unpaid = feeState.fees.where((f) => !f.isPaid).toList();
-                                  unpaid.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-                                  displayFee = unpaid.first;
-                                  cardLabel = 'PENDING BALANCE';
-                                  iconColor = AppColors.warning;
-                                  iconData = Icons.account_balance_wallet_outlined;
-                                  buttonText = 'PAY NOW';
-                                }
-                                
-                                final formattedDate = DateFormat('dd MMM yyyy').format(displayFee.dueDate);
-                                cardAmount = '\$${displayFee.amount.toStringAsFixed(2)}';
-                                cardDetail = 'Due: $formattedDate (${displayFee.title})';
+                                final remaining =
+                                    displayFee.amount -
+                                    (displayFee.amountPaid ?? 0);
+                                cardAmount = '₹${remaining.toStringAsFixed(0)}';
+                                cardDetail =
+                                    'Due: ${DateFormat('dd MMM yyyy').format(displayFee.dueDate)} (${displayFee.title})';
                               } else {
-                                final paidList = feeState.fees.where((f) => f.isPaid).toList();
-                                if (paidList.isNotEmpty) {
-                                  paidList.sort((a, b) {
-                                    final dateA = a.paymentDate ?? a.dueDate;
-                                    final dateB = b.paymentDate ?? b.dueDate;
-                                    return dateB.compareTo(dateA);
-                                  });
-                                  final lastPaid = paidList.first;
-                                  cardLabel = 'ALL FEES PAID';
-                                  cardAmount = '\$${lastPaid.amount.toStringAsFixed(2)}';
-                                  final payDate = lastPaid.paymentDate ?? lastPaid.dueDate;
-                                  final formattedDate = DateFormat('dd MMM yyyy').format(payDate);
-                                  cardDetail = 'Paid: $formattedDate (${lastPaid.title})';
-                                } else {
-                                  cardLabel = 'NO FEES';
-                                  cardAmount = '\$0.00';
-                                  cardDetail = 'No fees registered';
-                                }
-                                iconColor = AppColors.success;
-                                iconData = Icons.check_circle_outline_rounded;
-                                buttonText = 'DETAILS';
-                              }
+                                final unpaid = feeState.fees
+                                    .where((f) => !f.isPaid)
+                                    .toList();
+                                unpaid.sort(
+                                  (a, b) => a.dueDate.compareTo(b.dueDate),
+                                );
+                                displayFee = unpaid.first;
+                                cardLabel = 'PENDING BALANCE';
+                                iconColor = AppColors.warning;
+                                iconData =
+                                    Icons.account_balance_wallet_outlined;
+                                buttonText = 'PAY NOW';
 
-                              return CustomCard(
-                                padding: const EdgeInsets.all(20),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const FeesScreen(),
-                                    ),
-                                  );
-                                },
-                                child: Row(
-                                  children: [
-                                    NeuBox(
-                                      width: 50,
-                                      height: 50,
-                                      borderRadius: 12,
-                                      isPressed: true,
-                                      padding: EdgeInsets.zero,
-                                      child: Icon(
-                                        iconData,
-                                        color: iconColor,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            cardLabel,
-                                            style: const TextStyle(
-                                              color: AppColors.textSecondary,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: 1.0,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            cardAmount,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w900,
-                                              fontSize: 20,
-                                              color: Theme.of(
-                                                context,
-                                              ).primaryColor,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            cardDetail,
-                                            style: const TextStyle(
-                                              color: AppColors.textSecondary,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => const FeesScreen(),
-                                          ),
-                                        );
-                                      },
-                                      child: NeuBox(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 10,
-                                        ),
-                                        borderRadius: 12,
-                                        color: AppColors.accent,
-                                        child: Text(
-                                          buttonText,
+                                cardAmount =
+                                    '₹${feeState.totalPending.toStringAsFixed(0)}';
+                                cardDetail = 'Total pending balance';
+                              }
+                            } else {
+                              final paidList = feeState.fees
+                                  .where((f) => f.isPaid)
+                                  .toList();
+                              if (paidList.isNotEmpty) {
+                                paidList.sort((a, b) {
+                                  final dateA = a.paymentDate ?? a.dueDate;
+                                  final dateB = b.paymentDate ?? b.dueDate;
+                                  return dateB.compareTo(dateA);
+                                });
+                                final lastPaid = paidList.first;
+                                cardLabel = 'ALL FEES PAID';
+                                cardAmount =
+                                    '₹${feeState.totalPaid.toStringAsFixed(0)}';
+                                final payDate =
+                                    lastPaid.paymentDate ?? lastPaid.dueDate;
+                                final formattedDate = DateFormat(
+                                  'dd MMM yyyy',
+                                ).format(payDate);
+                                cardDetail =
+                                    'Paid: $formattedDate (${lastPaid.title})';
+                              } else {
+                                cardLabel = 'NO FEES';
+                                cardAmount = '₹0';
+                                cardDetail = 'No fees registered';
+                              }
+                              iconColor = AppColors.success;
+                              iconData = Icons.check_circle_outline_rounded;
+                              buttonText = 'DETAILS';
+                            }
+
+                            return CustomCard(
+                              color: Colors.white,
+                              padding: const EdgeInsets.all(20),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const FeesScreen(),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  NeuBox(
+                                    width: 50,
+                                    height: 50,
+                                    borderRadius: 12,
+                                    isPressed: true,
+                                    padding: EdgeInsets.zero,
+                                    child: Icon(iconData, color: iconColor),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          cardLabel,
                                           style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.w900,
+                                            color: AppColors.textSecondary,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
                                             letterSpacing: 1.0,
                                           ),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          cardAmount,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 20,
+                                            color: Theme.of(
+                                              context,
+                                            ).primaryColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          cardDetail,
+                                          style: const TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const FeesScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: NeuBox(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 10,
+                                      ),
+                                      borderRadius: 12,
+                                      color: AppColors.accent,
+                                      child: Text(
+                                        buttonText,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.0,
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                  // Announcement Popup Overlay
-                  BlocBuilder<AnnouncementBloc, AnnouncementState>(
-                    builder: (context, announcementState) {
-                      if (announcementState.currentAnnouncement != null) {
-                        return AnnouncementPopup(
-                          key: ValueKey(
-                            announcementState.currentAnnouncement!.id,
-                          ),
-                          announcement: announcementState.currentAnnouncement!,
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ],
-              ),
+                ),
+                // Announcement Popup Overlay
+                BlocBuilder<AnnouncementBloc, AnnouncementState>(
+                  builder: (context, announcementState) {
+                    if (announcementState.currentAnnouncement != null) {
+                      return AnnouncementPopup(
+                        key: ValueKey(
+                          announcementState.currentAnnouncement!.id,
+                        ),
+                        announcement: announcementState.currentAnnouncement!,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
             ),
-          );
-        },
-      );
-    }
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildCourseMarquee(BuildContext context) {
     return Column(
@@ -1372,6 +1451,205 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildTodayExamsCard(
+    BuildContext context,
+    List<ExamSession> examsToday,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(context, 'Today\'s Exam Progress'),
+        const SizedBox(height: 16),
+        CustomCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(isDark ? 0.2 : 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.analytics_rounded,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'DAILY & OTHER EXAMS',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10,
+                            letterSpacing: 1.2,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Marked Today',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const NeuDivider(),
+              const SizedBox(height: 16),
+              ...examsToday.map((exam) {
+                final totalObtained = exam.subjects.fold<int>(
+                  0,
+                  (sum, s) => sum + s.marksObtained,
+                );
+                final totalPossible = exam.subjects.fold<int>(
+                  0,
+                  (sum, s) => sum + s.totalMarks,
+                );
+                final percentage = totalPossible > 0
+                    ? totalObtained / totalPossible
+                    : 0.0;
+                final badgeColor = exam.isDaily
+                    ? AppColors.success
+                    : AppColors.info;
+                final badgeText = exam.isDaily ? 'DAILY EXAM' : 'TERM EXAM';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: badgeColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        badgeText,
+                                        style: TextStyle(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: badgeColor,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        exam.title,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: isDark
+                                              ? AppColors.textPrimaryDark
+                                              : AppColors.textPrimary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                ...exam.subjects.map(
+                                  (sub) => Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 4,
+                                      top: 4,
+                                    ),
+                                    child: Text(
+                                      '${sub.subject}: ${sub.marksObtained}/${sub.totalMarks} (${sub.grade})',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textSecondaryDark
+                                            : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${(percentage * 100).toInt()}%',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: badgeColor,
+                                ),
+                              ),
+                              Text(
+                                '$totalObtained/$totalPossible Marks',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: percentage,
+                          minHeight: 6,
+                          backgroundColor: isDark
+                              ? Colors.white.withOpacity(0.06)
+                              : AppColors.neuDark.withOpacity(0.2),
+                          valueColor: AlwaysStoppedAnimation(badgeColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Text(
       title.toUpperCase(),
@@ -1387,7 +1665,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildDailyReportsMarquee(BuildContext context) {
     return BlocBuilder<DailyReportCubit, DailyReportState>(
       builder: (context, state) {
-        if (state.status == DailyReportStatus.loading && state.courseReports.isEmpty) {
+        if (state.status == DailyReportStatus.loading &&
+            state.courseReports.isEmpty) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1399,10 +1678,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   scrollDirection: Axis.horizontal,
                   itemCount: 3,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemBuilder: (_, __) => Container(
+                  itemBuilder: (_, _) => Container(
                     width: 170,
                     margin: const EdgeInsets.only(right: 12),
-                    child: const Shimmer(width: 170, height: 85, borderRadius: 16),
+                    child: const Shimmer(
+                      width: 170,
+                      height: 85,
+                      borderRadius: 16,
+                    ),
                   ),
                 ),
               ),
@@ -1431,12 +1714,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.glassBase : Colors.black.withOpacity(0.02),
+                    color: isDark
+                        ? AppColors.glassBase
+                        : Colors.black.withOpacity(0.02),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isDark ? AppColors.glassBorder : AppColors.neuDark.withOpacity(0.2),
+                      color: isDark
+                          ? AppColors.glassBorder
+                          : AppColors.neuDark.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
@@ -1445,7 +1735,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Icon(
                         Icons.calendar_today_rounded,
                         size: 16,
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -1453,7 +1745,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -1476,14 +1770,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 rightToLeft: true,
                 children: dailyReports.map((report) {
                   final formattedDate = report.dateStr.isNotEmpty
-                      ? DateFormat('d MMM').format(DateTime.parse(report.dateStr))
+                      ? DateFormat(
+                          'd MMM',
+                        ).format(DateTime.parse(report.dateStr))
                       : '';
 
                   return Container(
                     width: 195,
                     margin: const EdgeInsets.only(right: 12),
                     child: CustomCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -1500,11 +1799,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  report.subjectName?.toUpperCase() ?? 'GENERAL',
+                                  report.subjectName?.toUpperCase() ??
+                                      'GENERAL',
                                   style: TextStyle(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.w900,
-                                    color: isDark ? AppColors.accent : AppColors.primary,
+                                    color: isDark
+                                        ? AppColors.accent
+                                        : AppColors.primary,
                                     letterSpacing: 0.5,
                                   ),
                                   maxLines: 1,
@@ -1528,7 +1830,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             style: TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1541,18 +1845,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Icon(
                                 Icons.menu_book_rounded,
                                 size: 10,
-                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondary,
                               ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  report.topicsCovered != null && report.topicsCovered!.trim().isNotEmpty
+                                  report.topicsCovered != null &&
+                                          report.topicsCovered!
+                                              .trim()
+                                              .isNotEmpty
                                       ? report.topicsCovered!.trim()
                                       : 'No topic detailed',
                                   style: TextStyle(
                                     fontSize: 9,
                                     fontWeight: FontWeight.w500,
-                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                    color: isDark
+                                        ? AppColors.textSecondaryDark
+                                        : AppColors.textSecondary,
                                     height: 1.1,
                                   ),
                                   maxLines: 1,
@@ -1569,18 +1880,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Icon(
                                 Icons.assignment_outlined,
                                 size: 10,
-                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondary,
                               ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  report.homework != null && report.homework!.trim().isNotEmpty
+                                  report.homework != null &&
+                                          report.homework!.trim().isNotEmpty
                                       ? 'HW: ${report.homework!.trim()}'
                                       : 'No homework',
                                   style: TextStyle(
                                     fontSize: 9,
                                     fontWeight: FontWeight.w500,
-                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+                                    color: isDark
+                                        ? AppColors.textSecondaryDark
+                                        : AppColors.textSecondary,
                                     height: 1.1,
                                   ),
                                   maxLines: 1,

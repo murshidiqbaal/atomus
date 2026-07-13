@@ -8,6 +8,7 @@ class CustomCard extends StatelessWidget {
   final double? width;
   final double? height;
   final bool isPressed;
+  final Color? color;
 
   const CustomCard({
     super.key,
@@ -17,6 +18,7 @@ class CustomCard extends StatelessWidget {
     this.width,
     this.height,
     this.isPressed = false,
+    this.color,
   });
 
   @override
@@ -28,6 +30,7 @@ class CustomCard extends StatelessWidget {
       borderRadius: 20,
       padding: padding,
       onTap: onTap,
+      color: color,
       child: child,
     );
   }

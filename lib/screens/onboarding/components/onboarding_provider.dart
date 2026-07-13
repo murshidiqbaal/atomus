@@ -1,6 +1,7 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+
 import '../../main_layout.dart';
 
 class OnboardingProvider extends ChangeNotifier {
@@ -62,11 +63,11 @@ class OnboardingProvider extends ChangeNotifier {
   void completeOnboarding(BuildContext context) {
     final settingsBox = Hive.box('settings');
     settingsBox.put('onboarding_completed', true);
-    
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, animation, __) => const MainLayout(),
-        transitionsBuilder: (_, animation, __, child) =>
+        pageBuilder: (_, animation, _) => const MainLayout(),
+        transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 600),
       ),

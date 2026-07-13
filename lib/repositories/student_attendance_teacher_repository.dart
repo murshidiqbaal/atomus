@@ -59,7 +59,9 @@ class StudentAttendanceTeacherRepository {
       } else if (useCohortFallback && resolvedCourseId != null) {
         query = query.eq('course_id', resolvedCourseId);
       } else {
-        query = query.eq('batch_id', batchId);
+        query = query.or(
+          'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
+        );
       }
 
       if (campusId != null && campusId.isNotEmpty) {

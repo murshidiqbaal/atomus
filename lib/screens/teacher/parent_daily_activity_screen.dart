@@ -667,7 +667,7 @@ class _ParentDailyActivityScreenState extends State<ParentDailyActivityScreen>
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedCampusId,
+                  initialValue: _selectedCampusId,
                   hint: const Text('Campus', style: TextStyle(fontSize: 12)),
                   items: _campuses.map((c) {
                     return DropdownMenuItem<String>(
@@ -693,7 +693,7 @@ class _ParentDailyActivityScreenState extends State<ParentDailyActivityScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedCourseId,
+                  initialValue: _selectedCourseId,
                   hint: const Text('Course', style: TextStyle(fontSize: 12)),
                   items: _courses.map((c) {
                     return DropdownMenuItem<String>(
@@ -725,7 +725,7 @@ class _ParentDailyActivityScreenState extends State<ParentDailyActivityScreen>
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedBatchId,
+                  initialValue: _selectedBatchId,
                   hint: const Text('Batch', style: TextStyle(fontSize: 12)),
                   items: _batches.map((b) {
                     return DropdownMenuItem<String>(

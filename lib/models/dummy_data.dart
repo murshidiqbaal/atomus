@@ -69,9 +69,12 @@ class StudentInfo {
       profilePhotoDriveId: map['profile_photo_drive_id']?.toString(),
       courseId: map['course_id']?.toString(),
       campusId: map['campus_id']?.toString(),
-      campusName: campusesMap?['name']?.toString() ?? map['campus_name']?.toString(),
+      campusName:
+          campusesMap?['name']?.toString() ?? map['campus_name']?.toString(),
       paymentQrUrl: () {
-        final url = campusesMap?['payment_qr_url']?.toString() ?? map['payment_qr_url']?.toString();
+        final url =
+            campusesMap?['payment_qr_url']?.toString() ??
+            map['payment_qr_url']?.toString();
         if (url == null || url.isEmpty) return null;
         // Only keep full absolute URLs (https://...) — discard relative
         // server paths like /uploads/... which only work on localhost.
@@ -82,15 +85,22 @@ class StudentInfo {
       }(),
       paymentQrDriveId: () {
         // 1. Direct Drive ID from the campus record
-        final driveId = campusesMap?['payment_qr_drive_id']?.toString()
-            ?? map['payment_qr_drive_id']?.toString();
-        if (driveId != null && driveId.isNotEmpty && RegExp(r'^[A-Za-z0-9_\-]{10,60}$').hasMatch(driveId)) {
+        final driveId =
+            campusesMap?['payment_qr_drive_id']?.toString() ??
+            map['payment_qr_drive_id']?.toString();
+        if (driveId != null &&
+            driveId.isNotEmpty &&
+            RegExp(r'^[A-Za-z0-9_\-]{10,60}$').hasMatch(driveId)) {
           return driveId;
         }
         // 2. Try to extract a Drive ID from the URL (e.g. /api/media?id=DRIVE_ID)
-        final url = campusesMap?['payment_qr_url']?.toString() ?? map['payment_qr_url']?.toString();
+        final url =
+            campusesMap?['payment_qr_url']?.toString() ??
+            map['payment_qr_url']?.toString();
         if (url != null && url.contains('id=')) {
-          final idMatch = RegExp(r'[?&]id=([A-Za-z0-9_\-]{10,60})').firstMatch(url);
+          final idMatch = RegExp(
+            r'[?&]id=([A-Za-z0-9_\-]{10,60})',
+          ).firstMatch(url);
           if (idMatch != null) return idMatch.group(1);
         }
         return null;
@@ -143,7 +153,7 @@ class ExamMark {
   factory ExamMark.fromMap(Map<String, dynamic> map) {
     final marksObtained = (map['marks_obtained'] ?? 0).toInt();
     final totalMarks = (map['total_marks'] ?? 100).toInt();
-    
+
     String calculatedGrade;
     if (totalMarks <= 0) {
       calculatedGrade = 'N/A';
@@ -198,7 +208,9 @@ class ExamSession {
     final examData = map['exams'] ?? map;
     final isDaily = examData['is_daily'] as bool? ?? false;
     final dateVal = isDaily
-        ? (map['mark_date']?.toString() ?? examData['exam_date']?.toString() ?? 'N/A')
+        ? (map['mark_date']?.toString() ??
+              examData['exam_date']?.toString() ??
+              'N/A')
         : (examData['exam_date']?.toString() ?? 'N/A');
     return ExamSession(
       title: examData['name'] ?? examData['title'] ?? 'Examination',

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_flutter/lucide_flutter.dart';
+
 import '../../../theme/app_colors.dart';
 import 'onboarding_model.dart';
 
@@ -31,10 +31,7 @@ class _OnboardingPageWidgetState extends State<OnboardingPageWidget>
     )..repeat(reverse: true);
 
     _floatAnimation = Tween<double>(begin: 0.0, end: 15.0).animate(
-      CurvedAnimation(
-        parent: _animController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
     );
   }
 
@@ -60,9 +57,7 @@ class _OnboardingPageWidgetState extends State<OnboardingPageWidget>
                 children: [
                   Expanded(
                     flex: 1,
-                    child: Center(
-                      child: _buildIllustration(isDark),
-                    ),
+                    child: Center(child: _buildIllustration(isDark)),
                   ),
                   Expanded(
                     flex: 1,
@@ -71,7 +66,11 @@ class _OnboardingPageWidgetState extends State<OnboardingPageWidget>
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildTitle(context, isDark, textAlign: TextAlign.left),
+                          _buildTitle(
+                            context,
+                            isDark,
+                            textAlign: TextAlign.left,
+                          ),
                           const SizedBox(height: 16),
                           _buildDescription(isDark, textAlign: TextAlign.left),
                         ],
@@ -145,7 +144,7 @@ class _OnboardingPageWidgetState extends State<OnboardingPageWidget>
                   ),
                 );
               }),
-              
+
               // Main premium card frame
               Container(
                 width: 160,
@@ -192,16 +191,20 @@ class _OnboardingPageWidgetState extends State<OnboardingPageWidget>
     );
   }
 
-  Widget _buildTitle(BuildContext context, bool isDark, {required TextAlign textAlign}) {
+  Widget _buildTitle(
+    BuildContext context,
+    bool isDark, {
+    required TextAlign textAlign,
+  }) {
     return Text(
       widget.model.title,
       textAlign: textAlign,
       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            fontSize: 28,
-            letterSpacing: -0.5,
-            color: isDark ? Colors.white : AppColors.textPrimary,
-          ),
+        fontWeight: FontWeight.w900,
+        fontSize: 28,
+        letterSpacing: -0.5,
+        color: isDark ? Colors.white : AppColors.textPrimary,
+      ),
     );
   }
 

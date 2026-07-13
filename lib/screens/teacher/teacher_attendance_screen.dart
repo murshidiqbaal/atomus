@@ -1738,9 +1738,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null || !teacher.hasCampusCoordinates) return;
     await context.read<GeofenceCubit>().checkGeofence(
-      campusLatitude: teacher.campusLatitude as double,
-      campusLongitude: teacher.campusLongitude as double,
-      radiusMeters: teacher.geofenceRadiusMeters,
+      campuses: teacher.campuses,
     );
     if (!silent && mounted) {
       final geo = context.read<GeofenceCubit>().state;
@@ -1779,9 +1777,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       }
     }
 
+    final campusId = geo.matchedCampusId ?? (teacher.campusId as String?);
+
     await ctx.read<TeacherAttendanceCubit>().startSession(
       teacherId: teacher.id as String,
-      campusId: teacher.campusId as String?,
+      campusId: campusId,
       subjectId: _filterSubjectId,
       courseId: _filterCourseId,
       batchId: batchId,

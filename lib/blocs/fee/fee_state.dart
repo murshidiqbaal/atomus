@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+
 import '../../models/dummy_data.dart';
 
 enum FeeStatus { initial, loading, success, failure }
@@ -21,10 +22,13 @@ class FeeState extends Equatable {
     this.feeStructureInfo,
     this.paymentHistory = const [],
     this.totalFee = 0.0,
-    this.totalPaid = 0.0,
-    this.totalPending = 0.0,
+    double totalPaid = 0.0,
+    double totalPending = 0.0,
     this.discountAmount = 0.0,
-  });
+  }) : totalPaid = totalPaid > totalFee
+           ? totalFee
+           : (totalPaid < 0.0 ? 0.0 : totalPaid),
+       totalPending = totalPending < 0.0 ? 0.0 : totalPending;
 
   /// Convenience: count of paid terms
   int get paidCount => fees.where((f) => f.isPaid).length;
@@ -33,10 +37,12 @@ class FeeState extends Equatable {
   int get pendingCount => fees.where((f) => !f.isPaid).length;
 
   /// Overall progress (0.0 to 1.0)
-  double get paymentProgress => totalFee > 0 ? (totalPaid / totalFee).clamp(0.0, 1.0) : 0.0;
+  double get paymentProgress =>
+      totalFee > 0 ? (totalPaid / totalFee).clamp(0.0, 1.0) : 0.0;
 
   /// Fee structure display name
-  String get structureName => feeStructureInfo?['fee_structure_name'] ?? 'Fee Structure';
+  String get structureName =>
+      feeStructureInfo?['fee_structure_name'] ?? 'Fee Structure';
 
   /// Course name
   String get courseName => feeStructureInfo?['course_name'] ?? '';
@@ -44,7 +50,9 @@ class FeeState extends Equatable {
   /// Next upcoming due fee
   FeeRecord? get nextDueFee {
     final now = DateTime.now();
-    final upcoming = fees.where((f) => !f.isPaid && f.dueDate.isAfter(now)).toList();
+    final upcoming = fees
+        .where((f) => !f.isPaid && f.dueDate.isAfter(now))
+        .toList();
     if (upcoming.isEmpty) return null;
     upcoming.sort((a, b) => a.dueDate.compareTo(b.dueDate));
     return upcoming.first;
@@ -88,14 +96,14 @@ class FeeState extends Equatable {
 
   @override
   List<Object?> get props => [
-        status,
-        fees,
-        errorMessage,
-        feeStructureInfo,
-        paymentHistory,
-        totalFee,
-        totalPaid,
-        totalPending,
-        discountAmount,
-      ];
+    status,
+    fees,
+    errorMessage,
+    feeStructureInfo,
+    paymentHistory,
+    totalFee,
+    totalPaid,
+    totalPending,
+    discountAmount,
+  ];
 }

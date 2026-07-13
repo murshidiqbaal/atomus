@@ -18,6 +18,7 @@ class TeacherModel {
   final int? experienceYears;
   final String? gender;
   final String? address;
+  final List<CampusLocation> campuses;
 
   const TeacherModel({
     required this.id,
@@ -39,9 +40,39 @@ class TeacherModel {
     this.experienceYears,
     this.gender,
     this.address,
+    this.campuses = const [],
   });
 
-  factory TeacherModel.fromMap(Map<String, dynamic> map, {Map<String, dynamic>? campusData}) {
+  factory TeacherModel.fromMap(Map<String, dynamic> map, {Map<String, dynamic>? campusData, List<CampusLocation>? campuses}) {
+    List<CampusLocation> parsedCampuses = [];
+    if (campuses != null) {
+      parsedCampuses = campuses;
+    } else if (map['campuses_list'] != null) {
+      final list = map['campuses_list'] as List;
+      parsedCampuses = list.map((c) => CampusLocation.fromMap(Map<String, dynamic>.from(c as Map))).toList();
+    }
+
+    // Fallback: If parsedCampuses is empty, but we have primary campus coordinates on teacher, use that.
+    if (parsedCampuses.isEmpty) {
+      final pId = campusData?['id'] as String? ?? map['campus_id'] as String?;
+      final pLat = (campusData?['latitude'] as num?)?.toDouble() ?? (map['campus_latitude'] as num?)?.toDouble();
+      final pLon = (campusData?['longitude'] as num?)?.toDouble() ?? (map['campus_longitude'] as num?)?.toDouble();
+      final pName = campusData?['name'] as String? ?? map['campus_name'] as String? ?? 'Primary Campus';
+      final pRad = (campusData?['geofence_radius_meters'] as int?) ?? (map['geofence_radius_meters'] as int?) ?? 25;
+
+      if (pId != null && pLat != null && pLon != null) {
+        parsedCampuses = [
+          CampusLocation(
+            id: pId,
+            name: pName,
+            latitude: pLat,
+            longitude: pLon,
+            radiusMeters: pRad,
+          )
+        ];
+      }
+    }
+
     return TeacherModel(
       id: map['id'] as String,
       fullName: map['full_name'] as String? ?? map['name'] as String? ?? 'Teacher',
@@ -51,15 +82,16 @@ class TeacherModel {
       profilePhotoDriveId: map['profile_photo_drive_id'] as String?,
       campusId: campusData?['id'] as String? ?? map['campus_id'] as String?,
       campusName: campusData?['name'] as String?,
-      campusLatitude: (campusData?['latitude'] as num?)?.toDouble(),
-      campusLongitude: (campusData?['longitude'] as num?)?.toDouble(),
-      geofenceRadiusMeters: (campusData?['geofence_radius_meters'] as int?) ?? 25,
+      campusLatitude: (campusData?['latitude'] as num?)?.toDouble() ?? (map['campus_latitude'] as num?)?.toDouble(),
+      campusLongitude: (campusData?['longitude'] as num?)?.toDouble() ?? (map['campus_longitude'] as num?)?.toDouble(),
+      geofenceRadiusMeters: (campusData?['geofence_radius_meters'] as int?) ?? (map['geofence_radius_meters'] as int?) ?? 25,
       isActive: map['is_active'] as bool? ?? true,
       fcmToken: map['fcm_token'] as String?,
       qualification: map['qualification'] as String?,
       experienceYears: (map['experience_years'] as num?)?.toInt(),
       gender: map['gender'] as String?,
       address: map['address'] as String?,
+      campuses: parsedCampuses,
     );
   }
 
@@ -78,11 +110,23 @@ class TeacherModel {
       'experience_years': experienceYears,
       'gender': gender,
       'address': address,
+      'campus_name': campusName,
+      'campus_latitude': campusLatitude,
+      'campus_longitude': campusLongitude,
+      'geofence_radius_meters': geofenceRadiusMeters,
+      'campuses_list': campuses.map((c) => {
+        'id': c.id,
+        'name': c.name,
+        'latitude': c.latitude,
+        'longitude': c.longitude,
+        'geofence_radius_meters': c.radiusMeters,
+      }).toList(),
     };
   }
 
   bool get hasCampusCoordinates =>
-      campusLatitude != null && campusLongitude != null;
+      (campusLatitude != null && campusLongitude != null) ||
+      (campuses.isNotEmpty && campuses.any((c) => c.hasCoordinates));
 
   TeacherModel copyWith({
     String? fullName,
@@ -94,6 +138,7 @@ class TeacherModel {
     String? profilePhotoDriveId,
     List<TeacherSubjectAssignment>? subjects,
     List<TeacherCourseAssignment>? courses,
+    List<CampusLocation>? campuses,
   }) {
     return TeacherModel(
       id: id,
@@ -115,6 +160,7 @@ class TeacherModel {
       experienceYears: experienceYears ?? this.experienceYears,
       gender: gender ?? this.gender,
       address: address ?? this.address,
+      campuses: campuses ?? this.campuses,
     );
   }
 }
@@ -166,15 +212,15 @@ class TeacherSubjectAssignment {
 class CampusLocation {
   final String id;
   final String name;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
   final int radiusMeters;
 
   const CampusLocation({
     required this.id,
     required this.name,
-    required this.latitude,
-    required this.longitude,
+    this.latitude,
+    this.longitude,
     this.radiusMeters = 25,
   });
 
@@ -182,11 +228,13 @@ class CampusLocation {
     return CampusLocation(
       id:           map['id'] as String,
       name:         map['name'] as String,
-      latitude:     (map['latitude'] as num).toDouble(),
-      longitude:    (map['longitude'] as num).toDouble(),
+      latitude:     (map['latitude'] as num?)?.toDouble(),
+      longitude:    (map['longitude'] as num?)?.toDouble(),
       radiusMeters: (map['geofence_radius_meters'] as int?) ?? 25,
     );
   }
+
+  bool get hasCoordinates => latitude != null && longitude != null;
 }
 
 class TeacherCourseAssignment {

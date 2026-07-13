@@ -151,7 +151,9 @@ class DailyReportRepository {
           .select(
             'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id',
           )
-          .eq('batch_id', batchId);
+          .or(
+            'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
+          );
 
       if (campusId != null && campusId.isNotEmpty) {
         query = query.eq('campus_id', campusId);

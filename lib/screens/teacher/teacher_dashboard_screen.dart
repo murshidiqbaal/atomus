@@ -257,9 +257,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         return GestureDetector(
           onTap: hasCampus && geo.status != GeofenceStatus.checking
               ? () => ctx.read<GeofenceCubit>().checkGeofence(
-                  campusLatitude: dashState.teacher!.campusLatitude!,
-                  campusLongitude: dashState.teacher!.campusLongitude!,
-                  radiusMeters: dashState.teacher!.geofenceRadiusMeters,
+                  campuses: dashState.teacher!.campuses,
                 )
               : null,
           child: Container(
