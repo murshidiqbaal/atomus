@@ -68,7 +68,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      const Shimmer(width: double.infinity, height: 75, borderRadius: 20),
+                      const Shimmer(
+                        width: double.infinity,
+                        height: 75,
+                        borderRadius: 20,
+                      ),
                       const SizedBox(height: 24),
                       ...List.generate(3, (_) => Shimmer.cardSkeleton()),
                     ],
@@ -256,9 +260,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
         return GestureDetector(
           onTap: hasCampus && geo.status != GeofenceStatus.checking
-              ? () => ctx.read<GeofenceCubit>().checkGeofence(
-                  campuses: dashState.teacher!.campuses,
-                )
+              ? () => ctx.read<GeofenceCubit>().checkGeofence()
               : null,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -773,11 +775,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       child: GestureDetector(
         onTap: () {
           context.read<MarksCubit>().selectExam(exam);
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const MarksEntryScreen(),
-            ),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const MarksEntryScreen()));
         },
         child: NeuBox(
           padding: const EdgeInsets.all(12),
@@ -823,7 +823,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               ),
               if (exam.isDaily)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
@@ -839,7 +842,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 )
               else if (exam.examDate != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),

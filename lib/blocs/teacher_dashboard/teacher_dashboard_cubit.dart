@@ -20,10 +20,10 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
     required TeacherAttendanceRepository attendanceRepository,
     required MarksEntryRepository marksRepository,
     required AuthBloc authBloc,
-  })  : _teacherRepo    = teacherRepository,
-        _attendanceRepo = attendanceRepository,
-        _marksRepo      = marksRepository,
-        super(const TeacherDashboardState()) {
+  }) : _teacherRepo = teacherRepository,
+       _attendanceRepo = attendanceRepository,
+       _marksRepo = marksRepository,
+       super(const TeacherDashboardState()) {
     _initAuthListener(authBloc);
   }
 
@@ -44,23 +44,29 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
     try {
       final teacher = await _teacherRepo.fetchTeacherProfile();
       if (teacher == null) {
-        emit(state.copyWith(
-          status:       TeacherDashboardStatus.failure,
-          errorMessage: 'Teacher profile not found.',
-        ));
+        emit(
+          state.copyWith(
+            status: TeacherDashboardStatus.failure,
+            errorMessage: 'Teacher profile not found.',
+          ),
+        );
         return;
       }
 
       final subjectIds = teacher.subjects.map((s) => s.subjectId).toList();
-      final batchIds   = teacher.subjects
+      final batchIds = teacher.subjects
           .map((s) => s.batchId)
           .whereType<String>()
           .toSet()
           .toList();
-      final courseIds  = teacher.courses.map((c) => c.courseId).toSet().toList();
+      final courseIds = teacher.courses.map((c) => c.courseId).toSet().toList();
 
-      final activeSession  = await _attendanceRepo.fetchTodayActiveSession(teacher.id);
-      final monthlyPct     = await _attendanceRepo.fetchMonthlyAttendancePercentage(teacher.id);
+      final activeSession = await _attendanceRepo.fetchTodayActiveSession(
+        teacher.id,
+      );
+      final monthlyPct = await _attendanceRepo.fetchMonthlyAttendancePercentage(
+        teacher.id,
+      );
 
       final now = DateTime.now();
       final from = DateTime(now.year, now.month, 1);
@@ -77,37 +83,39 @@ class TeacherDashboardCubit extends Cubit<TeacherDashboardState> {
       if (subjectIds.isNotEmpty || courseIds.isNotEmpty) {
         upcomingExams = await _marksRepo.fetchAssignedExams(
           subjectIds: subjectIds,
-          batchIds:   batchIds,
-          courseIds:  courseIds,
+          batchIds: batchIds,
+          courseIds: courseIds,
           includeUpcoming: true,
         );
-        pendingMarks = upcomingExams
-            .where((e) => !e.isMarksEntered)
-            .length;
+        pendingMarks = upcomingExams.where((e) => !e.isMarksEntered).length;
       }
 
       final stats = TeacherDashboardStats(
-        todayClassCount:         teacher.subjects.length,
-        attendancePercentage:    monthlyPct,
-        hasActiveSession:        activeSession != null,
-        upcomingExamCount:       upcomingExams.length,
-        pendingMarksCount:       pendingMarks,
-        monthlyAttendanceCount:  monthlyAttendanceCount,
+        todayClassCount: teacher.subjects.length,
+        attendancePercentage: monthlyPct,
+        hasActiveSession: activeSession != null,
+        upcomingExamCount: upcomingExams.length,
+        pendingMarksCount: pendingMarks,
+        monthlyAttendanceCount: monthlyAttendanceCount,
       );
 
-      emit(state.copyWith(
-        status:        TeacherDashboardStatus.success,
-        teacher:       teacher,
-        activeSession: activeSession,
-        clearSession:  activeSession == null,
-        stats:         stats,
-        upcomingExams: upcomingExams.take(10).toList(),
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherDashboardStatus.success,
+          teacher: teacher,
+          activeSession: activeSession,
+          clearSession: activeSession == null,
+          stats: stats,
+          upcomingExams: upcomingExams.take(10).toList(),
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        status:       TeacherDashboardStatus.failure,
-        errorMessage: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          status: TeacherDashboardStatus.failure,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 

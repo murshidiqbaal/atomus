@@ -11,8 +11,10 @@ import '../../blocs/teacher_attendance/teacher_attendance_cubit.dart';
 import '../../blocs/teacher_attendance/teacher_attendance_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
+import '../../models/campus_model.dart';
 import '../../models/teacher_attendance_model.dart';
 import '../../models/teacher_model.dart';
+import '../../providers/campus_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/custom_card.dart';
@@ -235,22 +237,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   // ----------------------------------------------------------------
 
   Widget _buildGeofenceBanner(dynamic teacher) {
-    final hasGeo = teacher != null && teacher.hasCampusCoordinates;
-    if (!hasGeo) {
-      return _bannerCard(
-        color: AppColors.info,
-        icon: LucideIcons.info,
-        title: 'No campus location set',
-        subtitle: 'Location validation is not required for your account.',
-      );
-    }
-
     return BlocBuilder<GeofenceCubit, GeofenceState>(
-      builder: (ctx, geo) {
-        late Color color;
-        late IconData icon;
-        late String title;
-        late String subtitle;
+      builder: (geoCtx, geo) {
+        final campusProvider = context.read<CampusProvider>();
+        Color color;
+        IconData icon;
+        String title;
+        String subtitle;
 
         switch (geo.status) {
           case GeofenceStatus.unknown:
@@ -268,16 +261,34 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           case GeofenceStatus.inside:
             color = AppColors.success;
             icon = LucideIcons.shieldCheck;
-            title = 'Inside campus';
+
+            Campus? matchedCampus;
+            for (final c in campusProvider.assignedCampuses) {
+              if (c.id == geo.matchedCampusId) {
+                matchedCampus = c;
+                break;
+              }
+            }
+            final campusName = matchedCampus?.name ?? 'Campus';
+            final allowedRadius =
+                matchedCampus?.allowedRadiusMeters.toInt() ?? 25;
+            final lat = geo.position?.latitude.toStringAsFixed(4) ?? '0.0';
+            final lon = geo.position?.longitude.toStringAsFixed(4) ?? '0.0';
+
+            title = '✓ Inside $campusName';
             subtitle =
-                '${geo.distanceMeters.toInt()}m from campus center - you can punch in.';
+                'GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m | Allowed: ${allowedRadius}m';
             break;
           case GeofenceStatus.outside:
             color = AppColors.error;
             icon = LucideIcons.shieldAlert;
-            title = 'Outside campus';
+
+            final lat = geo.position?.latitude.toStringAsFixed(4) ?? '0.0';
+            final lon = geo.position?.longitude.toStringAsFixed(4) ?? '0.0';
+
+            title = '✗ Outside Assigned Campuses';
             subtitle =
-                'You are ${geo.distanceMeters.toInt()}m away. Move closer to enable punch-in.';
+                'GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m away from nearest campus';
             break;
           case GeofenceStatus.permissionDenied:
             color = AppColors.error;
@@ -814,7 +825,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
         final maxDuration = const Duration(hours: 4);
         final remaining = maxDuration - elapsedDuration;
-        final displayDuration = remaining.isNegative ? Duration.zero : remaining;
+        final displayDuration = remaining.isNegative
+            ? Duration.zero
+            : remaining;
 
         final hh = displayDuration.inHours.toString().padLeft(2, '0');
         final mm = (displayDuration.inMinutes % 60).toString().padLeft(2, '0');
@@ -966,7 +979,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   icon: LucideIcons.logIn,
                   label: 'Punch-In',
                   value: session.startTime != null
-                      ? DateFormat('hh:mm a').format(session.startTime!.toLocal())
+                      ? DateFormat(
+                          'hh:mm a',
+                        ).format(session.startTime!.toLocal())
                       : '--',
                 ),
               ),
@@ -1736,10 +1751,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
   Future<void> _verifyLocation({required bool silent}) async {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
-    if (teacher == null || !teacher.hasCampusCoordinates) return;
-    await context.read<GeofenceCubit>().checkGeofence(
-      campuses: teacher.campuses,
-    );
+    if (teacher == null) return;
+    await context.read<GeofenceCubit>().checkGeofence();
     if (!silent && mounted) {
       final geo = context.read<GeofenceCubit>().state;
       if (geo.status == GeofenceStatus.inside) {
@@ -1777,17 +1790,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       }
     }
 
-    final campusId = geo.matchedCampusId ?? (teacher.campusId as String?);
-
     await ctx.read<TeacherAttendanceCubit>().startSession(
       teacherId: teacher.id as String,
-      campusId: campusId,
       subjectId: _filterSubjectId,
       courseId: _filterCourseId,
       batchId: batchId,
-      latitude: geo.position?.latitude,
-      longitude: geo.position?.longitude,
       sessionType: _sessionType,
+      campusProvider: ctx.read<CampusProvider>(),
     );
   }
 

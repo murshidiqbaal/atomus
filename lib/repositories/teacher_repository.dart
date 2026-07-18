@@ -69,11 +69,36 @@ class TeacherRepository {
     List<TeacherSubjectAssignment> subjects = [];
     List<TeacherCourseAssignment> courses = [];
 
+    final initialCampusIds = {
+      if (teacher.campusId != null) teacher.campusId!,
+      ...teacher.assignedCampuses,
+    };
+
+    bool hasMainCampus = false;
+    for (final cid in initialCampusIds) {
+      try {
+        final res = await _supabase
+            .from('campuses')
+            .select('name')
+            .eq('id', cid)
+            .maybeSingle();
+        if (res != null) {
+          final name = (res['name'] as String?)?.toLowerCase() ?? '';
+          if (name.contains('main')) {
+            hasMainCampus = true;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
     // Fetch subjects
     try {
       final rows = await _supabase
           .from('teacher_subjects')
-          .select('*, subjects(name, course_id, courses(name)), campuses(*), batches(name)')
+          .select(
+            '*, subjects(name, course_id, courses(name)), batches(name)',
+          )
           .eq('teacher_id', teacher.id); // is_active removed from schema
 
       subjects = (rows as List).map((r) {
@@ -95,6 +120,71 @@ class TeacherRepository {
         );
       }).toList();
 
+      if (hasMainCampus) {
+        try {
+          final List<dynamic> subjectsRows = await _supabase
+              .from('subjects')
+              .select('id, name, course_id, courses(name)');
+          final List<dynamic> batchesRows = await _supabase
+              .from('batches')
+              .select('id, name, course_id');
+
+          final List<TeacherSubjectAssignment> mainCampusSubjects = [];
+          for (final sRow in subjectsRows) {
+            final sId = sRow['id'] as String;
+            final sName = sRow['name'] as String? ?? '';
+            final cId = sRow['course_id'] as String?;
+            final cName = sRow['courses']?['name'] as String?;
+
+            final courseBatches = batchesRows
+                .where((b) => b['course_id'] == cId)
+                .toList();
+            if (courseBatches.isEmpty) {
+              mainCampusSubjects.add(
+                TeacherSubjectAssignment(
+                  id: 'mc_subj_$sId',
+                  subjectId: sId,
+                  subjectName: sName,
+                  courseId: cId,
+                  courseName: cName,
+                  batchId: null,
+                  batchName: null,
+                  campusId: teacher.campusId,
+                ),
+              );
+            } else {
+              for (final bRow in courseBatches) {
+                mainCampusSubjects.add(
+                  TeacherSubjectAssignment(
+                    id: 'mc_subj_${sId}_${bRow['id']}',
+                    subjectId: sId,
+                    subjectName: sName,
+                    courseId: cId,
+                    courseName: cName,
+                    batchId: bRow['id'] as String,
+                    batchName: bRow['name'] as String?,
+                    campusId: teacher.campusId,
+                  ),
+                );
+              }
+            }
+          }
+
+          final Set<String> existingKeys = subjects
+              .map((s) => '${s.subjectId}_${s.batchId}')
+              .toSet();
+          for (final mcs in mainCampusSubjects) {
+            final key = '${mcs.subjectId}_${mcs.batchId}';
+            if (!existingKeys.contains(key)) {
+              subjects.add(mcs);
+              existingKeys.add(key);
+            }
+          }
+        } catch (e) {
+          print('Error fetching main campus subjects fallback: $e');
+        }
+      }
+
       final mapList = subjects
           .map(
             (a) => <String, dynamic>{
@@ -113,9 +203,11 @@ class TeacherRepository {
       print('Error fetching teacher_subjects: $e');
     }
 
-    final campusIds = {
+    final allCampusIds = {
       if (teacher.campusId != null) teacher.campusId!,
-      for (final s in subjects) if (s.campusId != null) s.campusId!,
+      ...teacher.assignedCampuses,
+      for (final s in subjects)
+        if (s.campusId != null) s.campusId!,
     };
 
     // Fetch courses
@@ -126,13 +218,16 @@ class TeacherRepository {
           .eq('teacher_id', teacher.id);
 
       final filteredRows = (rows as List).where((r) {
+        if (hasMainCampus) return true;
         try {
           final course = r['courses'] as Map<String, dynamic>?;
           final campusCourses = course?['campus_courses'];
           if (campusCourses is List) {
-            return campusCourses.any((cc) => campusIds.contains(cc['campus_id']));
+            return campusCourses.any(
+              (cc) => allCampusIds.contains(cc['campus_id']),
+            );
           } else if (campusCourses is Map) {
-            return campusIds.contains(campusCourses['campus_id']);
+            return allCampusIds.contains(campusCourses['campus_id']);
           }
         } catch (_) {}
         return true;
@@ -145,15 +240,47 @@ class TeacherRepository {
         cMap['courses'] = {'name': coursesData?['name']};
         return TeacherCourseAssignment.fromMap(cMap);
       }).toList();
+
+      if (hasMainCampus) {
+        try {
+          final List<dynamic> coursesRows = await _supabase
+              .from('courses')
+              .select('id, name');
+
+          final List<TeacherCourseAssignment> mainCampusCourses = [];
+          for (final cRow in coursesRows) {
+            mainCampusCourses.add(
+              TeacherCourseAssignment(
+                id: 'mc_course_${cRow['id']}',
+                courseId: cRow['id'] as String,
+                courseName: cRow['name'] as String? ?? '',
+                teacherId: '',
+              ),
+            );
+          }
+
+          final Set<String> existingCourseIds = courses
+              .map((c) => c.courseId)
+              .toSet();
+          for (final mcc in mainCampusCourses) {
+            if (!existingCourseIds.contains(mcc.courseId)) {
+              courses.add(mcc);
+              existingCourseIds.add(mcc.courseId);
+            }
+          }
+        } catch (e) {
+          print('Error fetching main campus courses fallback: $e');
+        }
+      }
     } catch (_) {}
 
     List<CampusLocation> campuses = [];
-    if (campusIds.isNotEmpty) {
+    if (allCampusIds.isNotEmpty) {
       try {
         final campusRes = await _supabase
             .from('campuses')
             .select('*')
-            .inFilter('id', campusIds.toList());
+            .inFilter('id', allCampusIds.toList());
         campuses = (campusRes as List)
             .map((c) => CampusLocation.fromMap(c as Map<String, dynamic>))
             .toList();
@@ -175,16 +302,31 @@ class TeacherRepository {
     String? campusId,
   }) async {
     try {
+      bool isMainCampus = false;
+      if (campusId != null && campusId.isNotEmpty) {
+        try {
+          final res = await _supabase
+              .from('campuses')
+              .select('name')
+              .eq('id', campusId)
+              .maybeSingle();
+          if (res != null) {
+            final name = (res['name'] as String?)?.toLowerCase() ?? '';
+            if (name.contains('main')) {
+              isMainCampus = true;
+            }
+          }
+        } catch (_) {}
+      }
+
       var query = _supabase
           .from('students')
           .select(
             'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id',
           )
-          .or(
-            'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
-          );
+          .or('batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null');
 
-      if (campusId != null && campusId.isNotEmpty) {
+      if (campusId != null && campusId.isNotEmpty && !isMainCampus) {
         query = query.eq('campus_id', campusId);
       }
 

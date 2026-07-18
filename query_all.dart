@@ -9,20 +9,36 @@ void main() async {
   final email = 'murshidiqbaalkm10@gmail.com';
   final phone = '+917994051281';
 
-  print('--- Testing individual queries ---');
-
-  for (final col in ['auth_user_id', 'id', 'email', 'phone_number']) {
-    final val = col == 'email' ? email
-              : col == 'phone_number' ? phone
-              : 'some-random-uid';
-    try {
-      final rows = await supabase
-          .from('teachers')
-          .select('id, full_name, email, auth_user_id')
-          .eq(col, val);
-      print('col=$col, val=$val -> Found ${rows.length} rows: $rows');
-    } catch (e) {
-      print('col=$col, val=$val -> FAILED with: $e');
+  try {
+    final marks = await supabase.from('marks').select().limit(1);
+    if (marks.isNotEmpty) {
+      print('marks columns: ${marks.first.keys.toList()}');
+    } else {
+      print('marks table is empty');
     }
+  } catch (e) {
+    print('marks check failed: $e');
+  }
+
+  try {
+    final exams = await supabase.from('exams').select().limit(1);
+    if (exams.isNotEmpty) {
+      print('exams columns: ${exams.first.keys.toList()}');
+    } else {
+      print('exams table is empty');
+    }
+  } catch (e) {
+    print('exams check failed: $e');
+  }
+
+  try {
+    final fees = await supabase.from('fees').select().limit(1);
+    if (fees.isNotEmpty) {
+      print('fees columns: ${fees.first.keys.toList()}');
+    } else {
+      print('fees table is empty');
+    }
+  } catch (e) {
+    print('fees check failed: $e');
   }
 }

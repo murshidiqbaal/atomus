@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart' show ChangeNotifierProvider;
 
 // Bootstrap & Cache
 import 'app_bootstrap.dart';
+import 'repositories/campus_repository.dart';
+import 'services/campus_geofence_service.dart';
+import 'services/attendance_service.dart';
+import 'providers/campus_provider.dart';
 import 'blocs/announcement/announcement_bloc.dart';
 import 'blocs/announcement/announcement_event.dart';
 import 'blocs/auth/auth_bloc.dart';
@@ -134,6 +139,19 @@ class AppProviders extends StatelessWidget {
               DailyReportRepository(hive: ctx.read<TeacherHiveService>()),
         ),
         RepositoryProvider(create: (_) => GeofenceService()),
+        RepositoryProvider(create: (_) => CampusRepository()),
+        RepositoryProvider(
+          create: (ctx) => CampusGeofenceService(
+            campusRepository: ctx.read<CampusRepository>(),
+            teacherHive: ctx.read<TeacherHiveService>(),
+          ),
+        ),
+        RepositoryProvider(
+          create: (ctx) => AttendanceService(
+            geofenceService: ctx.read<CampusGeofenceService>(),
+            attendanceRepository: ctx.read<TeacherAttendanceRepository>(),
+          ),
+        ),
         RepositoryProvider(
           create: (ctx) => DriveUploadService(
             imageService: ctx.read<ProfileImageService>(),
@@ -176,12 +194,10 @@ class AppProviders extends StatelessWidget {
                   ..add(LoadCourses()),
           ),
           BlocProvider(
-            create: (ctx) =>
-                ProfileCubit(
-                  repository: ctx.read<ProfileRepository>(),
-                  authBloc: ctx.read<AuthBloc>(),
-                )
-                  ..startConnectivitySync(),
+            create: (ctx) => ProfileCubit(
+              repository: ctx.read<ProfileRepository>(),
+              authBloc: ctx.read<AuthBloc>(),
+            )..startConnectivitySync(),
           ),
           BlocProvider(
             create: (ctx) => NotificationBloc(
@@ -215,6 +231,7 @@ class AppProviders extends StatelessWidget {
           BlocProvider(
             create: (ctx) => TeacherAttendanceCubit(
               repository: ctx.read<TeacherAttendanceRepository>(),
+              attendanceService: ctx.read<AttendanceService>(),
             ),
           ),
           BlocProvider(
@@ -232,11 +249,17 @@ class AppProviders extends StatelessWidget {
           ),
           BlocProvider(
             create: (ctx) =>
-                GeofenceCubit(geofenceService: ctx.read<GeofenceService>()),
+                GeofenceCubit(geofenceService: ctx.read<CampusGeofenceService>()),
           ),
           BlocProvider(create: (_) => ConnectivityCubit()),
         ],
-        child: child,
+        child: ChangeNotifierProvider<CampusProvider>(
+          create: (ctx) => CampusProvider(
+            campusRepository: ctx.read<CampusRepository>(),
+            geofenceService: ctx.read<CampusGeofenceService>(),
+          ),
+          child: child,
+        ),
       ),
     );
   }

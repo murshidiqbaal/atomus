@@ -8,11 +8,11 @@ import '../../blocs/student_attendance/student_attendance_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../blocs/teacher_session/teacher_session_cubit.dart';
 import '../../models/student_attendance_entry_model.dart';
+import '../../providers/campus_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/attendance_date_validator.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
-
 
 class StudentAttendanceScreen extends StatefulWidget {
   final String subjectId;
@@ -84,12 +84,13 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
           _selectedCourseName = match.first.courseName;
         }
       }
-      // Always scope to the teacher's campus. Ignore any campusId passed
-      // in via widget if it doesn't match -- a teacher must not be able
-      // to view students from another campus.
-      if (teacher.campusId != null && teacher.campusId!.isNotEmpty) {
-        if (_selectedCampusId != teacher.campusId) {
-          _selectedCampusId = teacher.campusId;
+      // Scope to the selected campus from CampusProvider.
+      final campusProvider = context.read<CampusProvider>();
+      final activeCampusId =
+          campusProvider.selectedCampus?.id ?? teacher.campusId;
+      if (activeCampusId != null && activeCampusId.isNotEmpty) {
+        if (_selectedCampusId != activeCampusId) {
+          _selectedCampusId = activeCampusId;
           needsReload = true;
         }
       }
@@ -116,7 +117,10 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
     if (mounted) {
       setState(() {
         _dbToday = dbToday;
-        _isDateFuture = AttendanceDateValidator.isFuture(_selectedDate, dbToday);
+        _isDateFuture = AttendanceDateValidator.isFuture(
+          _selectedDate,
+          dbToday,
+        );
       });
     }
   }
@@ -126,7 +130,10 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
       await _loadDbToday();
     } else {
       setState(() {
-        _isDateFuture = AttendanceDateValidator.isFuture(_selectedDate, _dbToday!);
+        _isDateFuture = AttendanceDateValidator.isFuture(
+          _selectedDate,
+          _dbToday!,
+        );
       });
     }
     await context.read<StudentAttendanceCubit>().loadStudents(
@@ -229,15 +236,24 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.error.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                            border: Border.all(
+                              color: AppColors.error.withOpacity(0.3),
+                            ),
                           ),
                           child: const Row(
                             children: [
-                              Icon(LucideIcons.alertTriangle, size: 16, color: AppColors.error),
+                              Icon(
+                                LucideIcons.alertTriangle,
+                                size: 16,
+                                color: AppColors.error,
+                              ),
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -618,7 +634,8 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
         InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
-            final dbToday = _dbToday ?? await AttendanceDateValidator.getDatabaseToday();
+            final dbToday =
+                _dbToday ?? await AttendanceDateValidator.getDatabaseToday();
             if (mounted && _dbToday == null) {
               setState(() {
                 _dbToday = dbToday;
@@ -626,14 +643,19 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
             }
             final date = await showDatePicker(
               context: context,
-              initialDate: _selectedDate.isAfter(dbToday) ? dbToday : _selectedDate,
+              initialDate: _selectedDate.isAfter(dbToday)
+                  ? dbToday
+                  : _selectedDate,
               firstDate: DateTime(dbToday.year - 1),
               lastDate: dbToday,
             );
             if (date != null) {
               setState(() {
                 _selectedDate = date;
-                _isDateFuture = AttendanceDateValidator.isFuture(_selectedDate, dbToday);
+                _isDateFuture = AttendanceDateValidator.isFuture(
+                  _selectedDate,
+                  dbToday,
+                );
               });
               _loadData();
             }
@@ -1063,10 +1085,7 @@ class _RemarksDialog extends StatefulWidget {
   final StudentAttendanceEntry entry;
   final StudentAttendanceCubit cubit;
 
-  const _RemarksDialog({
-    required this.entry,
-    required this.cubit,
-  });
+  const _RemarksDialog({required this.entry, required this.cubit});
 
   @override
   State<_RemarksDialog> createState() => _RemarksDialogState();
@@ -1099,8 +1118,7 @@ class _RemarksDialogState extends State<_RemarksDialog> {
         controller: _ctrl,
         maxLines: 3,
         decoration: InputDecoration(
-          hintText:
-              'e.g. Absent with permission, Medical leave, Late 10 mins',
+          hintText: 'e.g. Absent with permission, Medical leave, Late 10 mins',
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),

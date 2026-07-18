@@ -18,7 +18,34 @@ class MarksEntryRepository {
     bool includeUpcoming = false,
     DateTime? date,
   }) async {
-    if (subjectIds.isEmpty && courseIds.isEmpty) return [];
+    final teacherUserId = _supabase.auth.currentUser?.id;
+    String? teacherCampusId;
+    bool isMainCampusTeacher = false;
+    if (teacherUserId != null) {
+      final teacherRow = await _supabase
+          .from('teachers')
+          .select('campus_id')
+          .eq('auth_id', teacherUserId)
+          .maybeSingle();
+      teacherCampusId = teacherRow?['campus_id'] as String?;
+      if (teacherCampusId != null) {
+        try {
+          final campusRow = await _supabase
+              .from('campuses')
+              .select('name')
+              .eq('id', teacherCampusId)
+              .maybeSingle();
+          if (campusRow != null) {
+            final name = (campusRow['name'] as String?)?.toLowerCase() ?? '';
+            if (name.contains('main')) {
+              isMainCampusTeacher = true;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!isMainCampusTeacher && subjectIds.isEmpty && courseIds.isEmpty) return [];
 
     try {
       String orQuery = '';
@@ -36,7 +63,7 @@ class MarksEntryRepository {
         conditions.add('batch_id.in.($batchStr)');
       }
 
-      if (conditions.isEmpty) return [];
+      if (!isMainCampusTeacher && conditions.isEmpty) return [];
       orQuery = conditions.join(',');
 
       // Daily-exams visibility rule: a daily exam template is ALWAYS
@@ -56,8 +83,11 @@ class MarksEntryRepository {
       var builder = _supabase
           .from('exams')
           .select(
-              '*, subjects(name), courses(name), batches(name), marks(id, subject_id, mark_date)')
-          .or(orQuery);
+              '*, subjects(name), courses(name), batches(name), marks(id, subject_id, mark_date)');
+      
+      if (!isMainCampusTeacher && orQuery.isNotEmpty) {
+        builder = builder.or(orQuery);
+      }
       if (!includeAllDates) {
         builder = builder.or(visibilityOr);
       }
@@ -96,24 +126,15 @@ class MarksEntryRepository {
         });
       }
 
-      final teacherUserId = _supabase.auth.currentUser?.id;
-      String? teacherCampusId;
-      if (teacherUserId != null) {
-        final teacherRow = await _supabase
-            .from('teachers')
-            .select('campus_id')
-            .eq('auth_id', teacherUserId)
-            .maybeSingle();
-        teacherCampusId = teacherRow?['campus_id'] as String?;
-      }
-
       return allExams.where((e) {
         // Access control: only exams created by admin, the logged-in teacher, or linked to the same/null campus are visible
         final isCreatedByMe = e.createdBy == teacherUserId || e.creatorId == teacherUserId;
         final isCreatedByAdmin = e.creatorRole?.toLowerCase() == 'admin' || e.creatorRole == null;
-        final isMatchingCampus = e.campusId == null || (teacherCampusId != null && e.campusId == teacherCampusId);
+        final isMatchingCampus = isMainCampusTeacher || e.campusId == null || (teacherCampusId != null && e.campusId == teacherCampusId);
 
         if (!isCreatedByMe && !isCreatedByAdmin && !isMatchingCampus) return false;
+
+        if (isMainCampusTeacher) return true;
 
         if (e.batchId == null) {
           // Course exam: course must match, and subject must either be null (course-wide) or match subjectIds

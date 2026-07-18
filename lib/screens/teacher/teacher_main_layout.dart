@@ -3,25 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+import 'package:provider/provider.dart' show Provider;
 
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../../blocs/profile/teacher_profile_cubit.dart';
+import '../../blocs/profile/teacher_profile_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
+import '../../blocs/teacher_attendance/teacher_attendance_cubit.dart';
+import '../../models/campus_model.dart';
+import '../../providers/campus_provider.dart';
+import '../../repositories/notification_repository.dart';
 import '../../services/auto_sync_manager.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
+import '../login_screen.dart';
 import 'marks_entry_screen.dart';
-import 'teacher_reports_screen.dart';
+import 'parent_daily_activity_screen.dart';
 import 'teacher_attendance_screen.dart';
 import 'teacher_dashboard_screen.dart';
 import 'teacher_profile_screen.dart';
-import '../../blocs/auth/auth_bloc.dart';
-import '../../blocs/auth/auth_state.dart';
-import '../login_screen.dart';
-import '../../repositories/notification_repository.dart';
-import '../../services/notification_service.dart';
-
-import 'parent_daily_activity_screen.dart';
+import 'teacher_reports_screen.dart';
 
 class TeacherMainLayout extends StatefulWidget {
   const TeacherMainLayout({super.key});
@@ -35,6 +40,7 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
   int _currentIndex = 0;
   late final AnimationController _navBarController;
   late final Animation<double> _navBarSlide;
+  String? _lastCampusId;
 
   // Screens are stateless — use IndexedStack to preserve state across tab switches.
   final List<Widget> _screens = const [
@@ -116,6 +122,11 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
   }
 
   Widget _buildTeacherDrawer(BuildContext context) {
+    final campusProvider = Provider.of<CampusProvider>(context);
+    final assignedCampuses = campusProvider.assignedCampuses;
+    final activeCampus =
+        campusProvider.selectedCampus ?? campusProvider.workingCampus;
+
     return Drawer(
       child: Container(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -152,6 +163,83 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
                 ),
               ),
             ),
+            if (assignedCampuses.length > 1) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'CURRENT CAMPUS',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.primary.withOpacity(0.15),
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<Campus>(
+                    value:
+                        activeCampus != null &&
+                            assignedCampuses.any((c) => c.id == activeCampus.id)
+                        ? assignedCampuses.firstWhere(
+                            (c) => c.id == activeCampus.id,
+                          )
+                        : null,
+                    hint: const Text(
+                      'Select Campus',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.arrow_drop_down,
+                      color: AppColors.primary,
+                    ),
+                    isExpanded: true,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                    dropdownColor: Theme.of(context).scaffoldBackgroundColor,
+                    borderRadius: BorderRadius.circular(16),
+                    items: assignedCampuses.map((Campus campus) {
+                      return DropdownMenuItem<Campus>(
+                        value: campus,
+                        child: Text(campus.name),
+                      );
+                    }).toList(),
+                    onChanged: (Campus? newValue) {
+                      if (newValue != null) {
+                        campusProvider.selectCampus(newValue);
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Align(
@@ -180,7 +268,9 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
                 Navigator.pop(context); // Close drawer
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const ParentDailyActivityScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const ParentDailyActivityScreen(),
+                  ),
                 );
               },
             ),
@@ -202,60 +292,97 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
   Widget build(BuildContext context) {
     // All providers (TeacherHiveService, repositories, cubits) are available
     // from the global AppProviders tree. No local provider wrappers needed here.
+    final campusProvider = Provider.of<CampusProvider>(context);
+    final currentCampusId =
+        campusProvider.selectedCampus?.id ?? campusProvider.workingCampus?.id;
+
+    if (currentCampusId != null && currentCampusId != _lastCampusId) {
+      _lastCampusId = currentCampusId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _refreshCampusSpecificData(currentCampusId);
+      });
+    }
+
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state.status == AuthStatus.unauthenticated) {
+          campusProvider.clear();
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const LoginScreen()),
             (route) => false,
           );
         }
       },
-      child: AppBackground(
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          drawer: SizedBox(
-            width: MediaQuery.of(context).size.width * 2 / 3,
-            child: _buildTeacherDrawer(context),
-          ),
-          body: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, animation) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            child: KeyedSubtree(
-              key: ValueKey(_currentIndex),
-              child: IndexedStack(index: _currentIndex, children: _screens),
+      child: BlocListener<TeacherProfileCubit, TeacherProfileState>(
+        listener: (context, profileState) {
+          final teacher = profileState.teacher;
+          if (teacher != null) {
+            campusProvider.loadAssignedCampuses(teacher.assignedCampuses);
+          }
+        },
+        child: AppBackground(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            drawer: SizedBox(
+              width: MediaQuery.of(context).size.width * 2 / 3,
+              child: _buildTeacherDrawer(context),
             ),
-          ),
-          floatingActionButton: _currentIndex == 0
-              ? FloatingActionButton(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _currentIndex = 4);
-                  },
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 6,
-                  child: const Icon(LucideIcons.clipboardList, size: 24),
-                )
-              : null,
-          bottomNavigationBar: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(_navBarSlide),
-            child: _BottomNavBar(
-              currentIndex: _currentIndex,
-              onTabChanged: _onTabChanged,
+            body: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              child: KeyedSubtree(
+                key: ValueKey(_currentIndex),
+                child: IndexedStack(index: _currentIndex, children: _screens),
+              ),
+            ),
+            floatingActionButton: _currentIndex == 0
+                ? FloatingActionButton(
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _currentIndex = 4);
+                    },
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 6,
+                    child: const Icon(LucideIcons.clipboardList, size: 24),
+                  )
+                : null,
+            bottomNavigationBar: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(_navBarSlide),
+              child: _BottomNavBar(
+                currentIndex: _currentIndex,
+                onTabChanged: _onTabChanged,
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _refreshCampusSpecificData(String campusId) {
+    if (!mounted) return;
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    if (teacher == null) return;
+
+    // 1. Refresh Dashboard (queries stats and upcoming exams)
+    context.read<TeacherDashboardCubit>().load();
+
+    // 2. Refresh Teacher Attendance today session
+    final sessionType = DateTime.now().hour >= 13 ? 'afternoon' : 'forenoon';
+    context.read<TeacherAttendanceCubit>().loadTodaySession(
+      teacher.id,
+      sessionType: sessionType,
+    );
+    context.read<TeacherAttendanceCubit>().loadHistory(teacher.id);
   }
 }
 

@@ -155,7 +155,24 @@ class DailyReportRepository {
             'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
           );
 
+      bool isMainCampus = false;
       if (campusId != null && campusId.isNotEmpty) {
+        try {
+          final res = await _supabase
+              .from('campuses')
+              .select('name')
+              .eq('id', campusId)
+              .maybeSingle();
+          if (res != null) {
+            final name = (res['name'] as String?)?.toLowerCase() ?? '';
+            if (name.contains('main')) {
+              isMainCampus = true;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (campusId != null && campusId.isNotEmpty && !isMainCampus) {
         query = query.eq('campus_id', campusId);
       }
 
@@ -184,7 +201,24 @@ class DailyReportRepository {
           )
           .inFilter('course_id', courseIds);
 
+      bool isMainCampus = false;
       if (campusId != null && campusId.isNotEmpty) {
+        try {
+          final res = await _supabase
+              .from('campuses')
+              .select('name')
+              .eq('id', campusId)
+              .maybeSingle();
+          if (res != null) {
+            final name = (res['name'] as String?)?.toLowerCase() ?? '';
+            if (name.contains('main')) {
+              isMainCampus = true;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (campusId != null && campusId.isNotEmpty && !isMainCampus) {
         query = query.eq('campus_id', campusId);
       }
 

@@ -1,6 +1,7 @@
 import 'package:atomus/blocs/student/student_event.dart';
 import 'package:atomus/blocs/student/student_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -201,10 +202,8 @@ class FeesScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
                   // ─── Campus Payment QR Code ────────────────────────
-                  if (studentInfo != null) ...[
-                    _buildCampusQrCard(context, studentInfo, isDark),
-                    const SizedBox(height: 20),
-                  ],
+                  _buildCampusQrCard(context, studentInfo, isDark),
+                  const SizedBox(height: 20),
 
                   // ─── Overview Summary Card ─────────────────────────
                   _buildOverviewCard(context, state, isDark),
@@ -311,20 +310,12 @@ class FeesScreen extends StatelessWidget {
   // ════════════════════════════════════════════════════════════════
   Widget _buildCampusQrCard(
     BuildContext context,
-    StudentInfo student,
+    StudentInfo? student,
     bool isDark,
   ) {
-    final driveId = student.paymentQrDriveId;
-    final url = student.paymentQrUrl;
-    final campus = student.campusName ?? 'Campus';
-
-    final hasDriveId =
-        driveId != null &&
-        driveId.isNotEmpty &&
-        DriveImageHelper.isValid(driveId);
-    final hasUrl = url != null && url.isNotEmpty;
-
-    if (!hasDriveId && !hasUrl) return const SizedBox.shrink();
+    final driveId = student?.paymentQrDriveId;
+    final url = student?.paymentQrUrl;
+    final campus = student?.campusName ?? 'Campus';
 
     return NeuBox(
       borderRadius: 24,
@@ -449,7 +440,7 @@ class FeesScreen extends StatelessWidget {
               const SizedBox(width: 16),
               GestureDetector(
                 onTap: () =>
-                    _showFullscreenQr(context, campus, driveId, url, isDark),
+                    _showFullscreenQr(context, campus, isDark),
                 child: NeuBox(
                   borderRadius: 16,
                   padding: const EdgeInsets.all(8),
@@ -457,22 +448,16 @@ class FeesScreen extends StatelessWidget {
                   child: SizedBox(
                     width: 96,
                     height: 96,
-                    child: hasDriveId
-                        ? DriveNetworkImage(
-                            driveId: driveId,
-                            fit: BoxFit.contain,
-                            placeholderType: DrivePlaceholderType.banner,
-                          )
-                        : Image.network(
-                            url!,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(
-                                  Icons.broken_image_rounded,
-                                  color: Colors.grey,
-                                  size: 40,
-                                ),
+                    child: Image.asset(
+                      'assets/qrcode/qr.webp',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(
+                            Icons.broken_image_rounded,
+                            color: Colors.grey,
+                            size: 40,
                           ),
+                    ),
                   ),
                 ),
               ),
@@ -486,18 +471,12 @@ class FeesScreen extends StatelessWidget {
   void _showFullscreenQr(
     BuildContext context,
     String campus,
-    String? driveId,
-    String? url,
     bool isDark,
   ) {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
-        final hasDriveId =
-            driveId != null &&
-            driveId.isNotEmpty &&
-            DriveImageHelper.isValid(driveId);
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(24),
@@ -565,24 +544,18 @@ class FeesScreen extends StatelessWidget {
                       height: 280,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: hasDriveId
-                            ? DriveNetworkImage(
-                                driveId: driveId,
-                                fit: BoxFit.contain,
-                                placeholderType: DrivePlaceholderType.banner,
-                              )
-                            : Image.network(
-                                url!,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Center(
-                                      child: Icon(
-                                        Icons.broken_image_rounded,
-                                        color: Colors.grey,
-                                        size: 64,
-                                      ),
-                                    ),
+                        child: Image.asset(
+                          'assets/qrcode/qr.webp',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(
+                                child: Icon(
+                                  Icons.broken_image_rounded,
+                                  color: Colors.grey,
+                                  size: 64,
+                                ),
                               ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -603,7 +576,7 @@ class FeesScreen extends StatelessWidget {
                       borderRadius: 12,
                       onTap: () {
                         Navigator.pop(context);
-                        _downloadQrCode(context, campus, driveId, url);
+                        _downloadQrCode(context, campus);
                       },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -617,9 +590,9 @@ class FeesScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'DOWNLOAD QR',
+                            'DOWNLOAD QR CODE',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w900,
                               color: isDark
                                   ? AppColors.accent
@@ -642,23 +615,10 @@ class FeesScreen extends StatelessWidget {
 
   Future<void> _downloadQrCode(
     BuildContext context,
-    String campusName,
+    String campusName, [
     String? driveId,
     String? url,
-  ) async {
-    final hasDriveId =
-        driveId != null &&
-        driveId.isNotEmpty &&
-        DriveImageHelper.isValid(driveId);
-    final hasUrl = url != null && url.isNotEmpty;
-    if (!hasDriveId && !hasUrl) return;
-
-    final targetUrl = hasDriveId
-        ? DriveImageHelper.resolve(driveId, highQuality: true)
-        : url;
-
-    if (targetUrl == null) return;
-
+  ]) async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Downloading QR Code image...'),
@@ -667,14 +627,10 @@ class FeesScreen extends StatelessWidget {
     );
 
     try {
-      final response = await http.get(Uri.parse(targetUrl));
-      if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
-        final filename = '${campusName.replaceAll(' ', '_')}_Payment_QR.png';
-        await Printing.sharePdf(bytes: bytes, filename: filename);
-      } else {
-        throw Exception('Status code: ${response.statusCode}');
-      }
+      final byteData = await rootBundle.load('assets/qrcode/qr.webp');
+      final bytes = byteData.buffer.asUint8List();
+      final filename = '${campusName.replaceAll(' ', '_')}_Payment_QR.webp';
+      await Printing.sharePdf(bytes: bytes, filename: filename);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2040,104 +1996,47 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
               ),
               const SizedBox(height: 20),
 
-              if ((widget.paymentQrDriveId != null &&
-                      widget.paymentQrDriveId!.isNotEmpty &&
-                      DriveImageHelper.isValid(widget.paymentQrDriveId!)) ||
-                  (widget.paymentQrUrl != null &&
-                      widget.paymentQrUrl!.isNotEmpty)) ...[
-                Text(
-                  'Scan the QR code below to make payment',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+              Text(
+                'Scan the QR code below to make payment',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: widget.isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
                     color: widget.isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: widget.isDark
-                          ? Colors.white10
-                          : Colors.grey.shade200,
-                    ),
-                  ),
-                  width: 220,
-                  height: 220,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child:
-                        (widget.paymentQrDriveId != null &&
-                            widget.paymentQrDriveId!.isNotEmpty &&
-                            DriveImageHelper.isValid(widget.paymentQrDriveId!))
-                        ? DriveNetworkImage(
-                            driveId: widget.paymentQrDriveId!,
-                            fit: BoxFit.contain,
-                            placeholderType: DrivePlaceholderType.banner,
-                          )
-                        : Image.network(
-                            widget.paymentQrUrl!,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Shimmer(
-                                width: double.infinity,
-                                height: double.infinity,
-                                borderRadius: 12,
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Icon(
-                                  Icons.broken_image_rounded,
-                                  color: Colors.grey.shade400,
-                                  size: 48,
-                                ),
-                              );
-                            },
-                          ),
+                        ? Colors.white10
+                        : Colors.grey.shade200,
                   ),
                 ),
-              ] else ...[
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.warning.withOpacity(0.25),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        color: AppColors.warning,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'No QR code configured for your campus. Please contact administration for payment details.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: widget.isDark
-                                ? AppColors.textPrimaryDark
-                                : AppColors.textPrimary,
+                width: 220,
+                height: 220,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/qrcode/qr.webp',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Center(
+                          child: Icon(
+                            Icons.broken_image_rounded,
+                            color: Colors.grey,
+                            size: 48,
                           ),
                         ),
-                      ),
-                    ],
                   ),
                 ),
-              ],
+              ),
               const SizedBox(height: 24),
 
               TextFormField(
