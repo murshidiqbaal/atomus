@@ -35,6 +35,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
   String? _filterCourseId;
   String? _filterSubjectId;
+  String? _filterBatchId;
   late String _sessionType;
   Timer? _elapsedTimer;
 
@@ -158,6 +159,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 if (attState.hasActiveSession && active != null) {
                   _filterCourseId = active.courseId;
                   _filterSubjectId = active.subjectId;
+                  _filterBatchId = active.batchId;
                 }
                 return RefreshIndicator(
                   color: AppColors.accent,
@@ -631,6 +633,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     if (isDisabled && activeSession != null) {
       _filterCourseId = activeSession.courseId;
       _filterSubjectId = activeSession.subjectId;
+      _filterBatchId = activeSession.batchId;
       if (_filterCourseId != null && !courses.containsKey(_filterCourseId)) {
         String? cName;
         for (final a in assignments) {
@@ -643,32 +646,53 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       }
     }
 
+    // Self-heal stale course selection
+    final bool courseStillValid = _filterCourseId == null || courses.containsKey(_filterCourseId);
+    if (!isDisabled && !courseStillValid) {
+      _filterCourseId = null;
+      _filterSubjectId = null;
+      _filterBatchId = null;
+    }
+
     // Subjects scoped by the currently selected course (if any).
     final List<dynamic> subjectItems = _filterCourseId == null
-        ? List<dynamic>.from(assignments)
+        ? const []
         : List<dynamic>.from(
             assignments.where((a) => a.courseId == _filterCourseId),
           );
 
+    // Deduplicate subjectItems by subjectId to show only the course subjects, not batch-wise.
+    final Map<String, dynamic> uniqueSubjectMap = {};
+    for (final a in subjectItems) {
+      final sid = a.subjectId as String?;
+      if (sid == null) continue;
+      uniqueSubjectMap.putIfAbsent(sid, () => a);
+    }
+    final List<dynamic> uniqueSubjectItems = uniqueSubjectMap.values.toList();
+
+    bool subjectStillValid = uniqueSubjectItems.any(
+      (a) => a.subjectId == _filterSubjectId,
+    );
+
     if (isDisabled && activeSession != null) {
-      final hasSubject = subjectItems.any(
-        (a) => a.subjectId == _filterSubjectId,
-      );
-      if (_filterSubjectId != null && !hasSubject) {
-        subjectItems.add(
+      if (_filterSubjectId != null && !subjectStillValid) {
+        uniqueSubjectItems.add(
           TeacherSubjectAssignment(
             id: 'mock_active_assignment',
             courseId: _filterCourseId!,
             subjectId: _filterSubjectId!,
             subjectName: activeSession.subjectName ?? 'Subject',
+            batchId: _filterBatchId,
+            batchName: activeSession.batchId != null ? 'Active' : null,
           ),
         );
+        subjectStillValid = true;
       }
     } else {
       // Self-heal stale selections (e.g., course changed -> subject mismatch).
-      if (_filterSubjectId != null &&
-          !subjectItems.any((a) => a.subjectId == _filterSubjectId)) {
+      if (_filterSubjectId != null && !subjectStillValid) {
         _filterSubjectId = null;
+        _filterBatchId = null;
       }
     }
 
@@ -701,6 +725,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     setState(() {
                       _filterCourseId = val;
                       _filterSubjectId = null;
+                      _filterBatchId = null;
                     });
                   },
           ),
@@ -709,16 +734,16 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         Expanded(
           child: _filterDropdown<String>(
             label: 'SUBJECT',
-            value: _filterSubjectId,
+            value: subjectStillValid ? _filterSubjectId : null,
             hint: _filterCourseId == null
                 ? 'Pick course first'
                 : 'Select subject',
-            items: subjectItems
+            items: uniqueSubjectItems
                 .map<DropdownMenuItem<String>>(
                   (a) => DropdownMenuItem<String>(
                     value: a.subjectId as String,
                     child: Text(
-                      '${a.subjectName}${a.batchName != null ? " | ${a.batchName}" : ""}',
+                      a.subjectName as String,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 13,
@@ -728,9 +753,21 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   ),
                 )
                 .toList(),
-            onChanged: (isDisabled || subjectItems.isEmpty)
+            onChanged: (isDisabled || uniqueSubjectItems.isEmpty)
                 ? null
-                : (val) => setState(() => _filterSubjectId = val),
+                : (val) {
+                    setState(() {
+                      _filterSubjectId = val;
+                      // Resolve batch from assignments for the selected subject.
+                      _filterBatchId = null;
+                      for (final a in assignments) {
+                        if (a.subjectId == val && a.courseId == _filterCourseId) {
+                          _filterBatchId = a.batchId as String?;
+                          break;
+                        }
+                      }
+                    });
+                  },
           ),
         ),
       ],
@@ -1781,14 +1818,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     if (_filterCourseId == null || _filterSubjectId == null) return;
 
     // Resolve batch from the chosen subject assignment.
-    String? batchId;
-    final assignments = (teacher.subjects as List?) ?? const <dynamic>[];
-    for (final a in assignments) {
-      if (a.subjectId == _filterSubjectId && a.courseId == _filterCourseId) {
-        batchId = a.batchId as String?;
-        break;
-      }
-    }
+    String? batchId = _filterBatchId;
 
     await ctx.read<TeacherAttendanceCubit>().startSession(
       teacherId: teacher.id as String,

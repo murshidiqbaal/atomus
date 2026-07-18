@@ -715,9 +715,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen>
     final subjects = teacher.subjects;
     if (subjects.isEmpty) return const SizedBox.shrink();
 
+    // Deduplicate subjects by subjectId
+    final Map<String, TeacherSubjectAssignment> uniqueSubjects = {};
+    for (final s in subjects) {
+      uniqueSubjects.putIfAbsent(s.subjectId, () => s);
+    }
+    final deduplicatedSubjects = uniqueSubjects.values.toList();
+
     // Group by course
     final Map<String, List<TeacherSubjectAssignment>> grouped = {};
-    for (final s in subjects) {
+    for (final s in deduplicatedSubjects) {
       final key = s.courseName ?? 'Other';
       grouped.putIfAbsent(key, () => []).add(s);
     }
@@ -1344,7 +1351,7 @@ class _CourseGroup extends StatelessWidget {
                     const SizedBox(width: 5),
                     Flexible(
                       child: Text(
-                        '${a.subjectName}${a.batchName != null ? " · ${a.batchName}" : ""}',
+                        a.subjectName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,

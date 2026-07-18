@@ -457,7 +457,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
 
     final filteredSubjects = _selectedCourseId != null
         ? allSubjects.where((s) => s.courseId == _selectedCourseId).toList()
-        : allSubjects;
+        : const [];
 
     final currentSubjectKey = '${_selectedSubjectId}_$_selectedBatchId';
     final subjectStillValid = filteredSubjects.any(
