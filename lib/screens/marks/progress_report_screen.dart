@@ -118,6 +118,8 @@ class _ProgressReportScreenState extends State<ProgressReportScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
+            padding: EdgeInsets.zero,
+            alignment: Alignment.center,
             icon: Icon(
               Icons.arrow_back_ios_new_rounded,
               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
@@ -130,7 +132,8 @@ class _ProgressReportScreenState extends State<ProgressReportScreen> {
             style: TextStyle(
               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
               fontWeight: FontWeight.w900,
-              fontSize: 20,
+              fontSize: 25,
+              height: 1.1,
             ),
           ),
           centerTitle: true,
@@ -801,6 +804,7 @@ class _ProgressReportScreenState extends State<ProgressReportScreen> {
             child: NeuBox(
               height: 48,
               borderRadius: 14,
+              padding: EdgeInsets.zero,
               onTap: () => _handlePrint(headers, rows, summaryStats),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,

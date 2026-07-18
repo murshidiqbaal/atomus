@@ -8,6 +8,9 @@ class MarksCubit extends Cubit<MarksState> {
   final MarksEntryRepository _repo;
   MarksEntryRepository get repo => _repo;
 
+  /// Tracks the active campus filter so that changeMarkDate() can re-apply it.
+  String? _activeCampusId;
+
   MarksCubit({required MarksEntryRepository repository})
     : _repo = repository,
       super(const MarksState());
@@ -39,7 +42,7 @@ class MarksCubit extends Cubit<MarksState> {
     }
   }
 
-  Future<void> selectExam(TeacherExam exam, {DateTime? markDate, String? subjectId}) async {
+  Future<void> selectExam(TeacherExam exam, {DateTime? markDate, String? subjectId, String? campusId}) async {
     // For daily exams default to today; for regular exams default to
     // the exam's own date (or today as a fallback).
     final resolvedDate = markDate ??
@@ -47,6 +50,8 @@ class MarksCubit extends Cubit<MarksState> {
             ? _today()
             : (exam.examDate ?? _today()));
     final resolvedSubjectId = exam.subjectId ?? subjectId;
+    // Store campusId so changeMarkDate can re-use it.
+    _activeCampusId = campusId;
     emit(
       state.copyWith(
         status: MarksLoadStatus.loading,
@@ -64,6 +69,7 @@ class MarksCubit extends Cubit<MarksState> {
         courseId: exam.courseId,
         totalMarks: exam.totalMarks,
         markDate: resolvedDate,
+        campusId: campusId,
       );
       emit(state.copyWith(status: MarksLoadStatus.success, entries: entries));
     } catch (e) {
@@ -96,6 +102,7 @@ class MarksCubit extends Cubit<MarksState> {
         courseId: exam.courseId,
         totalMarks: exam.totalMarks,
         markDate: newDate,
+        campusId: _activeCampusId,
       );
       emit(state.copyWith(status: MarksLoadStatus.success, entries: entries));
     } catch (e) {

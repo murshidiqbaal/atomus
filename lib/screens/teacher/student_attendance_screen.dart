@@ -52,6 +52,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
   late DateTime _selectedDate;
   DateTime? _dbToday;
   bool _isDateFuture = false;
+  bool _hasMultipleCampuses = false;
 
   late AnimationController _successController;
   late Animation<double> _successScale;
@@ -83,6 +84,10 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
         if (match.isNotEmpty) {
           _selectedCourseName = match.first.courseName;
         }
+      }
+      // Detect multi-campus teacher.
+      if (teacher.campuses.length > 1) {
+        _hasMultipleCampuses = true;
       }
       // Scope to the selected campus from CampusProvider.
       final campusProvider = context.read<CampusProvider>();
@@ -438,17 +443,40 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
     );
   }
 
+  /// Returns true when the selected campus is the "main" campus.
+  /// Main campus teachers can see all data across campuses.
+  bool get _isMainCampusSelected {
+    if (_selectedCampusId == null) return false;
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    if (teacher == null) return false;
+    final campus = teacher.campuses.where((c) => c.id == _selectedCampusId);
+    if (campus.isEmpty) return false;
+    return campus.first.name.toLowerCase().contains('main');
+  }
+
   Widget _buildInlineFilters(BuildContext context) {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     final allCourses = teacher?.courses ?? [];
     final allSubjects = teacher?.subjects ?? [];
 
+    // Scope courses and subjects by the selected campus.
+    // Main campus sees ALL data — no filtering.
+    final shouldFilterByCampus = _selectedCampusId != null && !_isMainCampusSelected;
+    final campusFilteredCourses = shouldFilterByCampus
+        ? allCourses.where((c) =>
+            c.campusId == null || c.campusId == _selectedCampusId).toList()
+        : allCourses;
+    final campusFilteredSubjects = shouldFilterByCampus
+        ? allSubjects.where((s) =>
+            s.campusId == null || s.campusId == _selectedCampusId).toList()
+        : allSubjects;
+
     // Deduplicate courses from both teacher.courses and teacher.subjects.
     final courseMap = <String, String>{};
-    for (final c in allCourses) {
+    for (final c in campusFilteredCourses) {
       courseMap[c.courseId] = c.courseName;
     }
-    for (final s in allSubjects) {
+    for (final s in campusFilteredSubjects) {
       if (s.courseId != null && s.courseName != null) {
         courseMap.putIfAbsent(s.courseId!, () => s.courseName!);
       }
@@ -456,7 +484,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
     final courseEntries = courseMap.entries.toList();
 
     final filteredSubjects = _selectedCourseId != null
-        ? allSubjects.where((s) => s.courseId == _selectedCourseId).toList()
+        ? campusFilteredSubjects.where((s) => s.courseId == _selectedCourseId).toList()
         : const [];
 
     final currentSubjectKey = '${_selectedSubjectId}_$_selectedBatchId';
@@ -469,6 +497,52 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Campus Filter — in the same row, only when teacher has multiple campuses
+          if (_hasMultipleCampuses) ...[
+            Expanded(
+              flex: 3,
+              child: _filterDropdown<String>(
+                label: 'CAMPUS',
+                value: _selectedCampusId,
+                hint: 'Campus',
+                items: (teacher?.campuses ?? [])
+                    .map(
+                      (c) => DropdownMenuItem<String>(
+                        value: c.id,
+                        child: Text(
+                          c.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) {
+                  if (val == null) return;
+                  setState(() {
+                    _selectedCampusId = val;
+                    // Reset dependent filters — pick the first course/subject
+                    // for the new campus automatically.
+                    final isMainCampus = (teacher?.campuses ?? [])
+                        .where((c) => c.id == val)
+                        .any((c) => c.name.toLowerCase().contains('main'));
+                    final scopedSubjects = isMainCampus
+                        ? allSubjects
+                        : allSubjects
+                            .where((s) =>
+                                s.campusId == null || s.campusId == val)
+                            .toList();
+                    _selectedFilterReset(campusFilteredSubjects: scopedSubjects);
+                  });
+                  _loadData();
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           Expanded(
             flex: 4,
             child: _filterDropdown<String>(
@@ -493,7 +567,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
               onChanged: (val) {
                 if (val == null) return;
                 final name = courseMap[val] ?? '';
-                final subsForCourse = allSubjects
+                final subsForCourse = campusFilteredSubjects
                     .where((s) => s.courseId == val)
                     .toList();
                 setState(() {
@@ -557,6 +631,33 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
         ],
       ),
     );
+  }
+
+  /// Resets course/subject/batch selections for the new campus scope.
+  void _selectedFilterReset({
+    required List<dynamic> campusFilteredSubjects,
+  }) {
+    // Find the first course from the scoped subjects.
+    String? newCourseId;
+    for (final s in campusFilteredSubjects) {
+      if (s.courseId != null) {
+        newCourseId = s.courseId as String;
+        break;
+      }
+    }
+    _selectedCourseId = newCourseId;
+    _selectedCourseName = null;
+    // Pick the first subject under the new course.
+    final subsForCourse = campusFilteredSubjects
+        .where((s) => s.courseId == newCourseId)
+        .toList();
+    if (subsForCourse.isNotEmpty) {
+      final first = subsForCourse.first;
+      _selectedSubjectId = first.subjectId as String;
+      _selectedSubjectName = first.subjectName as String;
+      _selectedBatchId = (first.batchId as String?) ?? '';
+      _selectedBatchName = first.batchName as String?;
+    }
   }
 
   Widget _filterDropdown<T>({

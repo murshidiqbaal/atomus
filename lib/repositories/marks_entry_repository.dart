@@ -158,6 +158,7 @@ class MarksEntryRepository {
     String? courseId,
     required double totalMarks,
     DateTime? markDate,
+    String? campusId,
   }) async {
     final effectiveMarkDate = markDate ?? DateTime.now();
     final markDateIso =
@@ -168,7 +169,7 @@ class MarksEntryRepository {
       var query = _supabase
           .from('students')
           .select(
-            'id, full_name, roll_number, admission_number, profile_photo_drive_id',
+            'id, full_name, roll_number, admission_number, profile_photo_drive_id, campus_id',
           );
 
       if (batchId != null && batchId.isNotEmpty) {
@@ -177,6 +178,27 @@ class MarksEntryRepository {
         );
       } else if (courseId != null && courseId.isNotEmpty) {
         query = query.eq('course_id', courseId);
+      }
+
+      // Filter by campus (skip for main campus — they see all students)
+      if (campusId != null && campusId.isNotEmpty) {
+        bool isMainCampus = false;
+        try {
+          final res = await _supabase
+              .from('campuses')
+              .select('name')
+              .eq('id', campusId)
+              .maybeSingle();
+          if (res != null) {
+            final name = (res['name'] as String?)?.toLowerCase() ?? '';
+            if (name.contains('main')) {
+              isMainCampus = true;
+            }
+          }
+        } catch (_) {}
+        if (!isMainCampus) {
+          query = query.eq('campus_id', campusId);
+        }
       }
 
       final rows = await query.order('roll_number', ascending: true);

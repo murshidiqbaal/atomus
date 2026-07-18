@@ -9,6 +9,7 @@ import '../../blocs/marks/marks_cubit.dart';
 import '../../blocs/marks/marks_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../models/exam_marks_model.dart';
+import '../../providers/campus_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
@@ -26,6 +27,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   final Map<String, String?> _validationErrors = {};
 
   // Filter states
+  String? _selectedCampusId;
   String? _selectedFilterCourseId;
   String? _selectedFilterSubjectId;
   String _selectedFilterExamType = 'All'; // 'All', 'Regular', 'Daily'
@@ -35,23 +37,61 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   // always visible regardless of this value (the per-day instance is
   // controlled by the mark-date bar inside the marks entry view).
   DateTime? _examListDate;
+  bool _hasMultipleCampuses = false;
+
+  /// Returns true when the selected campus is the "main" campus.
+  /// Main campus teachers can see all data across campuses.
+  bool get _isMainCampusSelected {
+    if (_selectedCampusId == null) return false;
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    if (teacher == null) return false;
+    final campus = teacher.campuses.where((c) => c.id == _selectedCampusId);
+    if (campus.isEmpty) return false;
+    return campus.first.name.toLowerCase().contains('main');
+  }
 
   @override
   void initState() {
     super.initState();
+    // Initialize campus filter from CampusProvider / teacher data.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+      final campusProvider = context.read<CampusProvider>();
+      if (teacher != null && teacher.campuses.length > 1) {
+        setState(() {
+          _hasMultipleCampuses = true;
+          _selectedCampusId =
+              campusProvider.selectedCampus?.id ?? teacher.campusId;
+        });
+      } else if (teacher != null) {
+        _selectedCampusId = teacher.campusId;
+      }
+    });
     _loadExams();
   }
 
   Future<void> _loadExams() async {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher != null) {
-      final subjectIds = teacher.subjects.map((s) => s.subjectId).toList();
-      final batchIds = teacher.subjects
+      // Scope subjects/courses to the selected campus when applicable.
+      // Main campus sees ALL data — no filtering.
+      final shouldFilterByCampus = _selectedCampusId != null && !_isMainCampusSelected;
+      final filteredSubjects = shouldFilterByCampus
+          ? teacher.subjects.where((s) =>
+              s.campusId == null || s.campusId == _selectedCampusId)
+          : teacher.subjects;
+      final filteredCourses = shouldFilterByCampus
+          ? teacher.courses.where((c) =>
+              c.campusId == null || c.campusId == _selectedCampusId)
+          : teacher.courses;
+
+      final subjectIds = filteredSubjects.map((s) => s.subjectId).toList();
+      final batchIds = filteredSubjects
           .map((s) => s.batchId)
           .whereType<String>()
           .toSet()
           .toList();
-      final courseIds = teacher.courses.map((c) => c.courseId).toSet().toList();
+      final courseIds = filteredCourses.map((c) => c.courseId).toSet().toList();
 
       // Bypass the today-only visibility rule and fetch exams across all dates
       // if no specific date is selected in the date strip filter.
@@ -448,6 +488,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           exam,
           markDate: _examListDate,
           subjectId: _selectedFilterSubjectId,
+          campusId: _selectedCampusId,
         );
       },
       child: Row(
@@ -942,6 +983,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             subjectId: state.entries.isNotEmpty
                 ? state.entries.first.subjectId
                 : null,
+            campusId: _selectedCampusId,
           );
         }
       },
@@ -1224,9 +1266,21 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null) return const SizedBox.shrink();
 
+    // Scope courses and subjects to the selected campus.
+    // Main campus sees ALL data — no filtering.
+    final shouldFilterByCampus = _selectedCampusId != null && !_isMainCampusSelected;
+    final campusFilteredCourses = shouldFilterByCampus
+        ? teacher.courses.where((c) =>
+            c.campusId == null || c.campusId == _selectedCampusId).toList()
+        : teacher.courses;
+    final campusFilteredSubjects = shouldFilterByCampus
+        ? teacher.subjects.where((s) =>
+            s.campusId == null || s.campusId == _selectedCampusId).toList()
+        : teacher.subjects;
+
     // Get unique subjects filtered by course selection
     final uniqueSubjects = <String, String>{};
-    for (final s in teacher.subjects) {
+    for (final s in campusFilteredSubjects) {
       if (_selectedFilterCourseId == null ||
           s.courseId == _selectedFilterCourseId) {
         uniqueSubjects[s.subjectId] = s.subjectName;
@@ -1238,13 +1292,39 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
+          // Campus Filter — only show when teacher has multiple campuses
+          if (_hasMultipleCampuses) ...[
+            _buildFilterDropdown(
+              hint: 'Campus',
+              value: _selectedCampusId,
+              items: [
+                ...teacher.campuses.map(
+                  (c) => DropdownMenuItem(
+                    value: c.id,
+                    child: Text(c.name),
+                  ),
+                ),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  _selectedCampusId = val;
+                  // Reset dependent filters
+                  _selectedFilterCourseId = null;
+                  _selectedFilterSubjectId = null;
+                });
+                _loadExams();
+              },
+            ),
+            const SizedBox(width: 8),
+          ],
+
           // Course Filter
           _buildFilterDropdown(
             hint: 'Course',
             value: _selectedFilterCourseId,
             items: [
               const DropdownMenuItem(value: 'All', child: Text('All Courses')),
-              ...teacher.courses.map(
+              ...campusFilteredCourses.map(
                 (c) => DropdownMenuItem(
                   value: c.courseId,
                   child: Text(c.courseName),
@@ -1257,7 +1337,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
 
                 // Validate selected subject under the new course selection
                 if (_selectedFilterSubjectId != null) {
-                  final isValid = teacher.subjects.any(
+                  final isValid = campusFilteredSubjects.any(
                     (s) =>
                         s.subjectId == _selectedFilterSubjectId &&
                         (_selectedFilterCourseId == null ||
