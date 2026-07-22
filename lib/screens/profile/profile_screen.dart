@@ -686,6 +686,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Text(
                           student.fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w800,
@@ -694,6 +696,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 2),
                         Text(
                           'Roll: ${student.rollNumber ?? "N/A"} · ${student.courseLabel}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12,

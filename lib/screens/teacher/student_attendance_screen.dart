@@ -13,6 +13,7 @@ import '../../theme/app_colors.dart';
 import '../../utils/attendance_date_validator.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
+import '../../widgets/student_detail_sheet.dart';
 
 class StudentAttendanceScreen extends StatefulWidget {
   final String subjectId;
@@ -1067,6 +1068,16 @@ class StudentAttendanceTile extends StatelessWidget {
       color: tileColor,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       borderRadius: 20,
+      onLongPress: () {
+        showStudentDetailsBottomSheet(
+          context,
+          studentId: entry.studentId,
+          studentName: entry.studentName,
+          rollNumber: entry.rollNumber,
+          admissionNumber: entry.admissionNumber,
+          photoUrl: entry.profilePhotoDriveId,
+        );
+      },
       child: Row(
         children: [
           CircleAvatar(
@@ -1094,6 +1105,8 @@ class StudentAttendanceTile extends StatelessWidget {
               children: [
                 Text(
                   entry.studentName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 13,
@@ -1103,12 +1116,16 @@ class StudentAttendanceTile extends StatelessWidget {
                 Row(
                   children: [
                     if (entry.rollNumber != null) ...[
-                      Text(
-                        'Roll: ${entry.rollNumber}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Text(
+                          'Roll: ${entry.rollNumber}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),

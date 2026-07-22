@@ -14,6 +14,7 @@ import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/neu_box.dart';
 import '../../widgets/shimmer.dart';
+import '../../widgets/student_detail_sheet.dart';
 
 class MarksEntryScreen extends StatefulWidget {
   const MarksEntryScreen({super.key});
@@ -984,6 +985,16 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       child: NeuBox(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         borderRadius: 20,
+        onLongPress: () {
+          showStudentDetailsBottomSheet(
+            context,
+            studentId: entry.studentId,
+            studentName: entry.studentName,
+            rollNumber: entry.rollNumber,
+            admissionNumber: entry.admissionNumber,
+            photoUrl: entry.profilePhotoDriveId,
+          );
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1010,6 +1021,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                     children: [
                       Text(
                         entry.studentName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 13,
@@ -1018,6 +1031,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                       if (entry.rollNumber != null)
                         Text(
                           'Roll: ${entry.rollNumber}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 10,
                             color: AppColors.textSecondary,

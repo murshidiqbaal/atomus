@@ -11,6 +11,7 @@ class NeuBox extends StatelessWidget {
   final bool isPressed;
   final bool isFlat;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final double? width;
   final double? height;
   final Color? color;
@@ -24,6 +25,7 @@ class NeuBox extends StatelessWidget {
     this.isPressed = false,
     this.isFlat = false,
     this.onTap,
+    this.onLongPress,
     this.width,
     this.height,
     this.color,
@@ -60,8 +62,8 @@ class NeuBox extends StatelessWidget {
       child: Padding(padding: padding, child: child),
     );
 
-    if (onTap == null) return container;
-    return GestureDetector(onTap: onTap, child: container);
+    if (onTap == null && onLongPress == null) return container;
+    return GestureDetector(onTap: onTap, onLongPress: onLongPress, child: container);
   }
 
   Widget _buildGlassBox(BuildContext context) {
@@ -84,6 +86,7 @@ class NeuBox extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: GestureDetector(
             onTap: onTap,
+            onLongPress: onLongPress,
             child: Container(
               padding: padding,
               decoration: BoxDecoration(
