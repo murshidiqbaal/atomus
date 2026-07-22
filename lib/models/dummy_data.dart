@@ -122,6 +122,32 @@ class StudentInfo {
     };
   }
 
+  /// Full serialization for local Hive caching.
+  /// Unlike [toMap] (which serializes only updatable fields),
+  /// this includes every field so [fromMap] can reconstruct the object.
+  Map<String, dynamic> toCacheMap() {
+    return {
+      'id': id,
+      'full_name': fullName,
+      'admission_number': admissionNumber,
+      'roll_number': rollNumber,
+      'gender': gender,
+      'date_of_birth': dateOfBirth,
+      'grade': grade,
+      'attendance_percentage': attendancePercentage,
+      'progress_status': progressStatus,
+      'email': email,
+      'phone_number': phoneNumber,
+      'relationship': relationship,
+      'profile_photo_drive_id': profilePhotoDriveId,
+      'course_id': courseId,
+      'campus_id': campusId,
+      'campus_name': campusName,
+      'payment_qr_url': paymentQrUrl,
+      'payment_qr_drive_id': paymentQrDriveId,
+    };
+  }
+
   String get name => fullName;
   double get overallProgress => attendancePercentage / 100.0;
 

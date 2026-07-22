@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/teacher_attendance_model.dart';
 import '../services/teacher_hive_service.dart';
+import '../utils/attendance_date_validator.dart';
 
 class TeacherAttendanceRepository {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -20,14 +21,15 @@ class TeacherAttendanceRepository {
     required double? longitude,
     required String sessionType,
   }) async {
-    final now   = DateTime.now();
+    final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
+    final now   = dbUtc.toLocal();
     final today = DateTime(now.year, now.month, now.day);
 
     // Time-based session guards
-    if (sessionType == 'forenoon' && now.hour >= 13) {
+    if (sessionType == 'forenoon' && now.hour >= 12) {
       throw Exception('Cannot mark attendance for forenoon at this time.');
     }
-    if (sessionType == 'afternoon' && now.hour < 13) {
+    if (sessionType == 'afternoon' && now.hour < 12) {
       throw Exception('Cannot mark attendance for afternoon at this time.');
     }
 
@@ -72,7 +74,8 @@ class TeacherAttendanceRepository {
 
   // End the active session and clear from Hive.
   Future<TeacherAttendanceModel> endSession(TeacherAttendanceModel active) async {
-    final now      = DateTime.now();
+    final dbUtc    = await AttendanceDateValidator.getDatabaseUtcTime();
+    final now      = dbUtc.toLocal();
     final duration = now.difference(active.startTime!).inMinutes;
 
     // Guard: only can punch out if duration is greater than 1 hour (60 minutes)
@@ -98,7 +101,7 @@ class TeacherAttendanceRepository {
     String? rowId = active.id;
     if (rowId == null) {
       try {
-        final today = DateTime.now().toIso8601String().split('T').first;
+        final today = now.toIso8601String().split('T').first;
         final rows = await _supabase
             .from('teacher_attendance')
             .select('id')
@@ -148,10 +151,11 @@ class TeacherAttendanceRepository {
     return updated;
   }
 
-  // Fetch today's active session; falls back to Hive when offline.
   Future<TeacherAttendanceModel?> fetchTodayActiveSession(String teacherId, [String? sessionType]) async {
     try {
-      final today = DateTime.now().toIso8601String().split('T').first;
+      final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
+      final now   = dbUtc.toLocal();
+      final today = now.toIso8601String().split('T').first;
       var query = _supabase
           .from('teacher_attendance')
           .select('*, subjects(name)')
@@ -173,7 +177,7 @@ class TeacherAttendanceRepository {
 
       // Auto-punch-out rule: if duration exceeds 4 hours, auto complete it
       if (session.startTime != null) {
-        final elapsed = DateTime.now().difference(session.startTime!).inMinutes;
+        final elapsed = now.difference(session.startTime!).inMinutes;
         if (elapsed > 240) {
           final autoEndTime = session.startTime!.add(const Duration(hours: 4));
           await _supabase
@@ -201,7 +205,9 @@ class TeacherAttendanceRepository {
           return null;
         }
         if (model.startTime != null) {
-          final elapsed = DateTime.now().difference(model.startTime!).inMinutes;
+          final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
+          final now   = dbUtc.toLocal();
+          final elapsed = now.difference(model.startTime!).inMinutes;
           if (elapsed > 240) {
             await _hive.clearActiveSession();
             return null;
@@ -217,9 +223,11 @@ class TeacherAttendanceRepository {
 
   // Fetch today's most recent completed session.
   Future<TeacherAttendanceModel?> fetchTodayCompletedSession(String teacherId, [String? sessionType]) async {
-    final type = sessionType ?? (DateTime.now().hour >= 13 ? 'afternoon' : 'forenoon');
+    final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
+    final now   = dbUtc.toLocal();
+    final type  = sessionType ?? (now.hour >= 12 ? 'afternoon' : 'forenoon');
     try {
-      final today = DateTime.now().toIso8601String().split('T').first;
+      final today = now.toIso8601String().split('T').first;
       final rows  = await _supabase
           .from('teacher_attendance')
           .select('*, subjects(name)')
@@ -262,7 +270,8 @@ class TeacherAttendanceRepository {
 
   Future<double> fetchMonthlyAttendancePercentage(String teacherId) async {
     try {
-      final now   = DateTime.now();
+      final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
+      final now   = dbUtc.toLocal();
       final from  = DateTime(now.year, now.month, 1);
       final to    = DateTime(now.year, now.month + 1, 0);
       final rows  = await _supabase

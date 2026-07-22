@@ -190,6 +190,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                   }
 
                   return FloatingActionButton.extended(
+                    heroTag: 'create_exam_fab',
                     onPressed: () => _showCreateExamSheet(context),
                     backgroundColor: AppColors.primary,
                     icon: const Icon(LucideIcons.plus, color: Colors.white),
@@ -463,31 +464,10 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       padding: const EdgeInsets.all(14),
       borderRadius: 20,
       onTap: () {
-        if (_selectedFilterCourseId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please select a specific course to enter marks.'),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: AppColors.error,
-            ),
-          );
-          return;
-        }
-        if (_selectedFilterSubjectId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please select a specific subject to enter marks.'),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: AppColors.error,
-            ),
-          );
-          return;
-        }
-
         context.read<MarksCubit>().selectExam(
           exam,
           markDate: _examListDate,
-          subjectId: _selectedFilterSubjectId,
+          subjectId: _selectedFilterSubjectId ?? exam.subjectId,
           campusId: _selectedCampusId,
         );
       },
@@ -1278,6 +1258,18 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             s.campusId == null || s.campusId == _selectedCampusId).toList()
         : teacher.subjects;
 
+    // Deduplicate courses from both teacher.courses and teacher.subjects
+    final courseMap = <String, String>{};
+    for (final c in campusFilteredCourses) {
+      courseMap[c.courseId] = c.courseName;
+    }
+    for (final s in campusFilteredSubjects) {
+      if (s.courseId != null && s.courseName != null) {
+        courseMap.putIfAbsent(s.courseId!, () => s.courseName!);
+      }
+    }
+    final courseEntries = courseMap.entries.toList();
+
     // Get unique subjects filtered by course selection
     final uniqueSubjects = <String, String>{};
     for (final s in campusFilteredSubjects) {
@@ -1324,10 +1316,10 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             value: _selectedFilterCourseId,
             items: [
               const DropdownMenuItem(value: 'All', child: Text('All Courses')),
-              ...campusFilteredCourses.map(
-                (c) => DropdownMenuItem(
-                  value: c.courseId,
-                  child: Text(c.courseName),
+              ...courseEntries.map(
+                (e) => DropdownMenuItem(
+                  value: e.key,
+                  child: Text(e.value),
                 ),
               ),
             ],
@@ -1501,7 +1493,6 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     );
   }
 
-  // ── Create/Edit Exam sheet ────────────────────────────────────
   // ── Create/Edit Exam sheet ────────────────────────────────────
   void _showCreateExamSheet(BuildContext context, {TeacherExam? examToEdit}) {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;

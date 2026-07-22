@@ -138,7 +138,7 @@ class StudentMarksEntry {
       studentName: studentMap['full_name'] as String? ?? 'Student',
       rollNumber: studentMap['roll_number'] as String?,
       admissionNumber: studentMap['admission_number'] as String?,
-      profilePhotoDriveId: studentMap['profile_photo_drive_id'] as String?,
+      profilePhotoDriveId: (studentMap['profile_photo_drive_id'] ?? studentMap['image_url']) as String?,
       examId: examId,
       subjectId: subjectId ?? existingMarks?['subject_id'] as String?,
       marksObtained: (existingMarks?['marks_obtained'] as num?)?.toDouble(),

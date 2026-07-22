@@ -5,7 +5,10 @@ import '../../repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 import '../../app_bootstrap.dart';
+import '../../services/announcement_hive_service.dart';
+import '../../services/course_hive_service.dart';
 import '../../services/fee_hive_service.dart';
+import '../../services/student_hive_service.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
@@ -72,6 +75,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         bootstrap.hiveProfileCacheService.clearAll(),
         bootstrap.teacherProfileHiveService.clearAll(),
         FeeHiveService().clearAll(),
+        StudentHiveService().clearAll(),
+        AnnouncementHiveService().clearAll(),
+        CourseHiveService().clearAll(),
       ]);
     } catch (e) {
       // ignore

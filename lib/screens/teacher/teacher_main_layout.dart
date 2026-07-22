@@ -341,6 +341,7 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
             ),
             floatingActionButton: _currentIndex == 0
                 ? FloatingActionButton(
+                    heroTag: 'dashboard_reports_fab',
                     onPressed: () {
                       HapticFeedback.selectionClick();
                       setState(() => _currentIndex = 4);

@@ -6,12 +6,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/dummy_data.dart';
 import '../../models/student_performance_model.dart';
 import '../../repositories/student_repository.dart';
+import '../../services/student_hive_service.dart';
 import '../../services/student_performance_service.dart';
 import 'student_event.dart';
 import 'student_state.dart';
 
 class StudentBloc extends Bloc<StudentEvent, StudentState> {
   final StudentRepository studentRepository;
+  final StudentHiveService _hiveService;
 
   // Realtime subscriptions
   StreamSubscription? _attendanceSub;
@@ -19,7 +21,11 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
   StreamSubscription? _marksSub;
   String? _subscribedStudentId;
 
-  StudentBloc({required this.studentRepository}) : super(const StudentState()) {
+  StudentBloc({
+    required this.studentRepository,
+    StudentHiveService? hiveService,
+  }) : _hiveService = hiveService ?? StudentHiveService(),
+       super(const StudentState()) {
     on<LoadStudentData>(_onLoadStudentData);
     on<LoadAttendance>(_onLoadAttendance);
     on<UpdateStudentProfile>(_onUpdateStudentProfile);
@@ -30,6 +36,42 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
     Emitter<StudentState> emit,
   ) async {
     emit(state.copyWith(status: StudentStatus.loading));
+
+    // ── 1. Show cached data instantly ────────────────────────────
+    try {
+      await _hiveService.initBoxes();
+      final cachedInfo = _hiveService.getCachedStudentInfo();
+      final cachedExams = _hiveService.getCachedExamSessions();
+
+      if (cachedInfo != null) {
+        final info = StudentInfo.fromMap(cachedInfo);
+        final exams = cachedExams != null
+            ? cachedExams
+                .map((e) => ExamSession.fromMap(e, _parseExamMarks(e)))
+                .toList()
+            : <ExamSession>[];
+
+        // Load cached attendance
+        List<AttendanceRecord> cachedAttendance = [];
+        final cachedAttData = _hiveService.getCachedAttendance('all');
+        if (cachedAttData != null) {
+          cachedAttendance =
+              cachedAttData.map((e) => AttendanceRecord.fromMap(e)).toList();
+        }
+
+        emit(state.copyWith(
+          status: StudentStatus.success,
+          studentInfo: info,
+          exams: exams,
+          attendance: cachedAttendance,
+          isFromCache: true,
+        ));
+      }
+    } catch (e) {
+      print('StudentBloc: Cache read failed (non-fatal): $e');
+    }
+
+    // ── 2. Fetch fresh data from Supabase ────────────────────────
     try {
       final info = await studentRepository.getStudentInfo();
 
@@ -75,6 +117,55 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
         }
       }
 
+      // ── 3. Cache the fresh data ────────────────────────────────
+      try {
+        if (info != null) {
+          await _hiveService.saveStudentInfo({
+            'id': info.id,
+            'full_name': info.fullName,
+            'admission_number': info.admissionNumber,
+            'roll_number': info.rollNumber,
+            'gender': info.gender,
+            'date_of_birth': info.dateOfBirth,
+            'grade': info.grade,
+            'attendance_percentage': info.attendancePercentage,
+            'progress_status': info.progressStatus,
+            'email': info.email,
+            'phone_number': info.phoneNumber,
+            'relationship': info.relationship,
+            'profile_photo_drive_id': info.profilePhotoDriveId,
+            'course_id': info.courseId,
+            'campus_id': info.campusId,
+            'campus_name': info.campusName,
+            'payment_qr_url': info.paymentQrUrl,
+            'payment_qr_drive_id': info.paymentQrDriveId,
+          });
+        }
+        // Cache attendance as raw maps for simplicity
+        if (attendance.isNotEmpty) {
+          await _hiveService.saveAttendance(
+            'all',
+            attendance
+                .map((a) => {
+                      'id': a.id,
+                      'student_id': a.studentId,
+                      'batch_id': a.batchId,
+                      'course_id': a.courseId,
+                      'subject_id': a.subjectId,
+                      'attendance_date': a.date.toIso8601String(),
+                      'status': a.status,
+                      'period_number': a.periodNumber,
+                      'attendance_marker_name': a.markerName,
+                      'attendance_marker_role': a.markerRole,
+                      'subject_name': a.subjectName,
+                    })
+                .toList(),
+          );
+        }
+      } catch (cacheError) {
+        print('StudentBloc: Cache write failed (non-fatal): $cacheError');
+      }
+
       emit(
         state.copyWith(
           status: StudentStatus.success,
@@ -82,16 +173,36 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
           exams: exams,
           attendance: attendance,
           performance: performance,
+          isFromCache: false,
         ),
       );
     } catch (e) {
-      emit(
-        state.copyWith(
-          status: StudentStatus.failure,
-          errorMessage: e.toString(),
-        ),
-      );
+      // If we already have cached data displayed, keep it
+      if (state.studentInfo != null) {
+        print('StudentBloc: Network fetch failed, keeping cached data: $e');
+        emit(state.copyWith(
+          status: StudentStatus.success,
+          isFromCache: true,
+          errorMessage: 'Using cached data. Could not refresh: $e',
+        ));
+      } else {
+        emit(
+          state.copyWith(
+            status: StudentStatus.failure,
+            errorMessage: e.toString(),
+          ),
+        );
+      }
     }
+  }
+
+  /// Parse exam marks from a cached exam session map.
+  List<ExamMark> _parseExamMarks(Map<String, dynamic> examMap) {
+    final subjectsList = examMap['_cached_subjects'] as List?;
+    if (subjectsList == null) return [];
+    return subjectsList
+        .map((s) => ExamMark.fromMap(s as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> _onLoadAttendance(

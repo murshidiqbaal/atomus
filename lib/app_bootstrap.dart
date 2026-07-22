@@ -4,8 +4,11 @@ import 'package:hive_flutter/hive_flutter.dart';
  
 import 'core/constants/supabase_constants.dart';
 import 'firebase_options.dart';
+import 'services/announcement_hive_service.dart';
+import 'services/course_hive_service.dart';
 import 'services/fee_hive_service.dart';
 import 'services/hive_profile_cache_service.dart';
+import 'services/student_hive_service.dart';
 import 'services/teacher_hive_service.dart';
 import 'services/teacher_profile_hive_service.dart';
 import 'utils/logger.dart';
@@ -14,11 +17,17 @@ class AppBootstrapResult {
   final TeacherHiveService teacherHiveService;
   final HiveProfileCacheService hiveProfileCacheService;
   final TeacherProfileHiveService teacherProfileHiveService;
+  final StudentHiveService studentHiveService;
+  final AnnouncementHiveService announcementHiveService;
+  final CourseHiveService courseHiveService;
 
   const AppBootstrapResult({
     required this.teacherHiveService,
     required this.hiveProfileCacheService,
     required this.teacherProfileHiveService,
+    required this.studentHiveService,
+    required this.announcementHiveService,
+    required this.courseHiveService,
   });
 }
 
@@ -33,12 +42,19 @@ class AppBootstrap {
   late final TeacherHiveService _teacherHiveService;
   late final HiveProfileCacheService _hiveProfileCacheService;
   late final TeacherProfileHiveService _teacherProfileHiveService;
+  late final StudentHiveService _studentHiveService;
+  late final AnnouncementHiveService _announcementHiveService;
+  late final CourseHiveService _courseHiveService;
 
   TeacherHiveService get teacherHiveService => _teacherHiveService;
   HiveProfileCacheService get hiveProfileCacheService =>
       _hiveProfileCacheService;
   TeacherProfileHiveService get teacherProfileHiveService =>
       _teacherProfileHiveService;
+  StudentHiveService get studentHiveService => _studentHiveService;
+  AnnouncementHiveService get announcementHiveService =>
+      _announcementHiveService;
+  CourseHiveService get courseHiveService => _courseHiveService;
 
   Future<AppBootstrapResult> bootstrap() async {
     if (_initialized) {
@@ -46,6 +62,9 @@ class AppBootstrap {
         teacherHiveService: _teacherHiveService,
         hiveProfileCacheService: _hiveProfileCacheService,
         teacherProfileHiveService: _teacherProfileHiveService,
+        studentHiveService: _studentHiveService,
+        announcementHiveService: _announcementHiveService,
+        courseHiveService: _courseHiveService,
       );
     }
 
@@ -83,12 +102,18 @@ class AppBootstrap {
     _teacherHiveService = TeacherHiveService();
     _hiveProfileCacheService = HiveProfileCacheService();
     _teacherProfileHiveService = TeacherProfileHiveService();
+    _studentHiveService = StudentHiveService();
+    _announcementHiveService = AnnouncementHiveService();
+    _courseHiveService = CourseHiveService();
 
     // Open Hive boxes asynchronously and concurrently to prevent blocking startup
     try {
       await Future.wait([
         _teacherHiveService.initBoxes(),
         FeeHiveService().initBoxes(),
+        _studentHiveService.initBoxes(),
+        _announcementHiveService.initBoxes(),
+        _courseHiveService.initBoxes(),
         Hive.openBox('settings'),
       ]);
     } catch (e, stack) {
@@ -119,6 +144,9 @@ class AppBootstrap {
       teacherHiveService: _teacherHiveService,
       hiveProfileCacheService: _hiveProfileCacheService,
       teacherProfileHiveService: _teacherProfileHiveService,
+      studentHiveService: _studentHiveService,
+      announcementHiveService: _announcementHiveService,
+      courseHiveService: _courseHiveService,
     );
   }
 }

@@ -322,7 +322,7 @@ class TeacherRepository {
       var query = _supabase
           .from('students')
           .select(
-            'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id',
+            'id, full_name, roll_number, admission_number, image_url, batch_id, course_id, campus_id',
           )
           .or('batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null');
 

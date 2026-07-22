@@ -50,15 +50,14 @@ class StudentAttendanceTeacherRepository {
       var query = _supabase
           .from('students')
           .select(
-            'id, full_name, roll_number, admission_number, profile_photo_drive_id, batch_id, course_id, campus_id',
+            'id, full_name, roll_number, admission_number, image_url, batch_id, course_id, campus_id',
           );
 
-      if (batchId.isEmpty && resolvedCourseId != null) {
-        // Course-level attendance: fetch all students in the course
+      if (resolvedCourseId != null && resolvedCourseId.isNotEmpty) {
         query = query.eq('course_id', resolvedCourseId);
-      } else if (useCohortFallback && resolvedCourseId != null) {
-        query = query.eq('course_id', resolvedCourseId);
-      } else {
+      }
+
+      if (batchId.isNotEmpty && !useCohortFallback) {
         query = query.or(
           'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
         );
@@ -82,7 +81,7 @@ class StudentAttendanceTeacherRepository {
       }
 
       if (campusId != null && campusId.isNotEmpty && !isMainCampus) {
-        query = query.eq('campus_id', campusId);
+        query = query.or('campus_id.eq.$campusId,campus_id.is.null');
       }
 
       final rows = await query.order('roll_number', ascending: true);

@@ -76,7 +76,6 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
       final teacher = context.read<TeacherDashboardCubit>().state.teacher;
       if (teacher == null) return;
 
-      var needsReload = false;
       if (_selectedCourseId != null) {
         final match = teacher.courses.where(
           (c) => c.courseId == _selectedCourseId,
@@ -96,12 +95,66 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
       if (activeCampusId != null && activeCampusId.isNotEmpty) {
         if (_selectedCampusId != activeCampusId) {
           _selectedCampusId = activeCampusId;
-          needsReload = true;
         }
       }
+
+      // Auto-resolve defaults when opened with empty widget values
+      // (e.g. from the bottom nav tab which passes empty strings).
+      if (_selectedSubjectId.isEmpty || _selectedBatchId.isEmpty) {
+        // Determine campus scoping
+        final isMainCampus = _selectedCampusId != null &&
+            teacher.campuses.where((c) => c.id == _selectedCampusId).any(
+                  (c) => c.name.toLowerCase().contains('main'),
+                );
+        final shouldFilter = _selectedCampusId != null && !isMainCampus;
+        final scopedSubjects = shouldFilter
+            ? teacher.subjects
+                  .where((s) =>
+                      s.campusId == null ||
+                      s.campusId == _selectedCampusId)
+                  .toList()
+            : teacher.subjects;
+
+        // Pick the first available course (preferring active regular/ICSE courses if present)
+        if (_selectedCourseId == null || _selectedCourseId!.isEmpty) {
+          for (final s in scopedSubjects) {
+            if (s.courseId != null) {
+              _selectedCourseId ??= s.courseId;
+              _selectedCourseName ??= s.courseName;
+              // If we find a course name that has students, prefer it
+              final name = (s.courseName ?? '').toLowerCase();
+              if (name.contains('10') || name.contains('9') || name.contains('8') || name.contains('icse')) {
+                _selectedCourseId = s.courseId;
+                _selectedCourseName = s.courseName;
+                break;
+              }
+            }
+          }
+        }
+
+        // Pick the first subject under the resolved course
+        if (_selectedCourseId != null) {
+          final subsForCourse = scopedSubjects
+              .where((s) => s.courseId == _selectedCourseId)
+              .toList();
+          if (subsForCourse.isNotEmpty) {
+            final first = subsForCourse.first;
+            _selectedSubjectId = first.subjectId;
+            _selectedSubjectName = first.subjectName;
+            _selectedBatchId = first.batchId ?? '';
+            _selectedBatchName = first.batchName;
+          } else {
+            _selectedSubjectId = '';
+            _selectedBatchId = '';
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {});
-        if (needsReload) _loadData();
+        // Always load on first frame — either the widget had real IDs,
+        // or we just resolved defaults above.
+        _loadData();
       }
     });
 
@@ -113,8 +166,6 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
       parent: _successController,
       curve: Curves.elasticOut,
     );
-
-    _loadData();
   }
 
   Future<void> _loadDbToday() async {
@@ -579,6 +630,11 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
                     _selectedSubjectName = first.subjectName;
                     _selectedBatchId = first.batchId ?? '';
                     _selectedBatchName = first.batchName;
+                  } else {
+                    _selectedSubjectId = '';
+                    _selectedBatchId = '';
+                    _selectedSubjectName = '';
+                    _selectedBatchName = null;
                   }
                 });
                 _loadData();

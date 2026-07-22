@@ -51,9 +51,12 @@ import 'services/google_drive_profile_upload_service.dart';
 import 'services/hive_profile_cache_service.dart';
 import 'services/parent_activity_service.dart';
 // Services
+import 'services/announcement_hive_service.dart';
+import 'services/course_hive_service.dart';
 import 'services/parent_identity_service.dart';
 import 'services/password_recovery_service.dart';
 import 'services/profile_image_service.dart';
+import 'services/student_hive_service.dart';
 import 'services/teacher_hive_service.dart';
 import 'services/teacher_profile_hive_service.dart';
 
@@ -80,6 +83,15 @@ class AppProviders extends StatelessWidget {
         ),
         RepositoryProvider<TeacherProfileHiveService>.value(
           value: bootstrapResult.teacherProfileHiveService,
+        ),
+        RepositoryProvider<StudentHiveService>.value(
+          value: bootstrapResult.studentHiveService,
+        ),
+        RepositoryProvider<AnnouncementHiveService>.value(
+          value: bootstrapResult.announcementHiveService,
+        ),
+        RepositoryProvider<CourseHiveService>.value(
+          value: bootstrapResult.courseHiveService,
         ),
 
         // Core Repositories
@@ -177,16 +189,19 @@ class AppProviders extends StatelessWidget {
 
           // Student Blocs
           BlocProvider(
-            create: (ctx) =>
-                StudentBloc(studentRepository: ctx.read<StudentRepository>()),
+            create: (ctx) => StudentBloc(
+              studentRepository: ctx.read<StudentRepository>(),
+              hiveService: ctx.read<StudentHiveService>(),
+            ),
           ),
           BlocProvider(
             create: (ctx) => FeeBloc(feeRepository: ctx.read<FeeRepository>()),
           ),
           BlocProvider(
-            create: (ctx) =>
-                AnnouncementBloc(repository: ctx.read<AnnouncementRepository>())
-                  ..add(LoadAnnouncements()),
+            create: (ctx) => AnnouncementBloc(
+              repository: ctx.read<AnnouncementRepository>(),
+              hiveService: ctx.read<AnnouncementHiveService>(),
+            )..add(LoadAnnouncements()),
           ),
           BlocProvider(
             create: (ctx) =>
@@ -226,6 +241,7 @@ class AppProviders extends StatelessWidget {
               attendanceRepository: ctx.read<TeacherAttendanceRepository>(),
               marksRepository: ctx.read<MarksEntryRepository>(),
               authBloc: ctx.read<AuthBloc>(),
+              hiveService: ctx.read<TeacherHiveService>(),
             ),
           ),
           BlocProvider(

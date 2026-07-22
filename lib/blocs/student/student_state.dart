@@ -12,6 +12,10 @@ class StudentState extends Equatable {
   final StudentPerformanceModel? performance;
   final String? errorMessage;
 
+  /// True when the currently displayed data was loaded from the local
+  /// Hive cache rather than a fresh Supabase fetch.
+  final bool isFromCache;
+
   const StudentState({
     this.status = StudentStatus.initial,
     this.studentInfo,
@@ -19,6 +23,7 @@ class StudentState extends Equatable {
     this.attendance = const [],
     this.performance,
     this.errorMessage,
+    this.isFromCache = false,
   });
 
   StudentState copyWith({
@@ -28,6 +33,7 @@ class StudentState extends Equatable {
     List<AttendanceRecord>? attendance,
     StudentPerformanceModel? performance,
     String? errorMessage,
+    bool? isFromCache,
   }) {
     return StudentState(
       status: status ?? this.status,
@@ -36,6 +42,7 @@ class StudentState extends Equatable {
       attendance: attendance ?? this.attendance,
       performance: performance ?? this.performance,
       errorMessage: errorMessage ?? this.errorMessage,
+      isFromCache: isFromCache ?? this.isFromCache,
     );
   }
 
@@ -47,5 +54,6 @@ class StudentState extends Equatable {
     attendance,
     performance,
     errorMessage,
+    isFromCache,
   ];
 }

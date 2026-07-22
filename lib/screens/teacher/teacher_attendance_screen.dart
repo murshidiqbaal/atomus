@@ -16,6 +16,7 @@ import '../../models/teacher_attendance_model.dart';
 import '../../models/teacher_model.dart';
 import '../../providers/campus_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/attendance_date_validator.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/custom_card.dart';
 
@@ -42,7 +43,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    _sessionType = DateTime.now().hour >= 13 ? 'afternoon' : 'forenoon';
+    _sessionType = DateTime.now().hour >= 12 ? 'afternoon' : 'forenoon';
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
@@ -278,9 +279,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             final lon = geo.position?.longitude.toStringAsFixed(4) ?? '0.0';
 
             title = '✓ Inside $campusName';
-            subtitle =
-                'GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m | Allowed: ${allowedRadius}m';
+            subtitle = '';
             break;
+          // 'GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m | Allowed: ${allowedRadius}m'
           case GeofenceStatus.outside:
             color = AppColors.error;
             icon = LucideIcons.shieldAlert;
@@ -289,8 +290,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             final lon = geo.position?.longitude.toStringAsFixed(4) ?? '0.0';
 
             title = '✗ Outside Assigned Campuses';
-            subtitle =
-                'GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m away from nearest campus';
+            subtitle = '';
+            // GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m away from nearest campus
             break;
           case GeofenceStatus.permissionDenied:
             color = AppColors.error;
@@ -355,6 +356,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   title,
@@ -364,14 +366,14 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     color: color,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                // const SizedBox(height: 2),
+                // Text(
+                //   subtitle,
+                //   style: const TextStyle(
+                //     fontSize: 12,
+                //     color: AppColors.textSecondary,
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -525,10 +527,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         final noCampus = teacher == null || !teacher.hasCampusCoordinates;
         final insideCampus = noCampus || geo.status == GeofenceStatus.inside;
         final hasFilters = _filterCourseId != null && _filterSubjectId != null;
-        final nowTime = DateTime.now();
+        final nowTime = AttendanceDateValidator.getCorrectedLocalTime();
         final isTimeAllowed =
-            (_sessionType == 'forenoon' && nowTime.hour < 13) ||
-            (_sessionType == 'afternoon' && nowTime.hour >= 13);
+            (_sessionType == 'forenoon' && nowTime.hour < 12) ||
+            (_sessionType == 'afternoon' && nowTime.hour >= 12);
         final canPunch = insideCampus && hasFilters && isTimeAllowed;
 
         String? disabledHint;
@@ -647,7 +649,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     }
 
     // Self-heal stale course selection
-    final bool courseStillValid = _filterCourseId == null || courses.containsKey(_filterCourseId);
+    final bool courseStillValid =
+        _filterCourseId == null || courses.containsKey(_filterCourseId);
     if (!isDisabled && !courseStillValid) {
       _filterCourseId = null;
       _filterSubjectId = null;
@@ -761,7 +764,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                       // Resolve batch from assignments for the selected subject.
                       _filterBatchId = null;
                       for (final a in assignments) {
-                        if (a.subjectId == val && a.courseId == _filterCourseId) {
+                        if (a.subjectId == val &&
+                            a.courseId == _filterCourseId) {
                           _filterBatchId = a.batchId as String?;
                           break;
                         }
@@ -841,7 +845,9 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         final noCampus = teacher == null || !teacher.hasCampusCoordinates;
 
         final elapsedDuration = session.startTime != null
-            ? DateTime.now().difference(session.startTime!)
+            ? AttendanceDateValidator.getCorrectedLocalTime().difference(
+                session.startTime!,
+              )
             : Duration.zero;
         final isDurationMet = elapsedDuration.inHours >= 1;
 

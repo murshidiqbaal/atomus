@@ -5,14 +5,23 @@ import 'package:http/http.dart' as http;
 import '../core/constants/supabase_constants.dart';
 
 class AttendanceDateValidator {
+  static Duration _timeOffset = Duration.zero;
+
   /// Fetches the authoritative UTC timestamp from the Supabase REST API server.
   static Future<DateTime> getDatabaseUtcTime() async {
     try {
       final uri = Uri.parse(SupabaseConstants.url);
+      final start = DateTime.now();
       final response = await http.head(uri);
+      final end = DateTime.now();
       final dateHeader = response.headers['date'];
       if (dateHeader != null) {
-        return HttpDate.parse(dateHeader);
+        final serverTimeUtc = HttpDate.parse(dateHeader);
+        // Correct for network latency (assume request took equal time each way)
+        final latency = end.difference(start) ~/ 2;
+        final correctedUtc = serverTimeUtc.add(latency);
+        _timeOffset = correctedUtc.toLocal().difference(end);
+        return correctedUtc;
       }
     } catch (e) {
       print(
@@ -21,6 +30,11 @@ class AttendanceDateValidator {
     }
     // Fallback: return current device time in UTC
     return DateTime.now().toUtc();
+  }
+
+  /// Returns the synchronized local time.
+  static DateTime getCorrectedLocalTime() {
+    return DateTime.now().add(_timeOffset);
   }
 
   /// Converts a UTC database time to the user's local timezone.

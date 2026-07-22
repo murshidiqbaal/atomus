@@ -169,15 +169,17 @@ class MarksEntryRepository {
       var query = _supabase
           .from('students')
           .select(
-            'id, full_name, roll_number, admission_number, profile_photo_drive_id, campus_id',
+            'id, full_name, roll_number, admission_number, image_url, campus_id',
           );
+
+      if (courseId != null && courseId.isNotEmpty) {
+        query = query.eq('course_id', courseId);
+      }
 
       if (batchId != null && batchId.isNotEmpty) {
         query = query.or(
           'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
         );
-      } else if (courseId != null && courseId.isNotEmpty) {
-        query = query.eq('course_id', courseId);
       }
 
       // Filter by campus (skip for main campus — they see all students)
@@ -197,7 +199,7 @@ class MarksEntryRepository {
           }
         } catch (_) {}
         if (!isMainCampus) {
-          query = query.eq('campus_id', campusId);
+          query = query.or('campus_id.eq.$campusId,campus_id.is.null');
         }
       }
 
