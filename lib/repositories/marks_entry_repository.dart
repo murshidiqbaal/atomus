@@ -107,9 +107,13 @@ class MarksEntryRepository {
         builder = builder.or(visibilityOr);
       }
       builder = builder.eq('marks.mark_date', dateIso);
+      final cacheKey = 'assigned_exams_${effectiveCampusId ?? "all"}';
       final rows = await builder.order('exam_date', ascending: includeUpcoming ? true : false);
-      final allExams = (rows as List)
-          .map((r) => TeacherExam.fromMap(r as Map<String, dynamic>))
+      final rawList = (rows as List).map((r) => Map<String, dynamic>.from(r as Map)).toList();
+      await _hive.cacheExams(cacheKey, rawList);
+
+      final allExams = rawList
+          .map((r) => TeacherExam.fromMap(r))
           .toList();
 
       if (includeUpcoming) {
@@ -150,7 +154,7 @@ class MarksEntryRepository {
         if (isMainCampusSelected) return true;
 
         if (e.batchId == null) {
-          if (e.courseId == null || !courseIds.contains(e.courseId)) return false;
+          if (e.courseId == null || (courseIds.isNotEmpty && !courseIds.contains(e.courseId))) return false;
           return e.subjectId == null || subjectIds.isEmpty || subjectIds.contains(e.subjectId);
         } else {
           if (batchIds.isNotEmpty && !batchIds.contains(e.batchId)) return false;
@@ -158,7 +162,28 @@ class MarksEntryRepository {
         }
       }).toList();
     } catch (_) {
-      return [];
+      final cacheKey = 'assigned_exams_${effectiveCampusId ?? "all"}';
+      final cachedRows = _hive.getCachedExams(cacheKey) ?? [];
+      final cachedExams = cachedRows.map((r) => TeacherExam.fromMap(r)).toList();
+      return cachedExams.where((e) {
+        final isCreatedByMe = e.createdBy == teacherUserId || e.creatorId == teacherUserId;
+        final isCreatedByAdmin = e.creatorRole?.toLowerCase() == 'admin' || e.creatorRole == null;
+        final isMatchingCampus = isMainCampusSelected ||
+            e.campusId == null ||
+            (effectiveCampusId != null && e.campusId == effectiveCampusId);
+
+        if (!isCreatedByMe && !isCreatedByAdmin && !isMatchingCampus) return false;
+
+        if (isMainCampusSelected) return true;
+
+        if (e.batchId == null) {
+          if (e.courseId == null || (courseIds.isNotEmpty && !courseIds.contains(e.courseId))) return false;
+          return e.subjectId == null || subjectIds.isEmpty || subjectIds.contains(e.subjectId);
+        } else {
+          if (batchIds.isNotEmpty && !batchIds.contains(e.batchId)) return false;
+          return e.subjectId == null || subjectIds.isEmpty || subjectIds.contains(e.subjectId);
+        }
+      }).toList();
     }
   }
 

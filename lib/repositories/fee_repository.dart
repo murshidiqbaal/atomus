@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/dummy_data.dart';
+import '../services/fee_hive_service.dart';
 import '../services/parent_identity_service.dart';
 
 class FeeRepository {
@@ -444,10 +445,15 @@ class FeeRepository {
           }
         }
       }
+      await FeeHiveService().saveFeeRecords(records);
       return records;
 
     } catch (e) {
-      print('CRITICAL ERROR [getFeeRecords]: $e.');
+      print('NOTICE [getFeeRecords offline fallback]: $e');
+      final cached = FeeHiveService().getCachedFeeRecords(allowStale: true);
+      if (cached != null && cached.isNotEmpty) {
+        return cached;
+      }
       return [];
     }
   }
@@ -504,9 +510,13 @@ class FeeRepository {
           .eq('student_id', studentId)
           .order('payment_date', ascending: false);
 
-      return List<Map<String, dynamic>>.from(response);
+      final history = List<Map<String, dynamic>>.from(response);
+      await FeeHiveService().savePaymentHistory(history);
+      return history;
     } catch (e) {
-      print('ERROR [getPaymentHistory]: $e');
+      print('NOTICE [getPaymentHistory offline fallback]: $e');
+      final cached = FeeHiveService().getCachedPaymentHistory(allowStale: true);
+      if (cached != null) return cached;
       return [];
     }
   }
@@ -515,11 +525,15 @@ class FeeRepository {
   Future<Map<String, dynamic>?> getFeeStructureInfo() async {
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null) return null;
+      if (user == null) {
+        return FeeHiveService().getCachedFeeStructure();
+      }
 
       final parent = await _parentIdentityService.resolveCurrentParent();
       final parentId = parent['id']?.toString();
-      if (parentId == null) return null;
+      if (parentId == null) {
+        return FeeHiveService().getCachedFeeStructure();
+      }
 
       final studentData = await _supabase
           .from('students')
@@ -527,10 +541,14 @@ class FeeRepository {
           .eq('parent_id', parentId)
           .maybeSingle();
 
-      if (studentData == null) return null;
+      if (studentData == null) {
+        return FeeHiveService().getCachedFeeStructure();
+      }
 
       final courseId = studentData['course_id'];
-      if (courseId == null) return null;
+      if (courseId == null) {
+        return FeeHiveService().getCachedFeeStructure();
+      }
 
       final List<dynamic> studentFees = await _supabase
           .from('student_fees')
@@ -582,7 +600,7 @@ class FeeRepository {
         }
       }
 
-      return {
+      final info = {
         'student_name': studentData['full_name'],
         'course_name': courseName,
         'student_fee': studentFees.isNotEmpty ? studentFees.first : null,
@@ -593,8 +611,13 @@ class FeeRepository {
         'payment_status': paymentStatus,
         'fee_structure_name': feeStructureName,
       };
+
+      await FeeHiveService().saveFeeStructure(info);
+      return info;
     } catch (e) {
-      print('ERROR [getFeeStructureInfo]: $e');
+      print('NOTICE [getFeeStructureInfo offline fallback]: $e');
+      final cached = FeeHiveService().getCachedFeeStructure();
+      if (cached != null) return cached;
       return null;
     }
   }

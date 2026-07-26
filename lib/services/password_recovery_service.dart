@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'navigator_service.dart';
 import '../repositories/auth_repository.dart';
 import '../screens/reset_password_screen.dart';
 import '../utils/logger.dart';
-
-class NavigatorService {
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-}
 
 class PasswordRecoveryService {
   final AuthRepository _authRepository;

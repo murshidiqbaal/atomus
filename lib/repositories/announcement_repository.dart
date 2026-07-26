@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/dummy_data.dart';
+import '../services/announcement_hive_service.dart';
 
 class AnnouncementRepository {
   final _supabase = Supabase.instance.client;
@@ -11,16 +12,23 @@ class AnnouncementRepository {
           .from('announcements')
           .select()
           .eq('is_active', true)
-          .lte('start_date', now) // Only show if started
+          .lte('start_date', now)
           .or(
             'end_date.is.null,end_date.gt.$now',
-          ) // Show if no end date or not ended
+          )
           .order('created_at', ascending: false);
 
       final List<dynamic> data = response as List<dynamic>;
+      final mapList = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      await AnnouncementHiveService().saveAnnouncements(mapList);
+
       return data.map((item) => Announcement.fromMap(item)).toList();
     } catch (e) {
-      print('Error fetching announcements: $e');
+      print('NOTICE [getActiveAnnouncements offline fallback]: $e');
+      final cached = AnnouncementHiveService().getCachedAnnouncements(allowStale: true);
+      if (cached != null) {
+        return cached.map((item) => Announcement.fromMap(item)).toList();
+      }
       return [];
     }
   }

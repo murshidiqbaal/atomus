@@ -38,46 +38,56 @@ class ProfileRepository {
   Future<ProfileSnapshot> fetchProfile() async {
     final user = _supabase.auth.currentUser;
     if (user == null) {
+      final cached = await _cache.getLastProfileForAuth('');
+      if (cached != null) return cached;
       throw Exception('User session not found. Please log in again.');
     }
 
-    final parentMap = await _parentIdentityService.resolveCurrentParent();
-    final parent = ParentProfile.fromMap(parentMap);
-    final students = await _getLinkedStudents(parent.id);
-    final cached = await _cache.getProfile(parent.id);
+    try {
+      final parentMap = await _parentIdentityService.resolveCurrentParent();
+      final parent = ParentProfile.fromMap(parentMap);
+      final students = await _getLinkedStudents(parent.id);
+      final cached = await _cache.getProfile(parent.id);
 
-    // Compare remote drive IDs with cached drive IDs to decide whether to override/keep local images
-    String? parentLocalImagePath = cached?.parentLocalImagePath;
-    if (cached != null && cached.parent.profilePhotoDriveId != parent.profilePhotoDriveId) {
-      parentLocalImagePath = null;
-    }
+      String? parentLocalImagePath = cached?.parentLocalImagePath;
+      if (cached != null && cached.parent.profilePhotoDriveId != parent.profilePhotoDriveId) {
+        parentLocalImagePath = null;
+      }
 
-    final Map<String, String> studentLocalImagePaths = {};
-    if (cached != null) {
-      for (final student in students) {
-        final cachedStudent = cached.students.firstWhere(
-          (s) => s.id == student.id,
-          orElse: () => student,
-        );
-        if (cachedStudent.profilePhotoDriveId == student.profilePhotoDriveId) {
-          final path = cached.studentLocalImagePaths[student.id];
-          if (path != null) {
-            studentLocalImagePaths[student.id] = path;
+      final Map<String, String> studentLocalImagePaths = {};
+      if (cached != null) {
+        for (final student in students) {
+          final cachedStudent = cached.students.firstWhere(
+            (s) => s.id == student.id,
+            orElse: () => student,
+          );
+          if (cachedStudent.profilePhotoDriveId == student.profilePhotoDriveId) {
+            final path = cached.studentLocalImagePaths[student.id];
+            if (path != null) {
+              studentLocalImagePaths[student.id] = path;
+            }
           }
         }
       }
+
+      final snapshot = ProfileSnapshot(
+        parent: parent,
+        students: students,
+        parentLocalImagePath: parentLocalImagePath,
+        studentLocalImagePaths: studentLocalImagePaths,
+        updatedAt: DateTime.now(),
+      );
+
+      await _cache.saveProfile(snapshot, authUserId: user.id);
+      return snapshot;
+    } catch (e) {
+      print('NOTICE [fetchProfile offline fallback]: $e');
+      final cached = await getCachedProfileForCurrentUser();
+      if (cached != null) {
+        return cached;
+      }
+      rethrow;
     }
-
-    final snapshot = ProfileSnapshot(
-      parent: parent,
-      students: students,
-      parentLocalImagePath: parentLocalImagePath,
-      studentLocalImagePaths: studentLocalImagePaths,
-      updatedAt: DateTime.now(),
-    );
-
-    await _cache.saveProfile(snapshot, authUserId: user.id);
-    return snapshot;
   }
 
   Future<ProfileSnapshot> updateParentDetails(

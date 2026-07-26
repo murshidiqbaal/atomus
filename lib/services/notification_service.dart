@@ -13,7 +13,7 @@ import '../screens/marks/marks_screen.dart';
 import '../screens/notifications/notification_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/reports/ireports_screen.dart';
-import '../services/password_recovery_service.dart' show NavigatorService;
+import 'navigator_service.dart';
 
 /// Top-level handler — required to be outside any class.
 /// Called when the app is in background/terminated and a data message arrives.

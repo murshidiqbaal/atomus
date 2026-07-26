@@ -86,17 +86,33 @@ class FeeBloc extends Bloc<FeeEvent, FeeState> {
         discountAmount: discountAmount,
       ));
     } catch (e) {
-      print('ERROR [FeeBloc._onLoadFeeData]: $e');
-      // If we already have cached data displayed, keep it
-      if (state.fees.isNotEmpty) {
+      print('NOTICE [FeeBloc._onLoadFeeData offline]: $e');
+      final cachedRecords = _hiveService.getCachedFeeRecords(allowStale: true);
+      final cachedHistory = _hiveService.getCachedPaymentHistory(allowStale: true);
+      final cachedStructure = _hiveService.getCachedFeeStructure();
+
+      if (cachedRecords != null && cachedRecords.isNotEmpty) {
+        final totals = _computeTotals(cachedRecords);
         emit(state.copyWith(
           status: FeeStatus.success,
-          errorMessage: 'Using cached data. Could not refresh: $e',
+          fees: cachedRecords,
+          paymentHistory: cachedHistory ?? [],
+          feeStructureInfo: cachedStructure,
+          totalFee: totals['totalFee'],
+          totalPaid: totals['totalPaid'],
+          totalPending: totals['totalPending'],
+          errorMessage: null,
+        ));
+      } else if (state.fees.isNotEmpty) {
+        emit(state.copyWith(
+          status: FeeStatus.success,
+          errorMessage: null,
         ));
       } else {
         emit(state.copyWith(
-          status: FeeStatus.failure,
-          errorMessage: e.toString(),
+          status: FeeStatus.success,
+          fees: [],
+          errorMessage: null,
         ));
       }
     }

@@ -57,17 +57,18 @@ class FeeHiveService {
     await box.put('cached_at', DateTime.now().toIso8601String());
   }
 
-  List<FeeRecord>? getCachedFeeRecords() {
+  List<FeeRecord>? getCachedFeeRecords({bool allowStale = true}) {
     final box = _getBox(_feeRecordsBox);
     final raw = box.get('records');
     if (raw == null) return null;
 
-    // Check freshness (cache valid for 30 minutes)
-    final cachedAt = box.get('cached_at');
-    if (cachedAt != null) {
-      final ts = DateTime.tryParse(cachedAt);
-      if (ts != null && DateTime.now().difference(ts).inMinutes > 30) {
-        return null; // stale
+    if (!allowStale) {
+      final cachedAt = box.get('cached_at');
+      if (cachedAt != null) {
+        final ts = DateTime.tryParse(cachedAt);
+        if (ts != null && DateTime.now().difference(ts).inMinutes > 30) {
+          return null; // stale
+        }
       }
     }
 
@@ -110,16 +111,18 @@ class FeeHiveService {
     await box.put('cached_at', DateTime.now().toIso8601String());
   }
 
-  List<Map<String, dynamic>>? getCachedPaymentHistory() {
+  List<Map<String, dynamic>>? getCachedPaymentHistory({bool allowStale = true}) {
     final box = _getBox(_paymentHistoryBox);
     final raw = box.get('history');
     if (raw == null) return null;
 
-    final cachedAt = box.get('cached_at');
-    if (cachedAt != null) {
-      final ts = DateTime.tryParse(cachedAt);
-      if (ts != null && DateTime.now().difference(ts).inMinutes > 30) {
-        return null;
+    if (!allowStale) {
+      final cachedAt = box.get('cached_at');
+      if (cachedAt != null) {
+        final ts = DateTime.tryParse(cachedAt);
+        if (ts != null && DateTime.now().difference(ts).inMinutes > 30) {
+          return null;
+        }
       }
     }
 

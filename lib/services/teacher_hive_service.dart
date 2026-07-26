@@ -203,6 +203,20 @@ class TeacherHiveService {
     return box.values.map((v) => jsonDecode(v) as Map<String, dynamic>).toList();
   }
 
+  // ── Cached exams ──────────────────────────────────────────────
+  Future<void> cacheExams(String key, List<Map<String, dynamic>> exams) async {
+    final box = _getBox(_cachedExamsBox);
+    await box.put(key, jsonEncode(exams));
+  }
+
+  List<Map<String, dynamic>>? getCachedExams(String key) {
+    final box = _getBox(_cachedExamsBox);
+    final raw = box.get(key);
+    if (raw == null) return null;
+    final list = jsonDecode(raw) as List;
+    return list.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   Future<void> clearAll() async {
     await Future.wait([
       _getBox(_profileBox).clear(),
@@ -212,6 +226,7 @@ class TeacherHiveService {
       _getBox(_assignmentsBox).clear(),
       _getBox(_activeSessionBox).clear(),
       _getBox(_dailyReportsBox).clear(),
+      _getBox(_cachedExamsBox).clear(),
     ]);
   }
 }
