@@ -8,8 +8,8 @@ import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import 'login_screen.dart';
 import 'main_layout.dart';
-import 'teacher/teacher_main_layout.dart';
 import 'onboarding/components/onboarding_screen.dart';
+import 'teacher/teacher_main_layout.dart';
 
 /// Minimal premium animated splash.
 /// Two controllers: one runs once (entrance), one loops (aura pulse).
@@ -109,7 +109,8 @@ class _SplashScreenState extends State<SplashScreen>
         } else {
           final settingsBox = Hive.box('settings');
           final onboardingCompleted =
-              settingsBox.get('onboarding_completed', defaultValue: false) as bool;
+              settingsBox.get('onboarding_completed', defaultValue: false)
+                  as bool;
           destination = onboardingCompleted
               ? const MainLayout()
               : const OnboardingScreen();
@@ -135,10 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_imagePrecached) {
-      precacheImage(
-        const AssetImage('assets/app_icon/appicon.webp'),
-        context,
-      );
+      precacheImage(const AssetImage('assets/app_icon/appicon.webp'), context);
       _imagePrecached = true;
 
       // If the AuthBloc has already resolved the auth state (e.g. from local cache/storage)
@@ -174,8 +172,9 @@ class _SplashScreenState extends State<SplashScreen>
                 final shortest = constraints.maxWidth < constraints.maxHeight
                     ? constraints.maxWidth
                     : constraints.maxHeight;
-                final double scale =
-                    (shortest / 390.0).clamp(0.72, 1.35).toDouble();
+                final double scale = (shortest / 390.0)
+                    .clamp(0.72, 1.35)
+                    .toDouble();
 
                 return Center(
                   child: Padding(
@@ -200,10 +199,7 @@ class _SplashScreenState extends State<SplashScreen>
                         // tiny landscape constraints.
                         FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: _Wordmark(
-                            controller: _entrance,
-                            scale: scale,
-                          ),
+                          child: _Wordmark(controller: _entrance, scale: scale),
                         ),
                         SizedBox(height: 22 * scale),
                         _Underline(progress: _underlineWidth, scale: scale),
@@ -237,12 +233,12 @@ class _AnimatedMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double frame   = 200 * scale;
-    final double aura    = 160 * scale;
-    final double icon    = 132 * scale;
-    final double padIcon =  18 * scale;
-    final double blur    =  32 * scale;
-    final double spread  =   2 * scale;
+    final double frame = 200 * scale;
+    final double aura = 160 * scale;
+    final double icon = 132 * scale;
+    final double padIcon = 18 * scale;
+    final double blur = 32 * scale;
+    final double spread = 2 * scale;
 
     return SizedBox(
       width: frame,

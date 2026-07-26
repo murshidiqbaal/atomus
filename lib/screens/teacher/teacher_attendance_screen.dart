@@ -273,25 +273,16 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               }
             }
             final campusName = matchedCampus?.name ?? 'Campus';
-            final allowedRadius =
-                matchedCampus?.allowedRadiusMeters.toInt() ?? 25;
-            final lat = geo.position?.latitude.toStringAsFixed(4) ?? '0.0';
-            final lon = geo.position?.longitude.toStringAsFixed(4) ?? '0.0';
 
             title = '✓ Inside $campusName';
             subtitle = '';
             break;
-          // 'GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m | Allowed: ${allowedRadius}m'
           case GeofenceStatus.outside:
             color = AppColors.error;
             icon = LucideIcons.shieldAlert;
 
-            final lat = geo.position?.latitude.toStringAsFixed(4) ?? '0.0';
-            final lon = geo.position?.longitude.toStringAsFixed(4) ?? '0.0';
-
             title = '✗ Outside Assigned Campuses';
             subtitle = '';
-            // GPS: [$lat, $lon] | Dist: ${geo.distanceMeters.toInt()}m away from nearest campus
             break;
           case GeofenceStatus.permissionDenied:
             color = AppColors.error;
@@ -849,10 +840,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 session.startTime!,
               )
             : Duration.zero;
-        final isDurationMet = elapsedDuration.inHours >= 1;
-
-        // Auto-refresh: if more than 4 hours has passed, trigger load to auto-punchout
-        if (elapsedDuration.inMinutes > 240) {
+        // Auto-refresh: if 4 hours (240 minutes) or more has passed, trigger load to auto-punchout
+        if (elapsedDuration.inMinutes >= 240) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && !isLoading) {
               ctx.read<TeacherAttendanceCubit>().loadTodaySession(
@@ -862,9 +851,6 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             }
           });
         }
-
-        final canPunchOut =
-            (noCampus || geo.status == GeofenceStatus.inside) && isDurationMet;
 
         final maxDuration = const Duration(hours: 4);
         final remaining = maxDuration - elapsedDuration;
@@ -933,69 +919,14 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               ),
               const SizedBox(height: 18),
 
-              if (!isDurationMet) ...[
-                // Countdown representation
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.warning.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        LucideIcons.lock,
-                        color: AppColors.warning,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'PUNCH-OUT LOCKED',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.warning,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Minimum session duration is 1 hour. Available in ${(const Duration(hours: 1) - elapsedDuration).inMinutes}m ${(const Duration(hours: 1) - elapsedDuration).inSeconds % 60}s.',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                // Punch out button
-                _buildBigPunchButton(
-                  label: canPunchOut ? 'PUNCH OUT' : 'OUTSIDE CAMPUS',
-                  icon: canPunchOut ? LucideIcons.square : LucideIcons.lock,
-                  color: canPunchOut
-                      ? AppColors.error
-                      : AppColors.textSecondary,
-                  isLoading: isLoading,
-                  disabledHint: canPunchOut
-                      ? null
-                      : 'You must be inside the campus radius to punch out.',
-                  onPressed: (canPunchOut && !isLoading)
-                      ? () => _confirmEndSession(ctx)
-                      : null,
-                ),
-              ],
+              // Punch out button
+              _buildBigPunchButton(
+                label: 'PUNCH OUT',
+                icon: LucideIcons.square,
+                color: AppColors.error,
+                isLoading: isLoading,
+                onPressed: !isLoading ? () => _confirmEndSession(ctx) : null,
+              ),
             ],
           ),
         );

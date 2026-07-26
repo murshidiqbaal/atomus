@@ -9,6 +9,7 @@ class TeacherHiveService {
   static const String _assignmentsBox       = 'teacher_assignments';
   static const String _activeSessionBox     = 'teacher_active_session';
   static const String _dailyReportsBox      = 'teacher_daily_reports';
+  static const String _cachedExamsBox       = 'teacher_cached_exams';
 
   // Singleton instance
   static final TeacherHiveService _instance = TeacherHiveService._internal();
@@ -29,6 +30,7 @@ class TeacherHiveService {
       _openBox(_assignmentsBox),
       _openBox(_activeSessionBox),
       _openBox(_dailyReportsBox),
+      _openBox(_cachedExamsBox),
     ]);
     _initialized = true;
   }

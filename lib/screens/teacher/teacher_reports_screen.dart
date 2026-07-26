@@ -7,6 +7,7 @@ import '../../blocs/daily_report/daily_report_cubit.dart';
 import '../../blocs/daily_report/daily_report_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../models/teacher_model.dart';
+import '../../providers/campus_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/custom_card.dart';
@@ -47,6 +48,14 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
   // Persistent comment controllers per student ID to avoid focus loss
   final Map<String, TextEditingController> _commentCtrls = {};
 
+  bool get _isMainCampusSelected {
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    if (teacher == null) return false;
+    final campus = teacher.campuses.where((c) => c.id == _selectedCampusId);
+    if (campus.isEmpty) return false;
+    return campus.first.name.toLowerCase().contains('main');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -54,8 +63,14 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
       final teacher = context.read<TeacherDashboardCubit>().state.teacher;
       if (teacher == null) return;
 
+      final campusProvider = context.read<CampusProvider>();
       setState(() {
-        _selectedCampusId = teacher.campusId;
+        if (teacher.campuses.length > 1) {
+          _selectedCampusId =
+              campusProvider.selectedCampus?.id ?? teacher.campusId;
+        } else {
+          _selectedCampusId = teacher.campusId;
+        }
       });
       context.read<DailyReportCubit>().loadClassReportsForTeacher(teacher.id);
     });
@@ -411,14 +426,31 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
     if (teacher == null) return const SizedBox.shrink();
 
-    final allCourses = teacher.courses;
-    final allSubjects = teacher.subjects;
+    final hasMultipleCampuses = teacher.campuses.length > 1;
+
+    // Scope courses & subjects based on selected campus (Main campus sees all)
+    final shouldFilterByCampus =
+        _selectedCampusId != null && !_isMainCampusSelected;
+    final campusFilteredCourses = shouldFilterByCampus
+        ? teacher.courses
+            .where(
+              (c) => c.campusId == null || c.campusId == _selectedCampusId,
+            )
+            .toList()
+        : teacher.courses;
+    final campusFilteredSubjects = shouldFilterByCampus
+        ? teacher.subjects
+            .where(
+              (s) => s.campusId == null || s.campusId == _selectedCampusId,
+            )
+            .toList()
+        : teacher.subjects;
 
     final courseMap = <String, String>{};
-    for (final c in allCourses) {
+    for (final c in campusFilteredCourses) {
       courseMap[c.courseId] = c.courseName;
     }
-    for (final s in allSubjects) {
+    for (final s in campusFilteredSubjects) {
       if (s.courseId != null && s.courseName != null) {
         courseMap.putIfAbsent(s.courseId!, () => s.courseName!);
       }
@@ -426,7 +458,9 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
     final courseEntries = courseMap.entries.toList();
 
     final filteredSubjects = _selectedCourseId != null
-        ? allSubjects.where((s) => s.courseId == _selectedCourseId).toList()
+        ? campusFilteredSubjects
+            .where((s) => s.courseId == _selectedCourseId)
+            .toList()
         : <TeacherSubjectAssignment>[];
 
     return Container(
@@ -439,6 +473,46 @@ class _TeacherReportsScreenState extends State<TeacherReportsScreen> {
       ),
       child: Column(
         children: [
+          // Campus filter — only shown when teacher has multiple assigned campuses
+          if (hasMultipleCampuses) ...[
+            _buildSelectorDropdown<String?>(
+              label: 'CAMPUS',
+              value: teacher.campuses.any((c) => c.id == _selectedCampusId)
+                  ? _selectedCampusId
+                  : null,
+              hint: 'Select Campus',
+              items: teacher.campuses
+                  .map(
+                    (c) => DropdownMenuItem<String?>(
+                      value: c.id,
+                      child: Text(
+                        c.displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) {
+                setState(() {
+                  _selectedCampusId = val;
+                  _selectedCourseId = null;
+                  _selectedCourseName = null;
+                  _selectedAssignmentId = null;
+                  _selectedSubjectId = null;
+                  _selectedSubjectName = null;
+                  _selectedBatchId = null;
+                  _selectedBatchName = null;
+                  _normalStudents = [];
+                  _needsImprovementStudents = [];
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
           Row(
             children: [
               Expanded(

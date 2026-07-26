@@ -562,7 +562,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen>
                       (c) => DropdownMenuItem<String>(
                         value: c.id,
                         child: Text(
-                          c.name,
+                          c.displayName,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 12,

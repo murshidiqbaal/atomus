@@ -17,35 +17,55 @@ class MarksEntryRepository {
     bool includeAllDates = false,
     bool includeUpcoming = false,
     DateTime? date,
+    String? campusId,
   }) async {
     final teacherUserId = _supabase.auth.currentUser?.id;
-    String? teacherCampusId;
-    bool isMainCampusTeacher = false;
-    if (teacherUserId != null) {
+    String? effectiveCampusId = campusId;
+    bool isMainCampusSelected = false;
+
+    if (effectiveCampusId != null && effectiveCampusId.isNotEmpty) {
+      try {
+        final campusRow = await _supabase
+            .from('campuses')
+            .select('name')
+            .eq('id', effectiveCampusId)
+            .maybeSingle();
+        if (campusRow != null) {
+          final name = (campusRow['name'] as String?)?.toLowerCase() ?? '';
+          if (name.contains('main')) {
+            isMainCampusSelected = true;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!isMainCampusSelected &&
+        teacherUserId != null &&
+        (effectiveCampusId == null || effectiveCampusId.isEmpty)) {
       final teacherRow = await _supabase
           .from('teachers')
           .select('campus_id')
           .eq('auth_id', teacherUserId)
           .maybeSingle();
-      teacherCampusId = teacherRow?['campus_id'] as String?;
-      if (teacherCampusId != null) {
+      effectiveCampusId = teacherRow?['campus_id'] as String?;
+      if (effectiveCampusId != null) {
         try {
           final campusRow = await _supabase
               .from('campuses')
               .select('name')
-              .eq('id', teacherCampusId)
+              .eq('id', effectiveCampusId)
               .maybeSingle();
           if (campusRow != null) {
             final name = (campusRow['name'] as String?)?.toLowerCase() ?? '';
             if (name.contains('main')) {
-              isMainCampusTeacher = true;
+              isMainCampusSelected = true;
             }
           }
         } catch (_) {}
       }
     }
 
-    if (!isMainCampusTeacher && subjectIds.isEmpty && courseIds.isEmpty) return [];
+    if (!isMainCampusSelected && subjectIds.isEmpty && courseIds.isEmpty) return [];
 
     try {
       String orQuery = '';
@@ -63,14 +83,9 @@ class MarksEntryRepository {
         conditions.add('batch_id.in.($batchStr)');
       }
 
-      if (!isMainCampusTeacher && conditions.isEmpty) return [];
+      if (!isMainCampusSelected && conditions.isEmpty) return [];
       orQuery = conditions.join(',');
 
-      // Daily-exams visibility rule: a daily exam template is ALWAYS
-      // visible; a regular exam is only visible on its exam_date.
-      // If includeUpcoming is true, we want to see regular exams in the future too.
-      // When the UI is in an unfiltered "All" view we lift this rule
-      // and return every assigned exam across all dates.
       final targetDate = date ?? DateTime.now();
       final dateIso = targetDate.toIso8601String().split('T').first;
       final String visibilityOr;
@@ -85,7 +100,7 @@ class MarksEntryRepository {
           .select(
               '*, subjects(name), courses(name), batches(name), marks(id, subject_id, mark_date)');
       
-      if (!isMainCampusTeacher && orQuery.isNotEmpty) {
+      if (!isMainCampusSelected && orQuery.isNotEmpty) {
         builder = builder.or(orQuery);
       }
       if (!includeAllDates) {
@@ -100,7 +115,6 @@ class MarksEntryRepository {
       if (includeUpcoming) {
         final todayDate = DateTime(targetDate.year, targetDate.month, targetDate.day);
         allExams.sort((a, b) {
-          // 1. Regular exams scheduled for today
           final isTodayA = a.examDate != null &&
               DateTime(a.examDate!.year, a.examDate!.month, a.examDate!.day)
                   .isAtSameMomentAs(todayDate);
@@ -111,7 +125,6 @@ class MarksEntryRepository {
           if (isTodayA && !isTodayB) return -1;
           if (!isTodayA && isTodayB) return 1;
 
-          // 2. Daily exams
           if (a.isDaily && !b.isDaily) return -1;
           if (!a.isDaily && b.isDaily) return 1;
 
@@ -119,7 +132,6 @@ class MarksEntryRepository {
             return a.name.compareTo(b.name);
           }
 
-          // 3. Future regular exams (sorted chronologically)
           final da = a.examDate ?? DateTime.fromMillisecondsSinceEpoch(0);
           final db = b.examDate ?? DateTime.fromMillisecondsSinceEpoch(0);
           return da.compareTo(db);
@@ -127,23 +139,22 @@ class MarksEntryRepository {
       }
 
       return allExams.where((e) {
-        // Access control: only exams created by admin, the logged-in teacher, or linked to the same/null campus are visible
         final isCreatedByMe = e.createdBy == teacherUserId || e.creatorId == teacherUserId;
         final isCreatedByAdmin = e.creatorRole?.toLowerCase() == 'admin' || e.creatorRole == null;
-        final isMatchingCampus = isMainCampusTeacher || e.campusId == null || (teacherCampusId != null && e.campusId == teacherCampusId);
+        final isMatchingCampus = isMainCampusSelected ||
+            e.campusId == null ||
+            (effectiveCampusId != null && e.campusId == effectiveCampusId);
 
         if (!isCreatedByMe && !isCreatedByAdmin && !isMatchingCampus) return false;
 
-        if (isMainCampusTeacher) return true;
+        if (isMainCampusSelected) return true;
 
         if (e.batchId == null) {
-          // Course exam: course must match, and subject must either be null (course-wide) or match subjectIds
           if (e.courseId == null || !courseIds.contains(e.courseId)) return false;
-          return e.subjectId == null || subjectIds.contains(e.subjectId);
+          return e.subjectId == null || subjectIds.isEmpty || subjectIds.contains(e.subjectId);
         } else {
-          // Batch exam: batch must match, and subject must either be null or match subjectIds
-          if (!batchIds.contains(e.batchId)) return false;
-          return e.subjectId == null || subjectIds.contains(e.subjectId);
+          if (batchIds.isNotEmpty && !batchIds.contains(e.batchId)) return false;
+          return e.subjectId == null || subjectIds.isEmpty || subjectIds.contains(e.subjectId);
         }
       }).toList();
     } catch (_) {
@@ -163,13 +174,33 @@ class MarksEntryRepository {
     final effectiveMarkDate = markDate ?? DateTime.now();
     final markDateIso =
         effectiveMarkDate.toIso8601String().split('T').first;
-    // Fetch students
-    List<Map<String, dynamic>> students;
+
+    List<Map<String, dynamic>> students = [];
+    
+    // Check if selected campus is Main Campus
+    bool isMainCampus = false;
+    if (campusId != null && campusId.isNotEmpty) {
+      try {
+        final res = await _supabase
+            .from('campuses')
+            .select('name')
+            .eq('id', campusId)
+            .maybeSingle();
+        if (res != null) {
+          final name = (res['name'] as String?)?.toLowerCase() ?? '';
+          if (name.contains('main')) {
+            isMainCampus = true;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Step 1: Query students with primary campus & batch/course parameters
     try {
       var query = _supabase
           .from('students')
           .select(
-            'id, full_name, roll_number, admission_number, image_url, campus_id',
+            'id, full_name, roll_number, admission_number, image_url, campus_id, course_id, batch_id',
           );
 
       if (courseId != null && courseId.isNotEmpty) {
@@ -177,46 +208,48 @@ class MarksEntryRepository {
       }
 
       if (batchId != null && batchId.isNotEmpty) {
-        query = query.or(
-          'batch_id.eq.$batchId,batch_ids.cs.{$batchId},batch_id.is.null',
-        );
+        query = query.eq('batch_id', batchId);
       }
 
-      // Filter by campus (skip for main campus — they see all students)
-      if (campusId != null && campusId.isNotEmpty) {
-        bool isMainCampus = false;
-        try {
-          final res = await _supabase
-              .from('campuses')
-              .select('name')
-              .eq('id', campusId)
-              .maybeSingle();
-          if (res != null) {
-            final name = (res['name'] as String?)?.toLowerCase() ?? '';
-            if (name.contains('main')) {
-              isMainCampus = true;
-            }
-          }
-        } catch (_) {}
-        if (!isMainCampus) {
-          query = query.or('campus_id.eq.$campusId,campus_id.is.null');
-        }
+      if (campusId != null && campusId.isNotEmpty && !isMainCampus) {
+        query = query.or('campus_id.eq.$campusId,campus_id.is.null');
       }
 
       final rows = await query.order('roll_number', ascending: true);
       students = (rows as List)
           .map((r) => Map<String, dynamic>.from(r))
           .toList();
-    } catch (_) {
+    } catch (_) {}
+
+    // Step 2: Fallback query if strict campus filter returned 0 students
+    if (students.isEmpty && (courseId != null || batchId != null)) {
+      try {
+        var fallbackQuery = _supabase
+            .from('students')
+            .select(
+              'id, full_name, roll_number, admission_number, image_url, campus_id, course_id, batch_id',
+            );
+        if (courseId != null && courseId.isNotEmpty) {
+          fallbackQuery = fallbackQuery.eq('course_id', courseId);
+        }
+        if (batchId != null && batchId.isNotEmpty) {
+          fallbackQuery = fallbackQuery.eq('batch_id', batchId);
+        }
+        final rows = await fallbackQuery.order('roll_number', ascending: true);
+        students = (rows as List)
+            .map((r) => Map<String, dynamic>.from(r))
+            .toList();
+      } catch (_) {}
+    }
+
+    // Step 3: Offline Hive cache fallback
+    if (students.isEmpty) {
       students = _hive.getCachedStudents(batchId ?? courseId ?? '') ?? [];
     }
 
     if (students.isEmpty) return [];
 
-    // Fetch existing marks scoped to the requested mark_date. This is
-    // the key change for the daily-exams system: a single exam row
-    // can have one marks row per (student, mark_date), so we must
-    // pick the row matching the day we are entering marks for.
+    // Fetch existing marks scoped to the requested mark_date.
     Map<String, Map<String, dynamic>> existingMap = {};
     try {
       var query = _supabase

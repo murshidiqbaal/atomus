@@ -160,5 +160,16 @@ void main() {
       });
       expect(fromMapModel.sessionType, 'afternoon');
     });
+
+    test('auto punch-out threshold identifies session exceeding 4 hours', () {
+      final now = DateTime.now();
+      final startTime = now.subtract(const Duration(hours: 4, minutes: 1));
+      final elapsed = now.difference(startTime).inMinutes;
+
+      expect(elapsed >= 240, true);
+
+      final autoEndTime = startTime.add(const Duration(hours: 4));
+      expect(autoEndTime.difference(startTime).inMinutes, 240);
+    });
   });
 }

@@ -670,10 +670,20 @@ class _ParentDailyActivityScreenState extends State<ParentDailyActivityScreen>
                   initialValue: _selectedCampusId,
                   hint: const Text('Campus', style: TextStyle(fontSize: 12)),
                   items: _campuses.map((c) {
+                    final rawName = c['name'] as String;
+                    String formattedName = rawName;
+                    final lower = rawName.toLowerCase();
+                    if (lower.contains('aroor') || lower.contains('campus 1') || lower.contains('arr')) {
+                      formattedName = 'ARR - Campus 1 Aroor';
+                    } else if (lower.contains('piravom') || lower.contains('campus 2') || lower.contains('prv')) {
+                      formattedName = 'PRV - Campus 2 Piravom';
+                    } else if (lower.contains('main')) {
+                      formattedName = 'MAIN - Main Campus';
+                    }
                     return DropdownMenuItem<String>(
                       value: c['id'] as String,
                       child: Text(
-                        c['name'] as String,
+                        formattedName,
                         style: const TextStyle(fontSize: 12),
                       ),
                     );

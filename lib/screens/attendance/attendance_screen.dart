@@ -134,10 +134,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               for (var r in dayRecords) {
                 if (r.status == 'Present') {
                   present++;
-                } else if (r.status == 'Absent')
+                } else if (r.status == 'Absent') {
                   absent++;
-                else if (r.status == 'Late')
+                } else if (r.status == 'Late') {
                   late++;
+                }
               }
 
               if (present == 0 && absent == 0 && late == 0) return;

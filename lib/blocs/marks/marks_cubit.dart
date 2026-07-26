@@ -21,6 +21,7 @@ class MarksCubit extends Cubit<MarksState> {
     required List<String> courseIds,
     bool includeAllDates = false,
     DateTime? date,
+    String? campusId,
   }) async {
     emit(state.copyWith(status: MarksLoadStatus.loading, saved: false));
     try {
@@ -30,6 +31,7 @@ class MarksCubit extends Cubit<MarksState> {
         courseIds: courseIds,
         includeAllDates: includeAllDates,
         date: date,
+        campusId: campusId,
       );
       emit(state.copyWith(status: MarksLoadStatus.success, exams: exams));
     } catch (e) {

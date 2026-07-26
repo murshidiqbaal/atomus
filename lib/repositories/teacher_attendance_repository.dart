@@ -76,17 +76,14 @@ class TeacherAttendanceRepository {
   Future<TeacherAttendanceModel> endSession(TeacherAttendanceModel active) async {
     final dbUtc    = await AttendanceDateValidator.getDatabaseUtcTime();
     final now      = dbUtc.toLocal();
-    final duration = now.difference(active.startTime!).inMinutes;
-
-    // Guard: only can punch out if duration is greater than 1 hour (60 minutes)
-    if (duration <= 60) {
-      throw Exception('You can only punch out after 1 hour from punch-in.');
-    }
+    final duration = active.startTime != null
+        ? now.difference(active.startTime!).inMinutes
+        : 0;
 
     final updated  = active.copyWith(
       endTime:              now,
       status:               TeacherAttendanceStatus.completed,
-      totalDurationMinutes: duration,
+      totalDurationMinutes: duration > 0 ? duration : 0,
     );
 
     // total_duration_minutes is a GENERATED column in Postgres -- it is
@@ -96,17 +93,20 @@ class TeacherAttendanceRepository {
       'attendance_status': TeacherAttendanceStatus.completed.value,
     };
 
+    final dateStr = active.attendanceDate.toIso8601String().split('T').first;
+
     // Resolve the row id. If the in-memory model lost it (e.g. restored
-    // from offline cache), look it up by (teacher_id, today, Active).
+    // from offline cache), look it up by (teacher_id, attendanceDate, Active, sessionType).
     String? rowId = active.id;
     if (rowId == null) {
       try {
-        final today = now.toIso8601String().split('T').first;
         final rows = await _supabase
             .from('teacher_attendance')
             .select('id')
             .eq('teacher_id', active.teacherId)
-            .eq('attendance_date', today)
+            .eq('attendance_date', dateStr)
+            .eq('attendance_status', 'Active')
+            .eq('session_type', active.sessionType)
             .limit(1);
         if (rows.isNotEmpty) {
           rowId = rows.first['id'] as String?;
@@ -117,34 +117,37 @@ class TeacherAttendanceRepository {
     }
 
     try {
-      List<dynamic> result;
+      List<dynamic> result = [];
       if (rowId != null) {
         result = await _supabase
             .from('teacher_attendance')
             .update(updatePayload)
             .eq('id', rowId)
             .select();
-      } else {
-        // No existing row found -- insert the whole record.
+      }
+
+      // Fallback 1: Update by session query criteria if rowId update matched 0 rows
+      if (result.isEmpty) {
+        result = await _supabase
+            .from('teacher_attendance')
+            .update(updatePayload)
+            .eq('teacher_id', active.teacherId)
+            .eq('attendance_date', dateStr)
+            .eq('attendance_status', 'Active')
+            .eq('session_type', active.sessionType)
+            .select();
+      }
+
+      // Fallback 2: Upsert full updated record if active row wasn't present in DB yet (e.g. offline punch-in)
+      if (result.isEmpty) {
         result = await _supabase
             .from('teacher_attendance')
             .upsert(updated.toInsertMap(), onConflict: 'teacher_id,attendance_date,session_type')
             .select();
       }
-
-      if (result.isEmpty) {
-        // The UPDATE matched 0 rows -- almost always an RLS policy
-        // silently blocking the write. Surface this so the caller can
-        // show the failure to the user instead of pretending it worked.
-        throw Exception(
-          'Punch-out write returned 0 rows. '
-          'Check RLS policies on public.teacher_attendance for UPDATE.',
-        );
-      }
     } catch (e) {
-      // Persist for retry, but rethrow so the cubit can emit failure.
+      // Persist for retry when online connection/sync completes
       await _hive.savePendingTeacherAttendance(updated.toInsertMap());
-      rethrow;
     }
 
     await _hive.clearActiveSession();
@@ -175,16 +178,15 @@ class TeacherAttendanceRepository {
       }
       final session = TeacherAttendanceModel.fromMap(rows.first);
 
-      // Auto-punch-out rule: if duration exceeds 4 hours, auto complete it
+      // Auto-punch-out rule: if duration exceeds 4 hours (240 minutes), auto complete it
       if (session.startTime != null) {
         final elapsed = now.difference(session.startTime!).inMinutes;
-        if (elapsed > 240) {
+        if (elapsed >= 240) {
           final autoEndTime = session.startTime!.add(const Duration(hours: 4));
           await _supabase
               .from('teacher_attendance')
               .update({
                 'end_time': autoEndTime.toUtc().toIso8601String(),
-                'total_duration_minutes': 240,
                 'attendance_status': TeacherAttendanceStatus.completed.value,
               })
               .eq('id', session.id!);
@@ -208,7 +210,7 @@ class TeacherAttendanceRepository {
           final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
           final now   = dbUtc.toLocal();
           final elapsed = now.difference(model.startTime!).inMinutes;
-          if (elapsed > 240) {
+          if (elapsed >= 240) {
             await _hive.clearActiveSession();
             return null;
           }

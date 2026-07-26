@@ -5,10 +5,12 @@ import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../blocs/geofence/geofence_cubit.dart';
 import '../../blocs/geofence/geofence_state.dart';
+import '../../blocs/marks/marks_cubit.dart';
 import '../../blocs/teacher_attendance/teacher_attendance_cubit.dart';
 import '../../blocs/teacher_attendance/teacher_attendance_state.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_cubit.dart';
 import '../../blocs/teacher_dashboard/teacher_dashboard_state.dart';
+import '../../models/exam_marks_model.dart';
 import '../../models/teacher_model.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_background.dart';
@@ -17,8 +19,6 @@ import '../../widgets/shimmer.dart';
 import 'marks_entry_screen.dart';
 import 'student_attendance_screen.dart';
 import 'teacher_attendance_screen.dart';
-import '../../blocs/marks/marks_cubit.dart';
-import '../../models/exam_marks_model.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -127,9 +127,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       ...state.upcomingExams.map(
                         (e) => _buildExamTile(context, e),
                       ),
+                      const SizedBox(height: 20),
                     ],
+                    _buildRecentActivitySection(context, state),
                     const SizedBox(height: 20),
-                    // _buildAttendanceSummaryCard(context, state),
                   ],
                 ),
               );
@@ -985,21 +986,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       ).showSnackBar(const SnackBar(content: Text('No subjects assigned.')));
       return;
     }
-    if (subjects.length == 1) {
-      final s = subjects.first;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => StudentAttendanceScreen(
-            subjectId: s.subjectId,
-            subjectName: s.subjectName,
-            batchId: s.batchId ?? '',
-            batchName: s.batchName,
-            courseId: s.courseId,
-          ),
-        ),
-      );
-      return;
-    }
     _showSubjectPicker(context, subjects, (s) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -1033,39 +1019,318 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     List<dynamic> subjects,
     void Function(dynamic) onSelect,
   ) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Select Subject',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 12),
-          ...subjects.map(
-            (s) => ListTile(
-              leading: const Icon(
-                LucideIcons.bookOpen,
-                color: AppColors.primary,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: isDarkMode ? AppColors.neuBaseDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 12,
+          bottom: MediaQuery.of(context).padding.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              title: Text(
-                s.subjectName,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: s.batchName != null ? Text(s.batchName!) : null,
-              onTap: () {
-                Navigator.pop(ctx);
-                onSelect(s);
-              },
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            const Text(
+              'Select Subject & Course',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Choose an assigned subject to view students and attendance',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: subjects.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (ctx, i) {
+                  final s = subjects[i];
+                  final course = s.courseName ?? 'Course-wide';
+                  final batch = s.batchName;
+
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onSelect(s);
+                    },
+                    child: NeuBox(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      borderRadius: 16,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              LucideIcons.bookOpen,
+                              color: AppColors.primary,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  s.subjectName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(
+                                          alpha: 0.08,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'Course: $course',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                    if (batch != null) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.accent.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Batch: $batch',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.accent,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            LucideIcons.chevronRight,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildRecentActivitySection(
+    BuildContext context,
+    TeacherDashboardState state,
+  ) {
+    final activities = <Map<String, dynamic>>[];
+
+    // Active check-in session
+    if (state.activeSession != null) {
+      activities.add({
+        'icon': LucideIcons.mapPin,
+        'color': AppColors.success,
+        'title': 'Checked In',
+        'subtitle': state.activeSession!.subjectName != null
+            ? 'Active session for ${state.activeSession!.subjectName}'
+            : 'Active ${state.activeSession!.sessionType} session in progress',
+        'time': state.activeSession!.startTime != null
+            ? DateFormat('h:mm a').format(state.activeSession!.startTime!)
+            : 'Today',
+      });
+    }
+
+    // Recent exams / marks entries
+    for (final exam in state.upcomingExams.take(4)) {
+      if (exam.isMarksEntered) {
+        activities.add({
+          'icon': LucideIcons.checkCircle2,
+          'color': AppColors.primary,
+          'title': 'Marks Entered',
+          'subtitle':
+              '${exam.name} (${exam.subjectName}${exam.courseName != null ? " · ${exam.courseName}" : ""})',
+          'time': exam.createdAt != null
+              ? _timeAgo(exam.createdAt!)
+              : 'Recently',
+        });
+      } else {
+        activities.add({
+          'icon': exam.isDaily ? LucideIcons.sparkles : LucideIcons.fileText,
+          'color': AppColors.accent,
+          'title': exam.isDaily ? 'Daily Assessment Active' : 'Exam Scheduled',
+          'subtitle':
+              '${exam.name} (${exam.subjectName}${exam.courseName != null ? " · ${exam.courseName}" : ""})',
+          'time': exam.createdAt != null
+              ? _timeAgo(exam.createdAt!)
+              : 'Upcoming',
+        });
+      }
+    }
+
+    // Monthly attendance summary activity
+    if (state.stats.monthlyAttendanceCount > 0) {
+      activities.add({
+        'icon': LucideIcons.calendarCheck,
+        'color': AppColors.info,
+        'title': 'Monthly Attendance Summary',
+        'subtitle':
+            '${state.stats.monthlyAttendanceCount} check-in session(s) completed this month',
+        'time': 'This Month',
+      });
+    }
+
+    if (activities.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Recent Activity'),
+        const SizedBox(height: 10),
+        NeuBox(
+          padding: const EdgeInsets.all(16),
+          borderRadius: 24,
+          child: Column(
+            children: activities.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final act = entry.value;
+              final isLast = idx == activities.length - 1;
+
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: (act['color'] as Color).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          act['icon'] as IconData,
+                          color: act['color'] as Color,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              act['title'] as String,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              act['subtitle'] as String,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        act['time'] as String,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!isLast) const Divider(height: 20),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 

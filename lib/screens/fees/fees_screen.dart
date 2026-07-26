@@ -3,7 +3,6 @@ import 'package:atomus/blocs/student/student_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 
@@ -14,9 +13,7 @@ import '../../blocs/student/student_bloc.dart';
 import '../../models/dummy_data.dart';
 import '../../repositories/fee_repository.dart';
 import '../../theme/app_colors.dart';
-import '../../utils/drive_image_helper.dart';
 import '../../utils/receipt_pdf_generator.dart';
-import '../../widgets/drive_network_image.dart';
 import '../../widgets/glass_background.dart';
 import '../../widgets/neu_box.dart';
 import '../../widgets/shimmer.dart';
@@ -439,8 +436,7 @@ class FeesScreen extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               GestureDetector(
-                onTap: () =>
-                    _showFullscreenQr(context, campus, isDark),
+                onTap: () => _showFullscreenQr(context, campus, isDark),
                 child: NeuBox(
                   borderRadius: 16,
                   padding: const EdgeInsets.all(8),
@@ -451,12 +447,11 @@ class FeesScreen extends StatelessWidget {
                     child: Image.asset(
                       'assets/qrcode/qr.webp',
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(
-                            Icons.broken_image_rounded,
-                            color: Colors.grey,
-                            size: 40,
-                          ),
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.broken_image_rounded,
+                        color: Colors.grey,
+                        size: 40,
+                      ),
                     ),
                   ),
                 ),
@@ -468,11 +463,7 @@ class FeesScreen extends StatelessWidget {
     );
   }
 
-  void _showFullscreenQr(
-    BuildContext context,
-    String campus,
-    bool isDark,
-  ) {
+  void _showFullscreenQr(BuildContext context, String campus, bool isDark) {
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -2026,14 +2017,13 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                   child: Image.asset(
                     'assets/qrcode/qr.webp',
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Center(
-                          child: Icon(
-                            Icons.broken_image_rounded,
-                            color: Colors.grey,
-                            size: 48,
-                          ),
-                        ),
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Icon(
+                        Icons.broken_image_rounded,
+                        color: Colors.grey,
+                        size: 48,
+                      ),
+                    ),
                   ),
                 ),
               ),

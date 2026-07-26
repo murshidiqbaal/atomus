@@ -227,7 +227,7 @@ class _TeacherMainLayoutState extends State<TeacherMainLayout>
                     items: assignedCampuses.map((Campus campus) {
                       return DropdownMenuItem<Campus>(
                         value: campus,
-                        child: Text(campus.name),
+                        child: Text(campus.displayName),
                       );
                     }).toList(),
                     onChanged: (Campus? newValue) {

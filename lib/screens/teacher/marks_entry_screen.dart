@@ -104,6 +104,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
         courseIds: courseIds,
         includeAllDates: showAllDates,
         date: _examListDate,
+        campusId: _selectedCampusId,
       );
     }
   }
@@ -213,9 +214,45 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     );
   }
 
+  bool _isExamExpired(TeacherExam exam) {
+    if (exam.isDaily) return false;
+    if (exam.examDate == null) return false;
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final examDateOnly = DateTime(
+      exam.examDate!.year,
+      exam.examDate!.month,
+      exam.examDate!.day,
+    );
+    return examDateOnly.isBefore(todayDate);
+  }
+
   // ── Exam List ─────────────────────────────────────────────────
   Widget _buildExamList(BuildContext context, MarksState state) {
+    final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    final shouldFilterByCampus =
+        _selectedCampusId != null && !_isMainCampusSelected;
+
     final filtered = state.exams.where((exam) {
+      if (shouldFilterByCampus) {
+        if (exam.campusId != null && exam.campusId != _selectedCampusId) {
+          return false;
+        }
+        final isCourseInCampus = teacher?.courses.any(
+          (c) =>
+              c.courseId == exam.courseId &&
+              (c.campusId == null || c.campusId == _selectedCampusId),
+        ) ?? true;
+        final isSubjectInCampus = teacher?.subjects.any(
+          (s) =>
+              s.subjectId == exam.subjectId &&
+              (s.campusId == null || s.campusId == _selectedCampusId),
+        ) ?? true;
+        if (exam.campusId == null && !isCourseInCampus && !isSubjectInCampus) {
+          return false;
+        }
+      }
+
       if (_selectedFilterCourseId != null && _selectedFilterCourseId != 'All') {
         if (exam.courseId != _selectedFilterCourseId) return false;
       }
@@ -228,10 +265,6 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       }
       if (_selectedFilterExamType == 'Daily') {
         if (!exam.isDaily) return false;
-        // Daily exams are templates -- they are visible every day
-        // regardless of exam_date. Range chips no longer hide them;
-        // the actual day to view/edit is controlled by the daily
-        // mark-date bar inside the marks-entry view.
       } else if (_selectedFilterExamType == 'Regular') {
         if (exam.isDaily) return false;
       }
@@ -245,8 +278,6 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       } else if (_selectedFilterScope == 'Course-wide') {
         if (exam.subjectId != null) return false;
       }
-      // In-list exam-date filter. Daily exams are exempt -- they
-      // are visible every day regardless of exam_date.
       if (_examListDate != null && !exam.isDaily) {
         final d = exam.examDate;
         if (d == null) return false;
@@ -256,7 +287,6 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           return false;
         }
       }
-      // If the selected list filter date is before the exam's creation date, do not show it.
       if (_examListDate != null && exam.createdAt != null) {
         final filterDateOnly = DateTime(
           _examListDate!.year,
@@ -274,6 +304,18 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       }
       return true;
     }).toList();
+
+    // Sort order: Active (non-expired) exams FIRST; Expired exams sorted to the VERY BOTTOM
+    filtered.sort((a, b) {
+      final aExpired = _isExamExpired(a);
+      final bExpired = _isExamExpired(b);
+      if (aExpired != bExpired) {
+        return aExpired ? 1 : -1; // Expired exams placed at the bottom
+      }
+      final aDate = a.examDate ?? a.createdAt ?? DateTime(1970);
+      final bDate = b.examDate ?? b.createdAt ?? DateTime(1970);
+      return bDate.compareTo(aDate);
+    });
 
     final listWidget = filtered.isEmpty
         ? ListView(
@@ -450,6 +492,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
 
   Widget _buildExamCard(BuildContext context, TeacherExam exam) {
     final teacher = context.read<TeacherDashboardCubit>().state.teacher;
+    final isExpired = _isExamExpired(exam);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final subjectIds = teacher?.subjects.map((s) => s.subjectId).toList() ?? [];
     final batchIds =
         teacher?.subjects
@@ -461,7 +505,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     final courseIds =
         teacher?.courses.map((c) => c.courseId).toSet().toList() ?? [];
 
-    return NeuBox(
+    final cardWidget = NeuBox(
       padding: const EdgeInsets.all(14),
       borderRadius: 20,
       onTap: () {
@@ -478,12 +522,14 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
+              color: isExpired
+                  ? AppColors.textSecondary.withOpacity(0.12)
+                  : AppColors.primary.withOpacity(0.08),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               LucideIcons.clipboardCheck,
-              color: AppColors.primary,
+              color: isExpired ? AppColors.textSecondary : AppColors.primary,
               size: 20,
             ),
           ),
@@ -494,17 +540,20 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
               children: [
                 Text(
                   exam.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 15,
+                    color: isExpired ? AppColors.textSecondary : null,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${exam.subjectName}${exam.batchName != null ? ' · ${exam.batchName}' : ''}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.textSecondary,
+                    color: isExpired
+                        ? AppColors.textSecondary.withOpacity(0.7)
+                        : AppColors.textSecondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -548,20 +597,41 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         LucideIcons.calendar,
                         size: 10,
-                        color: AppColors.accent,
+                        color: isExpired ? AppColors.textSecondary : AppColors.accent,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         DateFormat('d MMM yyyy').format(exam.examDate!),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
-                          color: AppColors.accent,
+                          color: isExpired ? AppColors.textSecondary : AppColors.accent,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (isExpired) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? Colors.white.withOpacity(0.08)
+                                : Colors.black.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'EXPIRED',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -580,19 +650,23 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: exam.isMarksEntered
-                          ? AppColors.success.withOpacity(0.12)
-                          : AppColors.warning.withOpacity(0.12),
+                      color: isExpired
+                          ? AppColors.textSecondary.withOpacity(0.12)
+                          : (exam.isMarksEntered
+                              ? AppColors.success.withOpacity(0.12)
+                              : AppColors.warning.withOpacity(0.12)),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      exam.isMarksEntered ? 'Done' : 'Pending',
+                      exam.isMarksEntered ? 'Done' : (isExpired ? 'Expired' : 'Pending'),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: exam.isMarksEntered
-                            ? AppColors.success
-                            : AppColors.warning,
+                        color: isExpired
+                            ? AppColors.textSecondary
+                            : (exam.isMarksEntered
+                                ? AppColors.success
+                                : AppColors.warning),
                       ),
                     ),
                   ),
@@ -640,6 +714,11 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           ),
         ],
       ),
+    );
+
+    return Opacity(
+      opacity: isExpired ? 0.65 : 1.0,
+      child: cardWidget,
     );
   }
 
@@ -1308,7 +1387,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                 ...teacher.campuses.map(
                   (c) => DropdownMenuItem(
                     value: c.id,
-                    child: Text(c.name),
+                    child: Text(c.displayName),
                   ),
                 ),
               ],
