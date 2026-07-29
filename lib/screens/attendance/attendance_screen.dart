@@ -624,6 +624,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         )
         .toList();
 
+    // Sort by session type (forenoon, afternoon, evening) or period number
+    final sessionOrder = {'forenoon': 1, 'afternoon': 2, 'evening': 3};
+    dailyRecords.sort((a, b) {
+      final orderA = sessionOrder[a.sessionType?.toLowerCase()] ?? (a.periodNumber ?? 99);
+      final orderB = sessionOrder[b.sessionType?.toLowerCase()] ?? (b.periodNumber ?? 99);
+      return orderA.compareTo(orderB);
+    });
+
     return CustomCard(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       child: Column(
@@ -662,6 +670,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     context,
                     dailyRecords[i],
                     subjects,
+                    index: i,
+                    totalCount: dailyRecords.length,
                   ),
                 ],
               ],
@@ -674,8 +684,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget _buildSingleAttendanceDetail(
     BuildContext context,
     AttendanceRecord record,
-    List<Subject> subjects,
-  ) {
+    List<Subject> subjects, {
+    int index = 0,
+    int totalCount = 1,
+  }) {
     Color bgColor;
     if (record.status == 'Present') {
       bgColor = AppColors.success;
@@ -701,6 +713,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
     if (teacherName == 'N/A') {
       teacherName = 'Teacher';
+    }
+
+    String? sessionStr = record.sessionType;
+    if (sessionStr == null && totalCount == 2) {
+      sessionStr = index == 0 ? 'Forenoon' : 'Afternoon';
     }
 
     final periodStr = record.periodNumber != null ? 'Period ${record.periodNumber}' : null;
@@ -763,12 +780,35 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       : AppColors.textSecondary,
                 ),
               ),
+              if (sessionStr != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    sessionStr.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
               if (periodStr != null) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.15),
+                    color: AppColors.accent.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -776,7 +816,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                      color: AppColors.accent,
                     ),
                   ),
                 ),

@@ -73,9 +73,10 @@ class StudentPerformanceService {
       for (final r in attendanceRecords) {
         final record = Map<String, dynamic>.from(r as Map);
         final dateVal = record['attendance_date'] ?? '';
+        final sessionVal = record['session_type'] ?? 'null';
         final periodVal = record['period_number'] ?? 'null';
         final subjectVal = record['subject_id'] ?? 'null';
-        final key = '${dateVal}_${periodVal}_$subjectVal';
+        final key = '${dateVal}_${sessionVal}_${periodVal}_$subjectVal';
 
         if (!uniqueAttendanceMap.containsKey(key)) {
           uniqueAttendanceMap[key] = record;
@@ -141,7 +142,11 @@ class StudentPerformanceService {
       final Set<String> examIds = {};
 
       for (final m in marksData) {
-        final obtained = (m['marks_obtained'] as num?)?.toDouble() ?? 0.0;
+        final remarks = m['remarks'] as String?;
+        if (remarks == 'Absent') continue;
+        final rawObtained = m['marks_obtained'];
+        if (rawObtained == null) continue;
+        final obtained = (rawObtained as num).toDouble();
         final possible = (m['total_marks'] as num?)?.toDouble() ?? 0.0;
         totalMarksObtained += obtained;
         totalPossibleMarks += possible;

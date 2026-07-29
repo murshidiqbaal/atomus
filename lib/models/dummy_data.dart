@@ -259,6 +259,7 @@ class AttendanceRecord {
   final String? markerName;
   final String? markerRole;
   final String? subjectName;
+  final String? sessionType; // 'forenoon', 'afternoon', 'evening'
 
   AttendanceRecord({
     required this.id,
@@ -272,6 +273,7 @@ class AttendanceRecord {
     this.markerName,
     this.markerRole,
     this.subjectName,
+    this.sessionType,
   });
 
   bool get isPresent => status == 'Present' || status == 'Late';
@@ -294,6 +296,7 @@ class AttendanceRecord {
       markerName: map['attendance_marker_name'],
       markerRole: map['attendance_marker_role'],
       subjectName: subject?['name'] ?? map['subject_name'],
+      sessionType: map['session_type'] as String?,
     );
   }
 }

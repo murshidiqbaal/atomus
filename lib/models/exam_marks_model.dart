@@ -155,8 +155,8 @@ class StudentMarksEntry {
       'student_id': studentId,
       'exam_id': examId,
       'subject_id': subjectId,
-      'teacher_id': ?teacherId,
-      'marks_obtained': isAbsent ? 0 : (marksObtained ?? 0),
+      'teacher_id': teacherId,
+      'marks_obtained': isAbsent ? 0 : marksObtained,
       'total_marks': totalMarks,
       'remarks': isAbsent ? 'Absent' : remarks,
       'mark_date': markDate.toIso8601String().split('T').first,
@@ -168,8 +168,10 @@ class StudentMarksEntry {
       ? (marksObtained! / totalMarks) * 100
       : null;
 
+  static const _unsetMarks = Object();
+
   StudentMarksEntry copyWith({
-    double? marksObtained,
+    Object? marksObtained = _unsetMarks,
     bool? isAbsent,
     String? remarks,
     DateTime? markDate,
@@ -183,7 +185,9 @@ class StudentMarksEntry {
       profilePhotoDriveId: profilePhotoDriveId,
       examId: examId,
       subjectId: subjectId,
-      marksObtained: marksObtained ?? this.marksObtained,
+      marksObtained: identical(marksObtained, _unsetMarks)
+          ? this.marksObtained
+          : marksObtained as double?,
       totalMarks: totalMarks,
       isAbsent: isAbsent ?? this.isAbsent,
       remarks: remarks ?? this.remarks,

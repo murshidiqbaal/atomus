@@ -224,9 +224,10 @@ class StudentRepository {
     for (final record in records) {
       final dateKey =
           '${record.date.year}-${record.date.month.toString().padLeft(2, '0')}-${record.date.day.toString().padLeft(2, '0')}';
+      final sessionKey = record.sessionType ?? 'null';
       final periodKey = record.periodNumber?.toString() ?? 'null';
       final subjectKey = record.subjectId ?? 'null';
-      final key = '${dateKey}_${periodKey}_$subjectKey';
+      final key = '${dateKey}_${sessionKey}_${periodKey}_$subjectKey';
 
       if (!uniqueRecords.containsKey(key)) {
         uniqueRecords[key] = record;

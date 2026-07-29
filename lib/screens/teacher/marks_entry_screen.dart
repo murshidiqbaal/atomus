@@ -1173,9 +1173,16 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         borderRadius: 10,
                         child: TextFormField(
+                          key: ValueKey(
+                            '${entry.studentId}_${entry.isAbsent}_${entry.marksObtained}_${entry.markDate}',
+                          ),
                           initialValue: entry.isAbsent
                               ? ''
-                              : (entry.marksObtained?.toString() ?? ''),
+                              : (entry.marksObtained != null
+                                  ? (entry.marksObtained! % 1 == 0
+                                      ? entry.marksObtained!.toInt().toString()
+                                      : entry.marksObtained!.toString())
+                                  : ''),
                           enabled: !entry.isAbsent && !cantAssign,
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
@@ -1202,7 +1209,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                             ),
                           ),
                           onChanged: (v) {
-                            if (v.isEmpty) {
+                            final input = v.trim();
+                            if (input.isEmpty) {
                               setState(
                                 () => _validationErrors[entry.studentId] = null,
                               );
@@ -1212,7 +1220,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                               );
                               return;
                             }
-                            final marks = double.tryParse(v);
+                            final marks = double.tryParse(input);
                             if (marks == null) {
                               setState(
                                 () => _validationErrors[entry.studentId] =
