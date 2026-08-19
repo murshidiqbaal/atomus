@@ -123,7 +123,7 @@ class MarksCubit extends Cubit<MarksState> {
   void updateMarks(String studentId, double? marks) {
     final updated = state.entries.map((e) {
       if (e.studentId != studentId) return e;
-      return e.copyWith(marksObtained: marks, isAbsent: false);
+      return e.copyWith(marksObtained: marks ?? 0.0, isAbsent: false);
     }).toList();
     emit(state.copyWith(entries: updated, saved: false));
   }
@@ -131,7 +131,7 @@ class MarksCubit extends Cubit<MarksState> {
   void toggleAbsent(String studentId) {
     final updated = state.entries.map((e) {
       if (e.studentId != studentId) return e;
-      return e.copyWith(isAbsent: !e.isAbsent, marksObtained: null);
+      return e.copyWith(isAbsent: !e.isAbsent, marksObtained: 0.0);
     }).toList();
     emit(state.copyWith(entries: updated, saved: false));
   }

@@ -74,8 +74,8 @@ class NeuBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -94,17 +94,17 @@ class NeuBox extends StatelessWidget {
                 borderRadius: BorderRadius.circular(borderRadius),
                 border: Border.all(
                   color: color != null
-                      ? color!.withOpacity(0.3)
+                      ? color!.withValues(alpha: 0.35)
                       : AppColors.glassBorder,
-                  width: 1.5,
+                  width: 1.2,
                 ),
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
                     color != null
-                        ? color!.withOpacity(0.2)
-                        : AppColors.glassHighlight.withOpacity(0.1),
+                        ? color!.withValues(alpha: 0.25)
+                        : AppColors.glassHighlight.withValues(alpha: 0.15),
                     Colors.transparent,
                   ],
                 ),

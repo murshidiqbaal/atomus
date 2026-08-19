@@ -14,8 +14,8 @@ class AppTheme {
 
   static ThemeData _buildTheme({required bool isDarkMode}) {
     // For Dark Mode (Glassmorphism), we use a slightly deeper background to make the glass pop.
-    final baseColor = isDarkMode ? const Color(0xFF020617) : AppColors.neuBase;
-    final primaryColor = isDarkMode ? AppColors.accent : AppColors.primary;
+    final baseColor = isDarkMode ? AppColors.neuBaseDark : AppColors.neuBase;
+    final primaryColor = isDarkMode ? AppColors.primaryCyan : AppColors.primary;
     final textColor = isDarkMode
         ? AppColors.textPrimaryDark
         : AppColors.textPrimary;
@@ -31,57 +31,60 @@ class AppTheme {
       colorScheme: ColorScheme(
         brightness: isDarkMode ? Brightness.dark : Brightness.light,
         primary: primaryColor,
-        onPrimary: isDarkMode ? Colors.black : Colors.white,
+        onPrimary: Colors.white,
         secondary: AppColors.accent,
-        onSecondary: Colors.white,
-        surface: isDarkMode ? const Color(0xFF0F172A) : baseColor,
+        onSecondary: Colors.black,
+        surface: isDarkMode ? AppColors.neuLightDark : baseColor,
         onSurface: textColor,
         error: AppColors.error,
         onError: Colors.white,
       ),
-      textTheme: GoogleFonts.interTextTheme().copyWith(
-        displayLarge: GoogleFonts.playfairDisplay(
+      textTheme: GoogleFonts.plusJakartaSansTextTheme().copyWith(
+        displayLarge: GoogleFonts.plusJakartaSans(
+          color: textColor,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
+        ),
+        displayMedium: GoogleFonts.plusJakartaSans(
+          color: textColor,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
+        ),
+        displaySmall: GoogleFonts.plusJakartaSans(
           color: textColor,
           fontWeight: FontWeight.w700,
         ),
-        displayMedium: GoogleFonts.playfairDisplay(
+        headlineLarge: GoogleFonts.plusJakartaSans(
+          color: textColor,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
+        ),
+        headlineMedium: GoogleFonts.plusJakartaSans(
           color: textColor,
           fontWeight: FontWeight.w700,
         ),
-        displaySmall: GoogleFonts.playfairDisplay(
+        headlineSmall: GoogleFonts.plusJakartaSans(
           color: textColor,
           fontWeight: FontWeight.w700,
         ),
-        headlineLarge: GoogleFonts.playfairDisplay(
+        titleLarge: GoogleFonts.plusJakartaSans(
           color: textColor,
           fontWeight: FontWeight.w700,
         ),
-        headlineMedium: GoogleFonts.playfairDisplay(
-          color: textColor,
-          fontWeight: FontWeight.w700,
-        ),
-        headlineSmall: GoogleFonts.playfairDisplay(
+        titleMedium: GoogleFonts.plusJakartaSans(
           color: textColor,
           fontWeight: FontWeight.w600,
         ),
-        titleLarge: GoogleFonts.inter(
+        titleSmall: GoogleFonts.plusJakartaSans(
           color: textColor,
           fontWeight: FontWeight.w600,
         ),
-        titleMedium: GoogleFonts.inter(
+        bodyLarge: GoogleFonts.plusJakartaSans(color: textColor, fontSize: 16),
+        bodyMedium: GoogleFonts.plusJakartaSans(color: textColor, fontSize: 14),
+        bodySmall: GoogleFonts.plusJakartaSans(color: secondaryTextColor, fontSize: 12),
+        labelLarge: GoogleFonts.plusJakartaSans(
           color: textColor,
-          fontWeight: FontWeight.w600,
-        ),
-        titleSmall: GoogleFonts.inter(
-          color: textColor,
-          fontWeight: FontWeight.w500,
-        ),
-        bodyLarge: GoogleFonts.inter(color: textColor, fontSize: 16),
-        bodyMedium: GoogleFonts.inter(color: textColor, fontSize: 14),
-        bodySmall: GoogleFonts.inter(color: secondaryTextColor, fontSize: 12),
-        labelLarge: GoogleFonts.inter(
-          color: textColor,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           fontSize: 14,
         ),
       ),
@@ -94,10 +97,11 @@ class AppTheme {
             : SystemUiOverlayStyle.dark,
         iconTheme: IconThemeData(color: primaryColor),
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.playfairDisplay(
+        titleTextStyle: GoogleFonts.plusJakartaSans(
           color: primaryColor,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
           fontSize: 20,
+          letterSpacing: 0.5,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

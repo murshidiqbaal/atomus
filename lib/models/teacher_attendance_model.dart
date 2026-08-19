@@ -32,6 +32,10 @@ class TeacherAttendanceModel {
   final int? totalDurationMinutes;
   final double? latitude;
   final double? longitude;
+  final double? punchOutLatitude;
+  final double? punchOutLongitude;
+  final String? punchInLocation;
+  final String? punchOutLocation;
   final TeacherAttendanceStatus status;
   final DateTime createdAt;
   final String sessionType;
@@ -50,22 +54,29 @@ class TeacherAttendanceModel {
     int? totalDurationMinutes,
     this.latitude,
     this.longitude,
+    this.punchOutLatitude,
+    this.punchOutLongitude,
+    this.punchInLocation,
+    this.punchOutLocation,
     this.status = TeacherAttendanceStatus.active,
     DateTime? createdAt,
-    this.sessionType = 'forenoon',
+    this.sessionType = 'session',
   })  : totalDurationMinutes = (startTime != null && endTime != null
             ? endTime.difference(startTime).inMinutes
             : totalDurationMinutes),
         createdAt = createdAt ?? DateTime.now();
 
+  DateTime? get punchIn => startTime;
+  DateTime? get punchOut => endTime;
+
   factory TeacherAttendanceModel.fromMap(Map<String, dynamic> map) {
     final subject = map['subjects'] as Map<String, dynamic>?;
     final start = map['start_time'] != null
         ? _parseDateTime(map['start_time'])
-        : null;
+        : (map['punch_in'] != null ? _parseDateTime(map['punch_in']) : null);
     final end = map['end_time'] != null
         ? _parseDateTime(map['end_time'])
-        : null;
+        : (map['punch_out'] != null ? _parseDateTime(map['punch_out']) : null);
     final duration = (start != null && end != null)
         ? end.difference(start).inMinutes
         : (map['total_duration_minutes'] as int?);
@@ -82,14 +93,18 @@ class TeacherAttendanceModel {
       startTime:            start,
       endTime:              end,
       totalDurationMinutes: duration,
-      latitude:             (map['latitude'] as num?)?.toDouble(),
-      longitude:            (map['longitude'] as num?)?.toDouble(),
+      latitude:             (map['latitude'] as num?)?.toDouble() ?? (map['punch_in_latitude'] as num?)?.toDouble(),
+      longitude:            (map['longitude'] as num?)?.toDouble() ?? (map['punch_in_longitude'] as num?)?.toDouble(),
+      punchOutLatitude:     (map['punch_out_latitude'] as num?)?.toDouble(),
+      punchOutLongitude:    (map['punch_out_longitude'] as num?)?.toDouble(),
+      punchInLocation:      map['punch_in_location'] as String?,
+      punchOutLocation:     map['punch_out_location'] as String?,
       status:               TeacherAttendanceStatusX.fromString(
-                              map['attendance_status'] as String? ?? 'Active'),
+                              map['attendance_status'] as String? ?? (end != null ? 'Completed' : 'Active')),
       createdAt:            map['created_at'] != null
                               ? _parseDateTime(map['created_at'])
                               : DateTime.now(),
-      sessionType:          map['session_type'] as String? ?? 'forenoon',
+      sessionType:          map['session_type'] as String? ?? 'session',
     );
   }
 
@@ -115,23 +130,27 @@ class TeacherAttendanceModel {
 
   Map<String, dynamic> toInsertMap() {
     return {
-      'teacher_id':       teacherId,
-      if (campusId  != null) 'campus_id':  campusId,
-      if (subjectId != null) 'subject_id': subjectId,
-      if (courseId  != null) 'course_id':  courseId,
-      if (batchId   != null) 'batch_id':   batchId,
-      'attendance_date':  attendanceDate.toIso8601String().split('T').first,
-      if (startTime != null) 'start_time': startTime!.toUtc().toIso8601String(),
-      if (endTime   != null) 'end_time':   endTime!.toUtc().toIso8601String(),
-      if (latitude  != null) 'latitude':   latitude,
-      if (longitude != null) 'longitude':  longitude,
-      'attendance_status': status.value,
-      'session_type':     sessionType,
+      'teacher_id':          teacherId,
+      if (campusId  != null) 'campus_id':          campusId,
+      if (subjectId != null) 'subject_id':         subjectId,
+      if (courseId  != null) 'course_id':          courseId,
+      if (batchId   != null) 'batch_id':           batchId,
+      'attendance_date':     attendanceDate.toIso8601String().split('T').first,
+      if (startTime != null) 'start_time':         startTime!.toUtc().toIso8601String(),
+      if (endTime   != null) 'end_time':           endTime!.toUtc().toIso8601String(),
+      if (latitude  != null) 'latitude':           latitude,
+      if (longitude != null) 'longitude':          longitude,
+      if (punchOutLatitude  != null) 'punch_out_latitude':  punchOutLatitude,
+      if (punchOutLongitude != null) 'punch_out_longitude': punchOutLongitude,
+      if (punchInLocation   != null) 'punch_in_location':   punchInLocation,
+      if (punchOutLocation  != null) 'punch_out_location':  punchOutLocation,
+      'attendance_status':   status.value,
+      'session_type':        sessionType,
     };
   }
 
-  bool get isActive    => status == TeacherAttendanceStatus.active;
-  bool get isCompleted => status == TeacherAttendanceStatus.completed;
+  bool get isActive    => status == TeacherAttendanceStatus.active && endTime == null;
+  bool get isCompleted => status == TeacherAttendanceStatus.completed || endTime != null;
 
   bool get isLate {
     if (startTime == null) return false;
@@ -173,6 +192,9 @@ class TeacherAttendanceModel {
     DateTime? endTime,
     TeacherAttendanceStatus? status,
     int? totalDurationMinutes,
+    double? punchOutLatitude,
+    double? punchOutLongitude,
+    String? punchOutLocation,
     String? sessionType,
   }) {
     return TeacherAttendanceModel(
@@ -189,6 +211,10 @@ class TeacherAttendanceModel {
       totalDurationMinutes: totalDurationMinutes ?? this.totalDurationMinutes,
       latitude:             latitude,
       longitude:            longitude,
+      punchOutLatitude:     punchOutLatitude ?? this.punchOutLatitude,
+      punchOutLongitude:    punchOutLongitude ?? this.punchOutLongitude,
+      punchInLocation:      punchInLocation,
+      punchOutLocation:     punchOutLocation ?? this.punchOutLocation,
       status:               status ?? this.status,
       createdAt:            createdAt,
       sessionType:          sessionType ?? this.sessionType,

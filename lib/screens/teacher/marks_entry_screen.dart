@@ -1216,7 +1216,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                               );
                               context.read<MarksCubit>().updateMarks(
                                 entry.studentId,
-                                null,
+                                0.0,
                               );
                               return;
                             }

@@ -22,84 +22,84 @@ class AppBackground extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: isDark
                     ? [
-                        const Color(0xFF0F172A), // Deep Slate
-                        const Color(0xFF1E1B4B), // Deep Purple
-                        const Color(0xFF020617), // Very Dark Slate
+                        const Color(0xFF080E1E), // Cosmic Deep Space Navy
+                        const Color(0xFF0D182E), // Atom Quantum Slate
+                        const Color(0xFF040814), // Deep Void
                       ]
                     : [
-                        const Color(0xFFF1F5F9), // Light Slate
-                        const Color(0xFFE2E8F0), // Lighter Slate
-                        const Color(0xFFF8FAFC), // Off white
+                        const Color(0xFFF0F7FF), // Atom Crystal Ice Light
+                        const Color(0xFFE2EFFE), // Soft Quantum Ice Tint
+                        const Color(0xFFF8FAFC), // Crisp White Slate
                       ],
               ),
             ),
           ),
         ),
-        // Add some glowing orbs for the mesh effect (Dark Mode)
+        // Quantum glowing orbs for dark mode (Cyan & Gold Orbit Glow)
         if (isDark) ...[
           Positioned(
-            top: -100,
-            left: -100,
+            top: -90,
+            left: -90,
             child: Container(
-              width: 300,
-              height: 300,
+              width: 320,
+              height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accent.withOpacity(0.15),
+                color: AppColors.primaryCyan.withValues(alpha: 0.18),
               ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
                 child: Container(color: Colors.transparent),
               ),
             ),
           ),
           Positioned(
-            bottom: -50,
-            right: -100,
+            bottom: -80,
+            right: -80,
             child: Container(
-              width: 400,
-              height: 400,
+              width: 380,
+              height: 380,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF4C1D95).withOpacity(0.2), // Purple tint
+                color: AppColors.accent.withValues(alpha: 0.12), // Gold ring glow
               ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
                 child: Container(color: Colors.transparent),
               ),
             ),
           ),
         ],
-        // Add subtle light orbs for the mesh effect (Light Mode)
+        // Quantum glowing orbs for light mode
         if (!isDark) ...[
           Positioned(
-            top: -50,
-            right: -50,
+            top: -60,
+            right: -60,
             child: Container(
-              width: 250,
-              height: 250,
+              width: 280,
+              height: 280,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentLight.withOpacity(0.4),
+                color: AppColors.primaryCyan.withValues(alpha: 0.15),
               ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                filter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
                 child: Container(color: Colors.transparent),
               ),
             ),
           ),
           Positioned(
-            bottom: -100,
-            left: -100,
+            bottom: -90,
+            left: -90,
             child: Container(
-              width: 350,
-              height: 350,
+              width: 340,
+              height: 340,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF93C5FD).withOpacity(0.3), // Blue tint
+                color: AppColors.accentLight.withValues(alpha: 0.45),
               ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                filter: ImageFilter.blur(sigmaX: 65, sigmaY: 65),
                 child: Container(color: Colors.transparent),
               ),
             ),

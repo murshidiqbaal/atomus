@@ -10,7 +10,8 @@ class TeacherAttendanceRepository {
 
   TeacherAttendanceRepository({required TeacherHiveService hive}) : _hive = hive;
 
-  // Start a teacher attendance session. Prevents duplicate active sessions.
+  /// Start a teacher attendance session.
+  /// Strictly prevents creating another session if an open session currently exists.
   Future<TeacherAttendanceModel> startSession({
     required String teacherId,
     required String? campusId,
@@ -19,27 +20,17 @@ class TeacherAttendanceRepository {
     required String? batchId,
     required double? latitude,
     required double? longitude,
-    required String sessionType,
+    String? sessionType,
   }) async {
     final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
     final now   = dbUtc.toLocal();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Time-based session guards
-    if (sessionType == 'forenoon' && now.hour >= 12) {
-      throw Exception('Cannot mark attendance for forenoon at this time.');
+    // Guard: block if an active (open) session already exists
+    final active = await fetchTodayActiveSession(teacherId);
+    if (active != null) {
+      throw Exception('OPEN_SESSION_EXISTS: You already have an active attendance session. Please punch out before starting another session.');
     }
-    if (sessionType == 'afternoon' && now.hour < 12) {
-      throw Exception('Cannot mark attendance for afternoon at this time.');
-    }
-
-    // Guard: block if an active session already exists in DB
-    final existing = await fetchTodayActiveSession(teacherId, sessionType);
-    if (existing != null) return existing;
-
-    // Guard: block if a completed session already exists in DB
-    final completed = await fetchTodayCompletedSession(teacherId, sessionType);
-    if (completed != null) return completed;
 
     final record = TeacherAttendanceModel(
       teacherId:      teacherId,
@@ -52,27 +43,59 @@ class TeacherAttendanceRepository {
       latitude:       latitude,
       longitude:      longitude,
       status:         TeacherAttendanceStatus.active,
-      sessionType:    sessionType,
+      sessionType:    sessionType ?? 'session',
     );
+
+    // Try RPC first for atomic DB-level validation
+    try {
+      final response = await _supabase.rpc('fn_teacher_punch_in', params: {
+        'p_teacher_id': teacherId,
+        'p_campus_id': campusId,
+        'p_subject_id': subjectId,
+        'p_course_id': courseId,
+        'p_batch_id': batchId,
+        'p_latitude': latitude,
+        'p_longitude': longitude,
+      });
+
+      if (response != null && (response as List).isNotEmpty) {
+        final saved = TeacherAttendanceModel.fromMap(response.first as Map<String, dynamic>);
+        await _hive.saveActiveSession(saved.toInsertMap()..['id'] = saved.id);
+        return saved;
+      }
+    } catch (rpcErr) {
+      final errStr = rpcErr.toString();
+      if (errStr.contains('OPEN_SESSION_EXISTS')) {
+        rethrow;
+      }
+      // RPC not deployed yet or offline: fallback to standard query
+    }
 
     try {
       final inserted = await _supabase
           .from('teacher_attendance')
-          .upsert(record.toInsertMap(), onConflict: 'teacher_id,attendance_date,session_type')
+          .insert(record.toInsertMap())
           .select()
           .single();
       final saved = TeacherAttendanceModel.fromMap(inserted);
       await _hive.saveActiveSession(saved.toInsertMap()..['id'] = saved.id);
       return saved;
-    } catch (_) {
-      // Offline: persist to pending queue and active session cache
+    } catch (e) {
+      final errStr = e.toString();
+      if (errStr.contains('PostgrestException') ||
+          errStr.contains('constraint') ||
+          errStr.contains('violates') ||
+          errStr.contains('OPEN_SESSION_EXISTS')) {
+        rethrow;
+      }
+      // Offline fallback: persist to pending queue and active session cache
       await _hive.savePendingTeacherAttendance(record.toInsertMap());
       await _hive.saveActiveSession(record.toInsertMap());
       return record;
     }
   }
 
-  // End the active session and clear from Hive.
+  /// End the active session and clear active state from Hive.
   Future<TeacherAttendanceModel> endSession(TeacherAttendanceModel active) async {
     final dbUtc    = await AttendanceDateValidator.getDatabaseUtcTime();
     final now      = dbUtc.toLocal();
@@ -80,42 +103,32 @@ class TeacherAttendanceRepository {
         ? now.difference(active.startTime!).inMinutes
         : 0;
 
-    final updated  = active.copyWith(
+    final updated = active.copyWith(
       endTime:              now,
       status:               TeacherAttendanceStatus.completed,
       totalDurationMinutes: duration > 0 ? duration : 0,
     );
 
-    // total_duration_minutes is a GENERATED column in Postgres -- it is
-    // computed automatically from start_time/end_time. Never write to it.
+    // Try RPC for atomic server-side punch out
+    try {
+      final response = await _supabase.rpc('fn_teacher_punch_out', params: {
+        'p_teacher_id': active.teacherId,
+        'p_session_id': active.id,
+      });
+      if (response != null && (response as List).isNotEmpty) {
+        await _hive.clearActiveSession();
+        return TeacherAttendanceModel.fromMap(response.first as Map<String, dynamic>);
+      }
+    } catch (_) {
+      // RPC fallback to direct query
+    }
+
     final updatePayload = {
       'end_time':          now.toUtc().toIso8601String(),
       'attendance_status': TeacherAttendanceStatus.completed.value,
     };
 
-    final dateStr = active.attendanceDate.toIso8601String().split('T').first;
-
-    // Resolve the row id. If the in-memory model lost it (e.g. restored
-    // from offline cache), look it up by (teacher_id, attendanceDate, Active, sessionType).
     String? rowId = active.id;
-    if (rowId == null) {
-      try {
-        final rows = await _supabase
-            .from('teacher_attendance')
-            .select('id')
-            .eq('teacher_id', active.teacherId)
-            .eq('attendance_date', dateStr)
-            .eq('attendance_status', 'Active')
-            .eq('session_type', active.sessionType)
-            .limit(1);
-        if (rows.isNotEmpty) {
-          rowId = rows.first['id'] as String?;
-        }
-      } catch (_) {
-        // ignore; handled below
-      }
-    }
-
     try {
       List<dynamic> result = [];
       if (rowId != null) {
@@ -126,27 +139,24 @@ class TeacherAttendanceRepository {
             .select();
       }
 
-      // Fallback 1: Update by session query criteria if rowId update matched 0 rows
       if (result.isEmpty) {
+        final dateStr = active.attendanceDate.toIso8601String().split('T').first;
         result = await _supabase
             .from('teacher_attendance')
             .update(updatePayload)
             .eq('teacher_id', active.teacherId)
             .eq('attendance_date', dateStr)
-            .eq('attendance_status', 'Active')
-            .eq('session_type', active.sessionType)
+            .filter('end_time', 'is', null)
             .select();
       }
 
-      // Fallback 2: Upsert full updated record if active row wasn't present in DB yet (e.g. offline punch-in)
       if (result.isEmpty) {
         result = await _supabase
             .from('teacher_attendance')
-            .upsert(updated.toInsertMap(), onConflict: 'teacher_id,attendance_date,session_type')
+            .upsert(updated.toInsertMap())
             .select();
       }
     } catch (e) {
-      // Persist for retry when online connection/sync completes
       await _hive.savePendingTeacherAttendance(updated.toInsertMap());
     }
 
@@ -154,23 +164,21 @@ class TeacherAttendanceRepository {
     return updated;
   }
 
+  /// Fetch teacher's currently OPEN session (punch_out / end_time IS NULL).
   Future<TeacherAttendanceModel?> fetchTodayActiveSession(String teacherId, [String? sessionType]) async {
     try {
       final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
       final now   = dbUtc.toLocal();
       final today = now.toIso8601String().split('T').first;
-      var query = _supabase
+
+      final rows = await _supabase
           .from('teacher_attendance')
           .select('*, subjects(name)')
           .eq('teacher_id', teacherId)
           .eq('attendance_date', today)
-          .eq('attendance_status', 'Active');
-
-      if (sessionType != null) {
-        query = query.eq('session_type', sessionType);
-      }
-      
-      final rows = await query.limit(1);
+          .filter('end_time', 'is', null)
+          .order('start_time', ascending: false)
+          .limit(1);
 
       if (rows.isEmpty) {
         await _hive.clearActiveSession();
@@ -191,7 +199,7 @@ class TeacherAttendanceRepository {
               })
               .eq('id', session.id!);
           await _hive.clearActiveSession();
-          return null; // Active session automatically completed
+          return null;
         }
       }
 
@@ -203,10 +211,7 @@ class TeacherAttendanceRepository {
       if (cached == null) return null;
       try {
         final model = TeacherAttendanceModel.fromMap(cached);
-        if (sessionType != null && model.sessionType != sessionType) {
-          return null;
-        }
-        if (model.startTime != null) {
+        if (model.startTime != null && model.endTime == null) {
           final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
           final now   = dbUtc.toLocal();
           final elapsed = now.difference(model.startTime!).inMinutes;
@@ -223,31 +228,41 @@ class TeacherAttendanceRepository {
     }
   }
 
-  // Fetch today's most recent completed session.
-  Future<TeacherAttendanceModel?> fetchTodayCompletedSession(String teacherId, [String? sessionType]) async {
-    final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
-    final now   = dbUtc.toLocal();
-    final type  = sessionType ?? (now.hour >= 12 ? 'afternoon' : 'forenoon');
+  /// Alias for fetchTodayActiveSession.
+  Future<TeacherAttendanceModel?> fetchOpenSession(String teacherId) =>
+      fetchTodayActiveSession(teacherId);
+
+  /// Fetch ALL attendance sessions for today, sorted chronologically.
+  Future<List<TeacherAttendanceModel>> fetchTodaySessions(String teacherId) async {
     try {
+      final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
+      final now   = dbUtc.toLocal();
       final today = now.toIso8601String().split('T').first;
-      final rows  = await _supabase
+
+      final rows = await _supabase
           .from('teacher_attendance')
           .select('*, subjects(name)')
           .eq('teacher_id', teacherId)
           .eq('attendance_date', today)
-          .eq('attendance_status', 'Completed')
-          .eq('session_type', type)
-          .order('end_time', ascending: false)
-          .limit(1);
+          .order('start_time', ascending: true);
 
-      if (rows.isEmpty) return null;
-      return TeacherAttendanceModel.fromMap(rows.first);
+      return (rows as List)
+          .map((r) => TeacherAttendanceModel.fromMap(r as Map<String, dynamic>))
+          .toList();
     } catch (_) {
-      return null;
+      return [];
     }
   }
 
-  // History for a date range.
+  /// Fetch today's most recent completed session (legacy compatibility helper).
+  Future<TeacherAttendanceModel?> fetchTodayCompletedSession(String teacherId, [String? sessionType]) async {
+    final todaySessions = await fetchTodaySessions(teacherId);
+    final completed = todaySessions.where((s) => s.isCompleted).toList();
+    if (completed.isEmpty) return null;
+    return completed.last;
+  }
+
+  /// History for a date range.
   Future<List<TeacherAttendanceModel>> fetchHistory({
     required String teacherId,
     required DateTime from,
@@ -260,7 +275,8 @@ class TeacherAttendanceRepository {
           .eq('teacher_id', teacherId)
           .gte('attendance_date', from.toIso8601String().split('T').first)
           .lte('attendance_date', to.toIso8601String().split('T').first)
-          .order('attendance_date', ascending: false);
+          .order('attendance_date', ascending: false)
+          .order('start_time', ascending: true);
 
       return (rows as List)
           .map((r) => TeacherAttendanceModel.fromMap(r as Map<String, dynamic>))
@@ -270,26 +286,52 @@ class TeacherAttendanceRepository {
     }
   }
 
+  /// Calculate monthly attendance percentage where a day is present if >= 1 session was completed.
   Future<double> fetchMonthlyAttendancePercentage(String teacherId) async {
     try {
       final dbUtc = await AttendanceDateValidator.getDatabaseUtcTime();
       final now   = dbUtc.toLocal();
       final from  = DateTime(now.year, now.month, 1);
       final to    = DateTime(now.year, now.month + 1, 0);
-      final rows  = await _supabase
+
+      final rows = await _supabase
           .from('teacher_attendance')
-          .select('attendance_status')
+          .select('attendance_date, attendance_status, end_time')
           .eq('teacher_id', teacherId)
           .gte('attendance_date', from.toIso8601String().split('T').first)
           .lte('attendance_date', to.toIso8601String().split('T').first);
 
       if (rows.isEmpty) return 0;
-      final total     = (rows as List).length;
-      final completed = rows.where((r) =>
-          r['attendance_status'] == 'Completed').length;
-      return total > 0 ? (completed / total) * 100 : 0;
+
+      final Set<String> presentDays = {};
+      final Set<String> totalDays   = {};
+
+      for (final r in rows as List) {
+        final dateStr = r['attendance_date'] as String;
+        totalDays.add(dateStr);
+        final status = r['attendance_status'] as String?;
+        final endTime = r['end_time'];
+        if (status == 'Completed' || endTime != null) {
+          presentDays.add(dateStr);
+        }
+      }
+
+      if (totalDays.isEmpty) return 0;
+      return (presentDays.length / totalDays.length) * 100;
     } catch (_) {
       return 0;
     }
+  }
+
+  /// Calculate today's total completed working duration in minutes.
+  Future<int> fetchTodayTotalMinutes(String teacherId) async {
+    final todaySessions = await fetchTodaySessions(teacherId);
+    int total = 0;
+    for (final s in todaySessions) {
+      if (s.isCompleted && s.totalDurationMinutes != null) {
+        total += s.totalDurationMinutes!;
+      }
+    }
+    return total;
   }
 }

@@ -60,7 +60,7 @@ void main() {
     });
   });
 
-  group('TeacherAttendanceModel Tests', () {
+  group('TeacherAttendanceModel Multi-Session Tests', () {
     test('isLate detects punch-in after 10:00 AM local time', () {
       final today = DateTime.now();
 
@@ -127,49 +127,60 @@ void main() {
       expect(longSession.totalDurationMinutes, 135);
     });
 
-    test('sessionType defaults to forenoon and can be customized', () {
-      final defaultSession = TeacherAttendanceModel(
-        teacherId: 't1',
-        attendanceDate: DateTime.now(),
-      );
-      expect(defaultSession.sessionType, 'forenoon');
-
-      final afternoonSession = TeacherAttendanceModel(
-        teacherId: 't1',
-        attendanceDate: DateTime.now(),
-        sessionType: 'afternoon',
-      );
-      expect(afternoonSession.sessionType, 'afternoon');
-    });
-
-    test('toInsertMap and fromMap handle session_type correctly', () {
+    test('multiple sessions on same day calculate total working time', () {
       final today = DateTime.now();
-      final model = TeacherAttendanceModel(
+      final s1 = TeacherAttendanceModel(
+        id: 's1',
         teacherId: 't1',
         attendanceDate: today,
-        sessionType: 'afternoon',
+        startTime: DateTime(today.year, today.month, today.day, 9, 0),
+        endTime: DateTime(today.year, today.month, today.day, 10, 0),
+        status: TeacherAttendanceStatus.completed,
+      );
+      final s2 = TeacherAttendanceModel(
+        id: 's2',
+        teacherId: 't1',
+        attendanceDate: today,
+        startTime: DateTime(today.year, today.month, today.day, 11, 0),
+        endTime: DateTime(today.year, today.month, today.day, 12, 30),
+        status: TeacherAttendanceStatus.completed,
+      );
+      final s3 = TeacherAttendanceModel(
+        id: 's3',
+        teacherId: 't1',
+        attendanceDate: today,
+        startTime: DateTime(today.year, today.month, today.day, 14, 0),
+        endTime: DateTime(today.year, today.month, today.day, 15, 0),
+        status: TeacherAttendanceStatus.completed,
       );
 
-      final map = model.toInsertMap();
-      expect(map['session_type'], 'afternoon');
+      final sessions = [s1, s2, s3];
+      int totalMinutes = 0;
+      for (final s in sessions) {
+        if (s.isCompleted && s.totalDurationMinutes != null) {
+          totalMinutes += s.totalDurationMinutes!;
+        }
+      }
 
-      final fromMapModel = TeacherAttendanceModel.fromMap({
-        'teacher_id': 't1',
-        'attendance_date': today.toIso8601String().split('T').first,
-        'session_type': 'afternoon',
-      });
-      expect(fromMapModel.sessionType, 'afternoon');
+      expect(totalMinutes, 210); // 60 + 90 + 60 = 210 minutes = 3h 30m
+      expect(s1.isActive, false);
+      expect(s1.isCompleted, true);
     });
 
-    test('auto punch-out threshold identifies session exceeding 4 hours', () {
-      final now = DateTime.now();
-      final startTime = now.subtract(const Duration(hours: 4, minutes: 1));
-      final elapsed = now.difference(startTime).inMinutes;
+    test('open session status identifies active punch-in without end_time', () {
+      final today = DateTime.now();
+      final activeSession = TeacherAttendanceModel(
+        id: 's4',
+        teacherId: 't1',
+        attendanceDate: today,
+        startTime: today.subtract(const Duration(minutes: 30)),
+        endTime: null,
+        status: TeacherAttendanceStatus.active,
+      );
 
-      expect(elapsed >= 240, true);
-
-      final autoEndTime = startTime.add(const Duration(hours: 4));
-      expect(autoEndTime.difference(startTime).inMinutes, 240);
+      expect(activeSession.isActive, true);
+      expect(activeSession.isCompleted, false);
+      expect(activeSession.punchOut, null);
     });
   });
 }

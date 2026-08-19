@@ -152,19 +152,35 @@ class MainLayoutState extends State<MainLayout> {
           children: [
             DrawerHeader(
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.15),
+                    AppColors.primaryCyan.withValues(alpha: 0.05),
+                  ],
+                ),
               ),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const NeuBox(
-                      width: 60,
-                      height: 60,
-                      borderRadius: 15,
-                      child: Icon(
-                        Icons.admin_panel_settings,
-                        color: AppColors.primary,
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryCyan.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/app_icon/appicon.webp',
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -173,7 +189,8 @@ class MainLayoutState extends State<MainLayout> {
                       style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 1.5,
+                        fontSize: 18,
+                        letterSpacing: 2.0,
                       ),
                     ),
                   ],

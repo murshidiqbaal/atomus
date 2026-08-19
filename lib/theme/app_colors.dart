@@ -1,41 +1,41 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // ─── Neumorphic Base (Light) ────────────────────────────────────────────────
-  static const Color neuBase = Color(0xFFE8E3DC);
+  // ─── Neumorphic Base (Light Mode - Atom Crystal Ice) ──────────────────────
+  static const Color neuBase = Color(0xFFEEF5FC);
   static const Color neuLight = Color(0xFFFFFFFF); // highlight
-  static const Color neuDark = Color(0xFFC4BFB8); // shadow
+  static const Color neuDark = Color(0xFFCFDCED); // soft shadow
 
-  // ─── Neumorphic Base (Dark) ─────────────────────────────────────────────────
-  static const Color neuBaseDark = Color(0xFF0F172A); // Deeper Slate 900
-  static const Color neuLightDark = Color(0xFF1E293B); // Slate 800 (highlight)
-  static const Color neuDarkDark = Color(0xFF020617); // Slate 950 (shadow)
+  // ─── Neumorphic Base (Dark Mode - Quantum Cosmic Space) ────────────────────
+  static const Color neuBaseDark = Color(0xFF0A1224); // Quantum Cosmic Deep Space
+  static const Color neuLightDark = Color(0xFF14223D); // Highlight tint
+  static const Color neuDarkDark = Color(0xFF040814); // Deep space shadow
 
-  // ─── Glassmorphism (Dark Mode) ──────────────────────────────────────────────
-  static const Color glassBase = Color(0x1AFFFFFF); // Very translucent white
-  static const Color glassBorder = Color(0x33FFFFFF); // Subtle white border
-  static const Color glassHighlight = Color(
-    0x4DFFFFFF,
-  ); // For shimmer/reflection
+  // ─── Glassmorphism (Dark Mode - Cyan & Gold Tinted) ─────────────────────────
+  static const Color glassBase = Color(0x1A0072FF); // Translucent Quantum Cyan-Blue
+  static const Color glassBorder = Color(0x3300C3FF); // Glowing Atom Cyan border
+  static const Color glassHighlight = Color(0x4D00C3FF); // Shimmer highlight
 
-  // ─── Brand ──────────────────────────────────────────────────────────────────
-  static const Color primary = Color(0xFF4F46E5); // premium indigo
-  static const Color primaryDark = Color(0xFFE2E8F0); // light slate for text
-  static const Color accent = Color(0xFFF59E0B); // premium amber gold
-  static const Color accentLight = Color(0xFFFDE68A); // pale amber tint
+  // ─── Brand (Atom Logo Palette) ──────────────────────────────────────────────
+  static const Color primary = Color(0xFF0072FF); // Electric Atom Blue
+  static const Color primaryCyan = Color(0xFF00C3FF); // Atom Nucleus Cyan Core
+  static const Color primaryDark = Color(0xFFE2E8F0); // Light text on dark bg
+  static const Color accent = Color(0xFFFFB800); // Orbit Metallic Gold
+  static const Color accentLight = Color(0xFFFEF3C7); // Amber gold tint
+  static const Color accentGlow = Color(0xFFFBBF24); // Bright gold glow
 
-  // ─── Text ────────────────────────────────────────────────────────────────────
-  static const Color textPrimary = Color(0xFF1E293B); // Slate 800
+  // ─── Text ───────────────────────────────────────────────────────────────────
+  static const Color textPrimary = Color(0xFF0F172A); // Deep Slate 900
   static const Color textPrimaryDark = Color(0xFFF8FAFC);
-  static const Color textSecondary = Color(0xFF64748B); // Slate 500
+  static const Color textSecondary = Color(0xFF475569); // Slate 600
   static const Color textSecondaryDark = Color(0xFF94A3B8);
   static const Color textOnDark = Color(0xFFF8FAFC);
 
-  // ─── Status ──────────────────────────────────────────────────────────────────
-  static const Color success = Color(0xFF10B981); // emerald (present)
-  static const Color warning = Color(0xFFF59E0B); // amber (late/leave)
-  static const Color error = Color(0xFFF43F5E); // rose (absent)
-  static const Color info = Color(0xFF0EA5E9); // sky blue (info)
+  // ─── Status ─────────────────────────────────────────────────────────────────
+  static const Color success = Color(0xFF10B981); // Emerald (Present)
+  static const Color warning = Color(0xFFFFB800); // Orbit Amber Gold (Late/Leave)
+  static const Color error = Color(0xFFF43F5E); // Rose (Absent)
+  static const Color info = Color(0xFF00C3FF); // Atom Cyan Info
 
   // ─── Neumorphic BoxShadow helpers ────────────────────────────────────────────
   static List<BoxShadow> neuRaisedShadow({

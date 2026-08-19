@@ -21,7 +21,7 @@ class AttendanceService {
     required String? subjectId,
     required String? courseId,
     required String? batchId,
-    required String sessionType,
+    String? sessionType,
     required CampusProvider campusProvider,
   }) async {
     // 1. Detect matched campus based on current geofence
@@ -57,7 +57,7 @@ class AttendanceService {
       batchId: batchId,
       latitude: position.latitude,
       longitude: position.longitude,
-      sessionType: sessionType,
+      sessionType: sessionType ?? 'session',
     );
 
     // 4. Update current working campus in provider

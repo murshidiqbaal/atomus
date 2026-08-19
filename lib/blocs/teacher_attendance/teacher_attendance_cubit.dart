@@ -16,66 +16,89 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
        _attendanceService = attendanceService,
        super(const TeacherAttendanceState());
 
-  Future<void> loadTodaySession(String teacherId, {String? sessionType}) async {
-    final type = sessionType ?? state.sessionType;
-    emit(
-      state.copyWith(
-        status: TeacherAttendanceLoadStatus.loading,
-        sessionType: type,
-      ),
-    );
+  /// Loads current open session, today's session list, and total working minutes for today.
+  Future<void> loadTodayAttendance(String teacherId) async {
+    emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading));
     try {
-      final session = await _repo.fetchTodayActiveSession(teacherId, type);
-      final resolvedType = session != null ? session.sessionType : type;
-
-      final completed = session == null
-          ? await _repo.fetchTodayCompletedSession(teacherId, resolvedType)
-          : null;
+      final open = await _repo.fetchOpenSession(teacherId);
+      final todayList = await _repo.fetchTodaySessions(teacherId);
       final pct = await _repo.fetchMonthlyAttendancePercentage(teacherId);
+
+      int totalMinutes = 0;
+      for (final s in todayList) {
+        if (s.isCompleted && s.totalDurationMinutes != null) {
+          totalMinutes += s.totalDurationMinutes!;
+        }
+      }
+
       emit(
         state.copyWith(
           status: TeacherAttendanceLoadStatus.success,
-          activeSession: session,
-          completedSession: completed,
-          clearSession: session == null,
-          clearCompleted: completed == null,
+          openSession: open,
+          clearOpenSession: open == null,
+          todaySessions: todayList,
+          todayTotalMinutes: totalMinutes,
           monthlyPercentage: pct,
-          sessionType: resolvedType,
+          isPunchingIn: false,
+          isPunchingOut: false,
         ),
       );
     } catch (e) {
       emit(
         state.copyWith(
           status: TeacherAttendanceLoadStatus.failure,
-          errorMessage: e.toString(),
+          errorMessage: e.toString().replaceFirst('Exception: ', ''),
+          isPunchingIn: false,
+          isPunchingOut: false,
         ),
       );
     }
   }
 
+  /// Backward compatibility alias for loadTodayAttendance.
+  Future<void> loadTodaySession(String teacherId, {String? sessionType}) =>
+      loadTodayAttendance(teacherId);
+
+  /// Punch In to create a new session. Strictly blocked if an open session exists.
   Future<void> startSession({
     required String teacherId,
     required String? subjectId,
     required String? courseId,
     required String? batchId,
-    required String sessionType,
+    String? sessionType,
     required CampusProvider campusProvider,
   }) async {
-    emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading));
+    if (state.isPunchingIn || state.hasOpenSession) return;
+
+    emit(state.copyWith(
+      status: TeacherAttendanceLoadStatus.loading,
+      isPunchingIn: true,
+    ));
     try {
       final session = await _attendanceService.punchIn(
         teacherId: teacherId,
         subjectId: subjectId,
         courseId: courseId,
         batchId: batchId,
-        sessionType: sessionType,
+        sessionType: sessionType ?? 'session',
         campusProvider: campusProvider,
       );
+
+      final todayList = await _repo.fetchTodaySessions(teacherId);
+      int totalMinutes = 0;
+      for (final s in todayList) {
+        if (s.isCompleted && s.totalDurationMinutes != null) {
+          totalMinutes += s.totalDurationMinutes!;
+        }
+      }
+
       emit(
         state.copyWith(
           status: TeacherAttendanceLoadStatus.success,
-          activeSession: session,
-          clearCompleted: true,
+          openSession: session,
+          todaySessions: todayList,
+          todayTotalMinutes: totalMinutes,
+          isPunchingIn: false,
         ),
       );
     } catch (e) {
@@ -83,25 +106,38 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
         state.copyWith(
           status: TeacherAttendanceLoadStatus.failure,
           errorMessage: e.toString().replaceFirst('Exception: ', ''),
+          isPunchingIn: false,
         ),
       );
     }
   }
 
+  /// End (Punch Out) the currently open attendance session.
   Future<void> endSession() async {
-    final active = state.activeSession;
-    if (active == null || !active.isActive) return;
+    final active = state.openSession;
+    if (active == null || !active.isActive || state.isPunchingOut) return;
 
-    emit(state.copyWith(status: TeacherAttendanceLoadStatus.loading));
+    emit(state.copyWith(
+      status: TeacherAttendanceLoadStatus.loading,
+      isPunchingOut: true,
+    ));
     try {
-      final completed = await _repo.endSession(active);
-      final history = [completed, ...state.history];
+      await _repo.endSession(active);
+      final todayList = await _repo.fetchTodaySessions(active.teacherId);
+      int totalMinutes = 0;
+      for (final s in todayList) {
+        if (s.isCompleted && s.totalDurationMinutes != null) {
+          totalMinutes += s.totalDurationMinutes!;
+        }
+      }
+
       emit(
         state.copyWith(
           status: TeacherAttendanceLoadStatus.success,
-          clearSession: true,
-          completedSession: completed,
-          history: history,
+          clearOpenSession: true,
+          todaySessions: todayList,
+          todayTotalMinutes: totalMinutes,
+          isPunchingOut: false,
         ),
       );
     } catch (e) {
@@ -109,11 +145,16 @@ class TeacherAttendanceCubit extends Cubit<TeacherAttendanceState> {
         state.copyWith(
           status: TeacherAttendanceLoadStatus.failure,
           errorMessage: e.toString().replaceFirst('Exception: ', ''),
+          isPunchingOut: false,
         ),
       );
     }
   }
 
+  /// Alias for endSession.
+  Future<void> punchOut() => endSession();
+
+  /// Load historical sessions for selected date range / month.
   Future<void> loadHistory(String teacherId, {DateTime? month}) async {
     final ref = month ?? DateTime.now();
     final from = DateTime(ref.year, ref.month, 1);
